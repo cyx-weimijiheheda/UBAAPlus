@@ -7,9 +7,7 @@ import cn.edu.ubaa.plus.api.storage.AnnouncementReadStore
 import cn.edu.ubaa.plus.api.storage.AuthTokensStore
 import cn.edu.ubaa.plus.api.storage.BykcCourseFilterStore
 import cn.edu.ubaa.plus.api.storage.CgyyReservationFormStore
-import cn.edu.ubaa.plus.api.storage.ClientIdStore
 import cn.edu.ubaa.plus.api.storage.CredentialStore
-import cn.edu.ubaa.plus.api.storage.DisclaimerStore
 import cn.edu.ubaa.plus.api.storage.GradeScoreCacheStore
 import cn.edu.ubaa.plus.api.storage.YgdkReminderStore
 import cn.edu.ubaa.plus.repository.ScheduleStore
@@ -27,7 +25,6 @@ import com.russhwolf.settings.MapSettings
 object TestSettings {
   fun installInMemorySettings() {
     AuthTokensStore.settings = MapSettings()
-    ClientIdStore.settings = MapSettings()
     CredentialStore.settings = MapSettings()
     ConnectionModeStore.settings = MapSettings()
     ScheduleStore.settings = MapSettings()
@@ -38,6 +35,5 @@ object TestSettings {
     YgdkReminderStore.settings = MapSettings()
     LocalAuthSessionStore.settings = MapSettings()
     LocalCookieStore.settings = MapSettings()
-    DisclaimerStore.settings = MapSettings()
   }
 }

@@ -49,7 +49,6 @@ class LocalScheduleRealIntegrationTest {
         try {
           ConnectionModeStore.settings = MapSettings()
           AuthTokensStore.settings = MapSettings()
-          ClientIdStore.settings = MapSettings()
           GradeScoreCacheStore.settings = MapSettings()
           LocalAuthSessionStore.settings = MapSettings()
           LocalCookieStore.settings = MapSettings()

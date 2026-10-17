@@ -8,7 +8,6 @@ import cn.edu.ubaa.plus.api.local.LocalCookieStore
 import cn.edu.ubaa.plus.api.local.LocalJudgeApiCache
 import cn.edu.ubaa.plus.api.local.LocalUpstreamClientProvider
 import cn.edu.ubaa.plus.api.storage.AuthTokensStore
-import cn.edu.ubaa.plus.api.storage.ClientIdStore
 import cn.edu.ubaa.plus.api.storage.CredentialStore
 import cn.edu.ubaa.plus.api.storage.GradeScoreCacheStore
 import cn.edu.ubaa.plus.repository.GlobalTermRepository
@@ -31,11 +30,6 @@ enum class ConnectionMode(
       storageKey = "webvpn",
       displayName = "WebVPN模式",
       description = "通过北航 WebVPN 访问上游。",
-  ),
-  SERVER_RELAY(
-      storageKey = "server_relay",
-      displayName = "服务器中转模式",
-      description = "使用 UBAAPlus 服务端代理访问。",
   );
 
   companion object {
@@ -105,7 +99,6 @@ object ConnectionRuntime {
 
   fun resetSession() {
     AuthTokensStore.clearAllScopes()
-    ClientIdStore.clearAllScopes()
     GradeScoreCacheStore.clearAllScopes()
     LocalAuthSessionStore.clearAllScopes()
     LocalCookieStore.clearAllScopes()
@@ -128,7 +121,7 @@ internal object ModeScopedSessionStore {
   private const val LEGACY_PREFIX = ""
 
   fun scopedKey(key: String, mode: ConnectionMode? = ConnectionModeStore.get()): String {
-    val effectiveMode = mode ?: ConnectionMode.SERVER_RELAY
+    val effectiveMode = mode ?: ConnectionMode.DIRECT
     return "mode_${effectiveMode.storageKey}_$key"
   }
 

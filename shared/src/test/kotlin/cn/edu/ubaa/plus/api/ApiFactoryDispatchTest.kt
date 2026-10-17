@@ -5,7 +5,6 @@ import cn.edu.ubaa.plus.api.auth.AuthServiceBackend
 import cn.edu.ubaa.plus.api.auth.UserServiceBackend
 import cn.edu.ubaa.plus.api.core.ApiFactory
 import cn.edu.ubaa.plus.api.core.DefaultApiFactory
-import cn.edu.ubaa.plus.api.core.RelayApiFactory
 import cn.edu.ubaa.plus.api.feature.BykcApiBackend
 import cn.edu.ubaa.plus.api.feature.CgyyApiBackend
 import cn.edu.ubaa.plus.api.feature.ClassroomApiBackend
@@ -51,14 +50,14 @@ class ApiFactoryDispatchTest {
   fun setup() {
     // Settings() 在 Android 单元测试里拿不到 Application context，注入内存实现
     TestSettings.installInMemorySettings()
-    ConnectionRuntime.apiFactoryProvider = { RelayApiFactory }
+    ConnectionRuntime.apiFactoryProvider = { DefaultApiFactory }
     ConnectionModeStore.settings = MapSettings()
     ConnectionRuntime.clearSelectedMode()
   }
 
   @AfterTest
   fun tearDown() {
-    ConnectionRuntime.apiFactoryProvider = { RelayApiFactory }
+    ConnectionRuntime.apiFactoryProvider = { DefaultApiFactory }
     ConnectionRuntime.clearSelectedMode()
   }
 
@@ -80,14 +79,14 @@ class ApiFactoryDispatchTest {
   @Test
   fun `auth service created before mode selection resolves backend lazily from current mode`() =
       runTest {
-        val relayBackend = FakeAuthServiceBackend()
+        val otherBackend = FakeAuthServiceBackend()
         val localBackend = FakeAuthServiceBackend()
         ConnectionRuntime.apiFactoryProvider = {
           FakeApiFactory(
               authBackend =
                   when (ConnectionRuntime.currentMode()) {
                     ConnectionMode.DIRECT -> localBackend
-                    else -> relayBackend
+                    else -> otherBackend
                   }
           )
         }
@@ -100,7 +99,7 @@ class ApiFactoryDispatchTest {
         val result = service.preloadLoginState()
 
         assertTrue(result.isSuccess)
-        assertEquals(0, relayBackend.preloadCalls)
+        assertEquals(0, otherBackend.preloadCalls)
         assertEquals(1, localBackend.preloadCalls)
       }
 
@@ -137,14 +136,14 @@ class ApiFactoryDispatchTest {
   @Test
   fun `schedule api created before mode selection resolves backend lazily from current mode`() =
       runTest {
-        val relayBackend = FakeScheduleApiBackend()
+        val otherBackend = FakeScheduleApiBackend()
         val localBackend = FakeScheduleApiBackend()
         ConnectionRuntime.apiFactoryProvider = {
           FakeApiFactory(
               scheduleBackend =
                   when (ConnectionRuntime.currentMode()) {
                     ConnectionMode.DIRECT -> localBackend
-                    else -> relayBackend
+                    else -> otherBackend
                   }
           )
         }
@@ -157,7 +156,7 @@ class ApiFactoryDispatchTest {
         val result = api.getTerms()
 
         assertTrue(result.isSuccess)
-        assertEquals(0, relayBackend.getTermsCalls)
+        assertEquals(0, otherBackend.getTermsCalls)
         assertEquals(1, localBackend.getTermsCalls)
       }
 

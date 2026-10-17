@@ -3,13 +3,7 @@ package cn.edu.ubaa.plus.api.auth
 import cn.edu.ubaa.plus.api.ConnectionRuntime
 import cn.edu.ubaa.plus.api.ResettableSharedInstance
 import cn.edu.ubaa.plus.api.core.ApiClient
-import cn.edu.ubaa.plus.api.storage.AuthTokensStore
-import cn.edu.ubaa.plus.api.storage.ClientIdStore
-import cn.edu.ubaa.plus.api.storage.StoredAuthTokens
 import cn.edu.ubaa.plus.model.dto.*
-import io.ktor.client.call.body
-import io.ktor.client.request.*
-import io.ktor.http.*
 
 /** 认证服务提供者，管理全局共享的 ApiClient。 */
 object ApiClientProvider {
@@ -55,19 +49,13 @@ interface UserServiceBackend {
   suspend fun getUserInfo(): Result<UserInfo>
 }
 
-/**
- * 认证服务，负责登录、预加载、注销及会话状态查询。
- *
- * @param apiClient 使用的 ApiClient 实例，默认为单例 shared。
- */
+/** 认证服务，负责登录、预加载、注销及会话状态查询。 */
 open class AuthService(
     private val backendProvider: () -> AuthServiceBackend = {
       ConnectionRuntime.apiFactory().authService()
     }
 ) {
   internal constructor(backend: AuthServiceBackend) : this({ backend })
-
-  constructor(apiClient: ApiClient) : this({ RelayAuthServiceBackend(apiClient) })
 
   private fun currentBackend(): AuthServiceBackend = backendProvider()
 
@@ -128,132 +116,13 @@ open class AuthService(
   }
 }
 
-internal class RelayAuthServiceBackend(
-    private val apiClient: ApiClient = ApiClientProvider.shared
-) : AuthServiceBackend {
-  override fun hasPersistedSession(): Boolean = AuthTokensStore.get() != null
-
-  override fun applyStoredSession() {
-    apiClient.applyStoredTokens()
-  }
-
-  override fun clearStoredSession() {
-    apiClient.clearAuthTokens()
-    apiClient.close()
-  }
-
-  override suspend fun preloadLoginState(): Result<LoginPreloadResponse> {
-    return try {
-      val clientId = ClientIdStore.getOrCreate()
-      val response =
-          apiClient.getClient().post("api/v1/auth/preload") {
-            contentType(ContentType.Application.Json)
-            setBody(LoginPreloadRequest(clientId))
-          }
-      when (response.status) {
-        HttpStatusCode.OK -> {
-          val preloadResponse = response.body<LoginPreloadResponse>()
-          preloadResponse.toStoredAuthTokensOrNull()?.let { apiClient.updateTokens(it) }
-          Result.success(preloadResponse)
-        }
-        else -> Result.failure(response.toApiCallException())
-      }
-    } catch (e: Throwable) {
-      Result.failure(e.toUserFacingApiException("登录状态加载失败，请稍后重试"))
-    }
-  }
-
-  override suspend fun login(
-      username: String,
-      password: String,
-      captcha: String?,
-      execution: String?,
-  ): Result<LoginResponse> {
-    return try {
-      val clientId = ClientIdStore.get()
-      val response =
-          apiClient.getClient().post("api/v1/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(LoginRequest(username, password, captcha, execution, clientId))
-          }
-
-      when (response.status) {
-        HttpStatusCode.OK -> {
-          val loginResponse = response.body<LoginResponse>()
-          apiClient.updateTokens(loginResponse.toStoredAuthTokens())
-          Result.success(loginResponse)
-        }
-        HttpStatusCode.Unauthorized -> Result.failure(response.toApiCallException())
-        HttpStatusCode.UnprocessableEntity -> {
-          val captchaResponse = response.body<CaptchaRequiredResponse>()
-          Result.failure(
-              CaptchaRequiredClientException(
-                  captchaResponse.captcha,
-                  captchaResponse.execution,
-                  captchaResponse.message,
-              )
-          )
-        }
-        else -> Result.failure(response.toApiCallException())
-      }
-    } catch (e: Throwable) {
-      Result.failure(e.toUserFacingApiException("登录失败，请稍后重试"))
-    }
-  }
-
-  override suspend fun getAuthStatus(): Result<SessionStatusResponse> {
-    return safeApiCall { apiClient.getClient().get("api/v1/auth/status") }
-  }
-
-  override suspend fun logout(): Result<Unit> {
-    return try {
-      apiClient.getClient().post("api/v1/auth/logout")
-
-      try {
-        apiClient.getClient().get("https://sso.buaa.edu.cn/logout")
-      } catch (_: Exception) {}
-
-      clearStoredSession()
-      Result.success(Unit)
-    } catch (e: Throwable) {
-      clearStoredSession()
-      Result.failure(e.toUserFacingApiException("注销时出现异常，本地登录状态已清除"))
-    }
-  }
-}
-
-private fun LoginResponse.toStoredAuthTokens(): StoredAuthTokens =
-    StoredAuthTokens(
-        accessToken = accessToken,
-        refreshToken = refreshToken,
-        accessTokenExpiresAt = accessTokenExpiresAt,
-        refreshTokenExpiresAt = refreshTokenExpiresAt,
-    )
-
-private fun LoginPreloadResponse.toStoredAuthTokensOrNull(): StoredAuthTokens? {
-  val currentAccessToken = accessToken ?: return null
-  val currentRefreshToken = refreshToken ?: return null
-  return StoredAuthTokens(
-      accessToken = currentAccessToken,
-      refreshToken = currentRefreshToken,
-      accessTokenExpiresAt = accessTokenExpiresAt,
-      refreshTokenExpiresAt = refreshTokenExpiresAt,
-  )
-}
-
-/**
- * 用户相关服务，负责获取用户的详细考籍或个人信息。
- *
- * @param apiClient 使用的 ApiClient 实例。
- */
+/** 用户相关服务，负责获取用户的详细考籍或个人信息。 */
 open class UserService(
     private val backendProvider: () -> UserServiceBackend = {
       ConnectionRuntime.apiFactory().userService()
     }
 ) {
   internal constructor(backend: UserServiceBackend) : this({ backend })
-
-  constructor(apiClient: ApiClient) : this({ RelayUserServiceBackend(apiClient) })
 
   private fun currentBackend(): UserServiceBackend = backendProvider()
 
@@ -264,13 +133,5 @@ open class UserService(
    */
   open suspend fun getUserInfo(): Result<UserInfo> {
     return currentBackend().getUserInfo()
-  }
-}
-
-internal class RelayUserServiceBackend(
-    private val apiClient: ApiClient = ApiClientProvider.shared
-) : UserServiceBackend {
-  override suspend fun getUserInfo(): Result<UserInfo> {
-    return safeApiCall { apiClient.getClient().get("api/v1/user/info") }
   }
 }

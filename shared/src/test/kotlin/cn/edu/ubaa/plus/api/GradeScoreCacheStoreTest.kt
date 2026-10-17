@@ -21,7 +21,7 @@ class GradeScoreCacheStoreTest {
     ConnectionModeStore.settings = MapSettings()
     GradeScoreCacheStore.settings = MapSettings()
 
-    ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
+    ConnectionModeStore.save(ConnectionMode.WEBVPN)
     GradeScoreCacheStore.save("test-user", sampleCache("2025-2026-1", "95"))
     GradeScoreCacheStore.save("other", sampleCache("2025-2026-1", "80"))
 
@@ -36,7 +36,7 @@ class GradeScoreCacheStoreTest {
 
     assertEquals("100", GradeScoreCacheStore.get("test-user")?.scores?.singleOrNull()?.score)
 
-    ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
+    ConnectionModeStore.save(ConnectionMode.WEBVPN)
 
     assertEquals("95", GradeScoreCacheStore.get("test-user")?.scores?.singleOrNull()?.score)
   }
@@ -46,7 +46,7 @@ class GradeScoreCacheStoreTest {
     ConnectionModeStore.settings = MapSettings()
     GradeScoreCacheStore.settings = MapSettings()
 
-    ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
+    ConnectionModeStore.save(ConnectionMode.WEBVPN)
     GradeScoreCacheStore.save("test-user", sampleCache("2025-2026-1", "95"))
     ConnectionModeStore.save(ConnectionMode.DIRECT)
     GradeScoreCacheStore.save("test-user", sampleCache("2025-2026-1", "100"))
@@ -55,7 +55,7 @@ class GradeScoreCacheStoreTest {
 
     assertNull(GradeScoreCacheStore.get("test-user"))
 
-    ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
+    ConnectionModeStore.save(ConnectionMode.WEBVPN)
 
     assertNull(GradeScoreCacheStore.get("test-user"))
   }

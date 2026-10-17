@@ -230,8 +230,7 @@ internal class PersistentLocalCookieStorage(private val mode: ConnectionMode) : 
 
 internal object LocalUpstreamClientProvider {
   private fun currentCookieMode(): ConnectionMode =
-      ConnectionRuntime.currentMode()?.takeIf { it != ConnectionMode.SERVER_RELAY }
-          ?: ConnectionMode.DIRECT
+      ConnectionRuntime.currentMode() ?: ConnectionMode.DIRECT
 
   internal var clientFactory: (Boolean) -> HttpClient = { followRedirects ->
     buildLocalUpstreamClient(
@@ -384,9 +383,7 @@ internal suspend fun resolveLocalBusinessAuthenticationFailure(
 }
 
 private suspend fun reportLocalLoginSuccess(username: String, successMode: LoginStatsSuccessMode) {
-  val connectionMode =
-      ConnectionRuntime.currentMode()?.takeIf { it != ConnectionMode.SERVER_RELAY }
-          ?: ConnectionMode.DIRECT
+  val connectionMode = ConnectionRuntime.currentMode() ?: ConnectionMode.DIRECT
   LoginStatsReporter.reportSuccess(username, successMode, connectionMode)
 }
 

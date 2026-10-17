@@ -7,7 +7,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.CancellationException
 
-/** 更新检测服务。 固定通过 relay 服务端检查客户端是否存在新版本。 */
+/** 更新检测服务。 通过服务端检查客户端是否存在新版本。 */
 class UpdateService(private val apiClientProvider: () -> ApiClient = { ApiClientProvider.shared }) {
   constructor(apiClient: ApiClient) : this({ apiClient })
 

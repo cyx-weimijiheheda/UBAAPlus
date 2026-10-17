@@ -26,9 +26,7 @@ import cn.edu.ubaa.plus.api.auth.AppAnnouncement
 import cn.edu.ubaa.plus.api.auth.AppVersionCheckResponse
 import cn.edu.ubaa.plus.api.auth.UpdateService
 import cn.edu.ubaa.plus.api.storage.AnnouncementReadStore
-import cn.edu.ubaa.plus.api.storage.DisclaimerStore
 import cn.edu.ubaa.plus.repository.ScheduleStore
-import cn.edu.ubaa.plus.ui.common.components.FirstRunDisclaimerDialog
 import cn.edu.ubaa.plus.ui.common.components.ReleaseNotesText
 import cn.edu.ubaa.plus.ui.navigation.MainAppScreen
 import cn.edu.ubaa.plus.ui.screens.auth.AuthViewModel
@@ -75,9 +73,6 @@ fun App() {
     val announcementService = remember { AnnouncementService() }
     var updateInfo by remember { mutableStateOf<AppVersionCheckResponse?>(null) }
     var announcementInfo by remember { mutableStateOf<AppAnnouncement?>(null) }
-    var disclaimerAccepted by remember {
-      mutableStateOf(runCatching { DisclaimerStore.isAccepted() }.getOrDefault(false))
-    }
     val uriHandler = LocalUriHandler.current
 
     suspend fun checkStartupPrompts() {
@@ -152,18 +147,8 @@ fun App() {
       if (shouldEndSplash) isSplashFinished = true
     }
 
-    // 首次使用的免责声明：必须同意后才能继续。
-    if (!disclaimerAccepted) {
-      FirstRunDisclaimerDialog(
-          onAccept = {
-            DisclaimerStore.accept()
-            disclaimerAccepted = true
-          }
-      )
-    }
-
     // 版本更新对话框
-    if (disclaimerAccepted && updateInfo != null) {
+    if (updateInfo != null) {
       val release = updateInfo!!
       val releaseNotes = release.releaseNotes?.takeIf { it.isNotBlank() } ?: "点击下方按钮下载最新客户端。"
       val updateMessage = buildString {
@@ -198,7 +183,7 @@ fun App() {
       )
     }
 
-    if (disclaimerAccepted && shouldShowAnnouncementDialog(updateInfo, announcementInfo)) {
+    if (shouldShowAnnouncementDialog(updateInfo, announcementInfo)) {
       val announcement = announcementInfo!!
       AlertDialog(
           onDismissRequest = {},
@@ -243,7 +228,7 @@ fun App() {
         MainAppScreen(
             userData = userData,
             userInfo = uiState.userInfo,
-            connectionMode = selectedConnectionMode ?: ConnectionMode.SERVER_RELAY,
+            connectionMode = selectedConnectionMode ?: ConnectionMode.DIRECT,
             availableConnectionModes = availableConnectionModes,
             onEnsureUserInfo = { authViewModel.ensureUserInfoLoaded() },
             onConnectionModeSelected = { mode ->
@@ -258,7 +243,7 @@ fun App() {
       else -> {
         LoginScreen(
             loginFormState = loginForm,
-            currentConnectionMode = selectedConnectionMode ?: ConnectionMode.SERVER_RELAY,
+            currentConnectionMode = selectedConnectionMode ?: ConnectionMode.DIRECT,
             availableConnectionModes = availableConnectionModes,
             onUsernameChange = { authViewModel.updateUsername(it) },
             onPasswordChange = { authViewModel.updatePassword(it) },

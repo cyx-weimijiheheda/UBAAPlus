@@ -1,12 +1,7 @@
 package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
-import cn.edu.ubaa.plus.api.auth.ApiClientProvider
-import cn.edu.ubaa.plus.api.auth.safeApiCall
-import cn.edu.ubaa.plus.api.core.ApiClient
-import cn.edu.ubaa.plus.api.local.LocalSigninApiBackend
 import cn.edu.ubaa.plus.model.dto.*
-import io.ktor.client.request.*
 
 interface SigninApiBackend {
   suspend fun getTodayClasses(): Result<SigninStatusResponse>
@@ -27,8 +22,6 @@ class SigninApi(
     }
 ) {
   internal constructor(backend: SigninApiBackend) : this({ backend })
-
-  constructor(apiClient: ApiClient) : this({ RelaySigninApiBackend(apiClient) })
 
   private fun currentBackend(): SigninApiBackend = backendProvider()
 
@@ -59,26 +52,4 @@ class SigninApi(
   suspend fun getAttendance(): Result<SigninAttendanceResponse> {
     return currentBackend().getAttendance()
   }
-}
-
-internal class RelaySigninApiBackend(private val apiClient: ApiClient = ApiClientProvider.shared) :
-    SigninApiBackend {
-  // 中转服务端没有考勤接口；设备能直连 iClass 时用本地实现兜底。
-  private val localAttendanceBackend by lazy { LocalSigninApiBackend() }
-
-  override suspend fun getTodayClasses(): Result<SigninStatusResponse> {
-    return safeApiCall { apiClient.getClient().get("api/v1/signin/today") }
-  }
-
-  override suspend fun performSignin(
-      courseId: String,
-      timestamp: String?,
-  ): Result<SigninActionResponse> {
-    return safeApiCall {
-      apiClient.getClient().post("api/v1/signin/do") { parameter("courseId", courseId) }
-    }
-  }
-
-  override suspend fun getAttendance(): Result<SigninAttendanceResponse> =
-      localAttendanceBackend.getAttendance()
 }

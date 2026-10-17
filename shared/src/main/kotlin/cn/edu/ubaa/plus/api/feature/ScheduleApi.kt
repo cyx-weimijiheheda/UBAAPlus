@@ -1,12 +1,8 @@
 package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
-import cn.edu.ubaa.plus.api.auth.ApiClientProvider
-import cn.edu.ubaa.plus.api.auth.safeApiCall
-import cn.edu.ubaa.plus.api.core.ApiClient
 import cn.edu.ubaa.plus.model.dto.*
 import cn.edu.ubaa.plus.repository.SemesterSchedule
-import io.ktor.client.request.*
 import kotlinx.coroutines.CancellationException
 
 /** 课程表与考试查询服务。 负责从后端获取学期、周次、课表安排以及考试安排等信息。 */
@@ -47,8 +43,6 @@ class ScheduleApi(
     }
 ) {
   internal constructor(backend: ScheduleApiBackend) : this({ backend })
-
-  constructor(apiClient: ApiClient) : this({ RelayScheduleApiBackend(apiClient) })
 
   private fun currentBackend(): ScheduleApiBackend = backendProvider()
 
@@ -102,38 +96,5 @@ class ScheduleApi(
    */
   suspend fun getExamArrangement(termCode: String): Result<ExamArrangementData> {
     return currentBackend().getExamArrangement(termCode)
-  }
-}
-
-internal class RelayScheduleApiBackend(
-    private val apiClient: ApiClient = ApiClientProvider.shared
-) : ScheduleApiBackend {
-  override suspend fun getTerms(): Result<List<Term>> {
-    return safeApiCall { apiClient.getClient().get("api/v1/schedule/terms") }
-  }
-
-  override suspend fun getWeeks(termCode: String): Result<List<Week>> {
-    return safeApiCall {
-      apiClient.getClient().get("api/v1/schedule/weeks") { parameter("termCode", termCode) }
-    }
-  }
-
-  override suspend fun getWeeklySchedule(termCode: String, week: Int): Result<WeeklySchedule> {
-    return safeApiCall {
-      apiClient.getClient().get("api/v1/schedule/week") {
-        parameter("termCode", termCode)
-        parameter("week", week)
-      }
-    }
-  }
-
-  override suspend fun getTodaySchedule(): Result<List<TodayClass>> {
-    return safeApiCall { apiClient.getClient().get("api/v1/schedule/today") }
-  }
-
-  override suspend fun getExamArrangement(termCode: String): Result<ExamArrangementData> {
-    return safeApiCall {
-      apiClient.getClient().get("api/v1/exam/list") { parameter("termCode", termCode) }
-    }
   }
 }

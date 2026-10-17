@@ -8,7 +8,6 @@ import cn.edu.ubaa.plus.api.auth.AuthService
 import cn.edu.ubaa.plus.api.auth.SessionStatusResponse
 import cn.edu.ubaa.plus.api.auth.UserService
 import cn.edu.ubaa.plus.api.storage.AuthTokensStore
-import cn.edu.ubaa.plus.api.storage.ClientIdStore
 import cn.edu.ubaa.plus.api.storage.CredentialStore
 import cn.edu.ubaa.plus.api.storage.StoredAuthTokens
 import cn.edu.ubaa.plus.model.dto.LoginPreloadResponse
@@ -40,7 +39,6 @@ class AuthViewModelInitializeAppTest {
     // Settings() 在 Android 单元测试里拿不到 Application context，注入内存实现
     TestSettings.installInMemorySettings()
     AuthTokensStore.clear()
-    ClientIdStore.clear()
     CredentialStore.clear()
     ConnectionModeStore.clear()
     ConnectionRuntime.clearSelectedMode()
@@ -51,7 +49,6 @@ class AuthViewModelInitializeAppTest {
     Dispatchers.resetMain()
     CredentialStore.clear()
     AuthTokensStore.clear()
-    ClientIdStore.clear()
     ConnectionModeStore.clear()
     ConnectionRuntime.clearSelectedMode()
   }
@@ -81,7 +78,7 @@ class AuthViewModelInitializeAppTest {
   fun `initializeApp preserves tokens and skips relogin when auth status times out upstream`() =
       runTest {
         Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
-        ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
+        ConnectionModeStore.save(ConnectionMode.DIRECT)
         AuthTokensStore.save(
             StoredAuthTokens(
                 accessToken = "stale-access-token",
@@ -115,31 +112,30 @@ class AuthViewModelInitializeAppTest {
       }
 
   @Test
-  fun `initializeApp relies on auth service persisted session contract instead of relay tokens`() =
-      runTest {
-        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
-        ConnectionModeStore.save(ConnectionMode.DIRECT)
-        val authService = TimeoutAuthService(hasPersistedSession = true)
-        val viewModel =
-            AuthViewModel(
-                authService = authService,
-                userService = StubUserService(),
-            )
+  fun `initializeApp relies on auth service persisted session contract`() = runTest {
+    Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+    ConnectionModeStore.save(ConnectionMode.DIRECT)
+    val authService = TimeoutAuthService(hasPersistedSession = true)
+    val viewModel =
+        AuthViewModel(
+            authService = authService,
+            userService = StubUserService(),
+        )
 
-        viewModel.initializeApp()
-        advanceUntilIdle()
+    viewModel.initializeApp()
+    advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertEquals(1, authService.statusCalls)
-        assertEquals(0, authService.preloadCalls)
-        assertEquals(0, authService.loginCalls)
-        assertTrue(authService.applyStoredTokensCalled)
-        assertFalse(state.isLoading)
-        assertEquals("认证服务响应超时，请稍后重试", state.error)
-      }
+    val state = viewModel.uiState.value
+    assertEquals(1, authService.statusCalls)
+    assertEquals(0, authService.preloadCalls)
+    assertEquals(0, authService.loginCalls)
+    assertTrue(authService.applyStoredTokensCalled)
+    assertFalse(state.isLoading)
+    assertEquals("认证服务响应超时，请稍后重试", state.error)
+  }
 
   @Test
-  fun `preloadLoginState treats local mode restored session as logged in without relay token`() =
+  fun `preloadLoginState treats local mode restored session as logged in without server token`() =
       runTest {
         Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
         ConnectionModeStore.save(ConnectionMode.DIRECT)

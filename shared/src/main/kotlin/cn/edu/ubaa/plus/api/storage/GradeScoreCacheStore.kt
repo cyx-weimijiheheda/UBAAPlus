@@ -62,7 +62,7 @@ object GradeScoreCacheStore {
       userKey: String,
       mode: ConnectionMode? = ConnectionModeStore.get(),
   ): String {
-    val effectiveMode = mode ?: ConnectionMode.SERVER_RELAY
+    val effectiveMode = mode ?: ConnectionMode.DIRECT
     return "$KEY_PREFIX:${effectiveMode.storageKey}:$userKey"
   }
 

@@ -263,5 +263,4 @@ private fun LoginStatsConnectionMode.toMetricMode(): LoginConnectionMode =
     when (this) {
       LoginStatsConnectionMode.DIRECT -> LoginConnectionMode.DIRECT
       LoginStatsConnectionMode.WEBVPN -> LoginConnectionMode.WEBVPN
-      LoginStatsConnectionMode.SERVER_RELAY -> LoginConnectionMode.SERVER_RELAY
     }

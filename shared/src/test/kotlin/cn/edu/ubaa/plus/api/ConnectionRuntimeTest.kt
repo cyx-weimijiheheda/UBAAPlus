@@ -6,7 +6,6 @@ import cn.edu.ubaa.plus.api.local.LocalAuthSession
 import cn.edu.ubaa.plus.api.local.LocalAuthSessionStore
 import cn.edu.ubaa.plus.api.local.LocalCookieStore
 import cn.edu.ubaa.plus.api.storage.AuthTokensStore
-import cn.edu.ubaa.plus.api.storage.ClientIdStore
 import cn.edu.ubaa.plus.api.storage.CredentialStore
 import cn.edu.ubaa.plus.api.storage.StoredAuthTokens
 import cn.edu.ubaa.plus.model.dto.UserData
@@ -25,16 +24,13 @@ class ConnectionRuntimeTest {
   fun setup() {
     // Settings() 在 Android 单元测试里拿不到 Application context，注入内存实现
     TestSettings.installInMemorySettings()
-    val modeSettings = MapSettings()
-    ConnectionModeStore.settings = modeSettings
+    ConnectionModeStore.settings = MapSettings()
     AuthTokensStore.settings = MapSettings()
-    ClientIdStore.settings = MapSettings()
     CredentialStore.settings = MapSettings()
     LocalAuthSessionStore.settings = MapSettings()
     LocalCookieStore.settings = MapSettings()
     ConnectionRuntime.clearSelectedMode()
     AuthTokensStore.clearAllScopes()
-    ClientIdStore.clearAllScopes()
     CredentialStore.clear()
     LocalAuthSessionStore.clearAllScopes()
     LocalCookieStore.clearAllScopes()
@@ -43,15 +39,6 @@ class ConnectionRuntimeTest {
 
   @Test
   fun `switching connection mode clears all scoped sessions and disables auto login`() {
-    ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
-    AuthTokensStore.save(
-        StoredAuthTokens(
-            accessToken = "relay-access",
-            refreshToken = "relay-refresh",
-        )
-    )
-    ClientIdStore.getOrCreate()
-
     ConnectionModeStore.save(ConnectionMode.DIRECT)
     AuthTokensStore.save(
         StoredAuthTokens(
@@ -72,21 +59,16 @@ class ConnectionRuntimeTest {
     CredentialStore.setRememberPassword(true)
     CredentialStore.setAutoLogin(true)
 
-    ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
-
     ConnectionRuntime.switchMode(ConnectionMode.WEBVPN)
 
     assertEquals(ConnectionMode.WEBVPN, ConnectionRuntime.currentMode())
     assertNull(AuthTokensStore.get())
-    assertNull(ClientIdStore.get())
     assertNull(LocalAuthSessionStore.get())
     assertFalse(CredentialStore.isAutoLogin())
     assertTrue(CredentialStore.isRememberPassword())
     assertEquals("22373333", CredentialStore.getUsername())
     assertEquals("secret", CredentialStore.getPassword())
 
-    ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
-    assertNull(AuthTokensStore.get())
     ConnectionModeStore.save(ConnectionMode.DIRECT)
     assertNull(AuthTokensStore.get())
   }
@@ -105,7 +87,7 @@ class ConnectionRuntimeTest {
 
     assertTrue(AuthService().hasPersistedSession())
 
-    ConnectionModeStore.save(ConnectionMode.SERVER_RELAY)
+    ConnectionModeStore.save(ConnectionMode.WEBVPN)
     assertFalse(AuthService().hasPersistedSession())
   }
 }

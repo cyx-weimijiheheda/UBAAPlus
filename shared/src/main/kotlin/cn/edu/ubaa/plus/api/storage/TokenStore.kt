@@ -4,8 +4,6 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.ConnectionModeStore
 import cn.edu.ubaa.plus.api.ModeScopedSessionStore
 import com.russhwolf.settings.Settings
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 data class StoredAuthTokens(
     val accessToken: String,
@@ -67,10 +65,7 @@ object AuthTokensStore {
     settings.remove(ModeScopedSessionStore.scopedKey(KEY_REFRESH_TOKEN))
     settings.remove(ModeScopedSessionStore.scopedKey(KEY_ACCESS_TOKEN_EXPIRES_AT))
     settings.remove(ModeScopedSessionStore.scopedKey(KEY_REFRESH_TOKEN_EXPIRES_AT))
-    if (
-        ConnectionModeStore.get() == null ||
-            ConnectionModeStore.get() == ConnectionMode.SERVER_RELAY
-    ) {
+    if (ConnectionModeStore.get() == null) {
       settings.remove(ModeScopedSessionStore.legacyKey(KEY_ACCESS_TOKEN))
       settings.remove(ModeScopedSessionStore.legacyKey(KEY_REFRESH_TOKEN))
       settings.remove(ModeScopedSessionStore.legacyKey(KEY_ACCESS_TOKEN_EXPIRES_AT))
@@ -92,66 +87,8 @@ object AuthTokensStore {
   }
 
   private fun legacyValue(key: String): String? =
-      if (
-          ConnectionModeStore.get() == null ||
-              ConnectionModeStore.get() == ConnectionMode.SERVER_RELAY
-      ) {
+      if (ConnectionModeStore.get() == null) {
         settings.getStringOrNull(ModeScopedSessionStore.legacyKey(key))
-      } else {
-        null
-      }
-}
-
-/** 客户端标识存储：用于关联预登录会话 */
-object ClientIdStore {
-  private const val KEY_CLIENT_ID = "client_id"
-  private var _settings: Settings? = null
-  var settings: Settings
-    get() = _settings ?: Settings().also { _settings = it }
-    set(value) {
-      _settings = value
-    }
-
-  /** 获取或创建 clientId */
-  @OptIn(ExperimentalUuidApi::class)
-  fun getOrCreate(): String {
-    return settings.getStringOrNull(ModeScopedSessionStore.scopedKey(KEY_CLIENT_ID))
-        ?: legacyValue()
-        ?: run {
-          val newId = Uuid.random().toString()
-          settings.putString(ModeScopedSessionStore.scopedKey(KEY_CLIENT_ID), newId)
-          newId
-        }
-  }
-
-  /** 获取 clientId（可能为 null） */
-  fun get(): String? =
-      settings.getStringOrNull(ModeScopedSessionStore.scopedKey(KEY_CLIENT_ID)) ?: legacyValue()
-
-  /** 清除 clientId（通常不需要，除非要完全重置客户端） */
-  fun clear() {
-    settings.remove(ModeScopedSessionStore.scopedKey(KEY_CLIENT_ID))
-    if (
-        ConnectionModeStore.get() == null ||
-            ConnectionModeStore.get() == ConnectionMode.SERVER_RELAY
-    ) {
-      settings.remove(ModeScopedSessionStore.legacyKey(KEY_CLIENT_ID))
-    }
-  }
-
-  fun clearAllScopes() {
-    ConnectionMode.entries.forEach { mode ->
-      settings.remove(ModeScopedSessionStore.scopedKey(KEY_CLIENT_ID, mode))
-    }
-    settings.remove(ModeScopedSessionStore.legacyKey(KEY_CLIENT_ID))
-  }
-
-  private fun legacyValue(): String? =
-      if (
-          ConnectionModeStore.get() == null ||
-              ConnectionModeStore.get() == ConnectionMode.SERVER_RELAY
-      ) {
-        settings.getStringOrNull(ModeScopedSessionStore.legacyKey(KEY_CLIENT_ID))
       } else {
         null
       }

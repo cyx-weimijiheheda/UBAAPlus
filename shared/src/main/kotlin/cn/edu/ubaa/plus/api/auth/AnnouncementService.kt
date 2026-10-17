@@ -6,7 +6,7 @@ import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 
-/** 公告检测服务。固定通过 relay 服务端读取当前公告配置。 */
+/** 公告检测服务。通过服务端读取当前公告配置。 */
 class AnnouncementService(
     private val apiClientProvider: () -> ApiClient = { ApiClientProvider.shared }
 ) {

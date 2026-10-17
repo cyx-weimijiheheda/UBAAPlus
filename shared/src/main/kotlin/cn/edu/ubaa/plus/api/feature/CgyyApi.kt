@@ -1,9 +1,6 @@
 package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
-import cn.edu.ubaa.plus.api.auth.ApiClientProvider
-import cn.edu.ubaa.plus.api.auth.safeApiCall
-import cn.edu.ubaa.plus.api.core.ApiClient
 import cn.edu.ubaa.plus.model.dto.CgyyDayInfoResponse
 import cn.edu.ubaa.plus.model.dto.CgyyLockCodeResponse
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
@@ -12,12 +9,6 @@ import cn.edu.ubaa.plus.model.dto.CgyyPurposeTypeDto
 import cn.edu.ubaa.plus.model.dto.CgyyReservationSubmitRequest
 import cn.edu.ubaa.plus.model.dto.CgyyReservationSubmitResponse
 import cn.edu.ubaa.plus.model.dto.CgyyVenueSiteDto
-import io.ktor.client.request.get
-import io.ktor.client.request.parameter
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 
 interface CgyyApiBackend {
   suspend fun getVenueSites(): Result<List<CgyyVenueSiteDto>>
@@ -43,8 +34,6 @@ open class CgyyApi(
     private val backendProvider: () -> CgyyApiBackend = { ConnectionRuntime.apiFactory().cgyyApi() }
 ) {
   internal constructor(backend: CgyyApiBackend) : this({ backend })
-
-  constructor(apiClient: ApiClient) : this({ RelayCgyyApiBackend(apiClient) })
 
   private fun currentBackend(): CgyyApiBackend = backendProvider()
 
@@ -80,57 +69,5 @@ open class CgyyApi(
 
   open suspend fun getLockCode(): Result<CgyyLockCodeResponse> {
     return currentBackend().getLockCode()
-  }
-}
-
-internal class RelayCgyyApiBackend(private val apiClient: ApiClient = ApiClientProvider.shared) :
-    CgyyApiBackend {
-  override suspend fun getVenueSites(): Result<List<CgyyVenueSiteDto>> {
-    return safeApiCall { apiClient.getClient().get("api/v1/cgyy/sites") }
-  }
-
-  override suspend fun getPurposeTypes(): Result<List<CgyyPurposeTypeDto>> {
-    return safeApiCall { apiClient.getClient().get("api/v1/cgyy/purpose-types") }
-  }
-
-  override suspend fun getDayInfo(venueSiteId: Int, date: String): Result<CgyyDayInfoResponse> {
-    return safeApiCall {
-      apiClient.getClient().get("api/v1/cgyy/day-info") {
-        parameter("venueSiteId", venueSiteId)
-        parameter("date", date)
-      }
-    }
-  }
-
-  override suspend fun submitReservation(
-      request: CgyyReservationSubmitRequest
-  ): Result<CgyyReservationSubmitResponse> {
-    return safeApiCall {
-      apiClient.getClient().post("api/v1/cgyy/reservations") {
-        contentType(ContentType.Application.Json)
-        setBody(request)
-      }
-    }
-  }
-
-  override suspend fun getMyOrders(page: Int, size: Int): Result<CgyyOrdersPageResponse> {
-    return safeApiCall {
-      apiClient.getClient().get("api/v1/cgyy/orders") {
-        parameter("page", page)
-        parameter("size", size)
-      }
-    }
-  }
-
-  override suspend fun getOrderDetail(orderId: Int): Result<CgyyOrderDto> {
-    return safeApiCall { apiClient.getClient().get("api/v1/cgyy/orders/$orderId") }
-  }
-
-  override suspend fun cancelOrder(orderId: Int): Result<CgyyReservationSubmitResponse> {
-    return safeApiCall { apiClient.getClient().post("api/v1/cgyy/orders/$orderId/cancel") }
-  }
-
-  override suspend fun getLockCode(): Result<CgyyLockCodeResponse> {
-    return safeApiCall { apiClient.getClient().get("api/v1/cgyy/orders/lock-code") }
   }
 }

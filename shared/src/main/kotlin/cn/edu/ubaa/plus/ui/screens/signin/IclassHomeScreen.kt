@@ -78,6 +78,23 @@ fun IclassHomeScreen(viewModel: SigninViewModel) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+      item {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ),
+        ) {
+          Text(
+              text = "智慧教室需连接校园网后使用，请以校园网登录查看。",
+              modifier = Modifier.fillMaxWidth().padding(12.dp),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSecondaryContainer,
+          )
+        }
+      }
+
       item { SectionTitle("今日课程") }
 
       when {

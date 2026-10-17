@@ -1,12 +1,8 @@
 package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
-import cn.edu.ubaa.plus.api.auth.ApiClientProvider
-import cn.edu.ubaa.plus.api.auth.safeApiCall
-import cn.edu.ubaa.plus.api.core.ApiClient
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentDetailDto
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentsResponse
-import io.ktor.client.request.get
 
 interface SpocApiBackend {
   suspend fun getAssignments(): Result<SpocAssignmentsResponse>
@@ -20,8 +16,6 @@ open class SpocApi(
 ) {
   internal constructor(backend: SpocApiBackend) : this({ backend })
 
-  constructor(apiClient: ApiClient) : this({ RelaySpocApiBackend(apiClient) })
-
   private fun currentBackend(): SpocApiBackend = backendProvider()
 
   /** 获取当前默认学期的所有作业摘要。 */
@@ -32,16 +26,5 @@ open class SpocApi(
   /** 获取指定作业的详细信息。 */
   open suspend fun getAssignmentDetail(assignmentId: String): Result<SpocAssignmentDetailDto> {
     return currentBackend().getAssignmentDetail(assignmentId)
-  }
-}
-
-internal class RelaySpocApiBackend(private val apiClient: ApiClient = ApiClientProvider.shared) :
-    SpocApiBackend {
-  override suspend fun getAssignments(): Result<SpocAssignmentsResponse> {
-    return safeApiCall { apiClient.getClient().get("api/v1/spoc/assignments") }
-  }
-
-  override suspend fun getAssignmentDetail(assignmentId: String): Result<SpocAssignmentDetailDto> {
-    return safeApiCall { apiClient.getClient().get("api/v1/spoc/assignments/$assignmentId") }
   }
 }

@@ -125,7 +125,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
         LocalAuthSessionStore.get() ?: return Result.failure(localUnauthenticatedApiException())
     val signinSession = runCatching { currentSession(authSession.studentId()) }.getOrNull()
     if (signinSession == null) {
-      val error = loginLastError ?: "iclass 登录失败"
+      val error = loginLastError ?: "iclass 登录失败，请以校园网登录查看"
       loginLastError = null
       return Result.success(SigninActionResponse(code = 400, success = false, message = error))
     }
@@ -196,7 +196,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     val studentId = authSession.studentId()
     val session = runCatching { currentSession(studentId) }.getOrNull()
     if (session == null) {
-      val error = loginLastError ?: "iclass 登录失败"
+      val error = loginLastError ?: "iclass 登录失败，请以校园网登录查看"
       loginLastError = null
       return Result.failure(ApiCallException(error, code = "signin_error"))
     }
@@ -229,7 +229,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
       } else {
         Result.failure(
             ApiCallException(
-                message = "iclass 登录状态已失效，请重新登录",
+                message = "iclass 登录状态已失效，请以校园网登录查看",
                 code = "signin_error",
                 cause = e,
             )
@@ -238,7 +238,9 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     } catch (e: ApiCallException) {
       Result.failure(e)
     } catch (e: Exception) {
-      Result.failure(ApiCallException(message = "考勤查询失败，请稍后重试", code = "signin_error", cause = e))
+      Result.failure(
+          ApiCallException(message = "考勤查询失败，请以校园网登录查看", code = "signin_error", cause = e)
+      )
     }
   }
 

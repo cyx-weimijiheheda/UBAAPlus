@@ -86,7 +86,7 @@ class SigninViewModel(
             _uiState.value =
                 _uiState.value.copy(
                     attendanceLoading = false,
-                    attendanceError = it.message ?: "考勤查询失败，请稍后重试",
+                    attendanceError = it.message ?: "考勤查询失败，请以校园网登录查看",
                 )
           }
     }
