@@ -1,6 +1,7 @@
 name: Android CI
 
-on:
+# 键盘为 "on" 时必须加引号：部分 YAML 解析器会把它当成布尔值，导致编辑器误报错误。
+"on":
   push:
     branches: [main]
     tags: ["v*"]
