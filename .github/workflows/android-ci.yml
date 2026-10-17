@@ -111,7 +111,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "UBAAPlus $GITHUB_REF_NAME" \
-            --generate-notes \
-            androidApp/build/outputs/apk/release/*.apk
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            # 重新构建同一版本时先清空旧产物，避免残留旧文件名。
+            gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' |
+              while read -r asset; do
+                gh release delete-asset "$GITHUB_REF_NAME" "$asset" --yes
+              done
+            gh release upload "$GITHUB_REF_NAME" androidApp/build/outputs/apk/release/*.apk --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "UBAAPlus $GITHUB_REF_NAME" \
+              --generate-notes \
+              androidApp/build/outputs/apk/release/*.apk
+          fi

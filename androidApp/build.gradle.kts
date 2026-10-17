@@ -7,6 +7,9 @@ plugins {
   alias(libs.plugins.composeCompiler)
 }
 
+// APK 文件名前缀：androidApp-* -> UBAAPlus-*
+base { archivesName.set("UBAAPlus") }
+
 android {
   namespace = "cn.edu.ubaa.plus.android"
   compileSdk = libs.versions.android.compileSdk.get().toInt()
