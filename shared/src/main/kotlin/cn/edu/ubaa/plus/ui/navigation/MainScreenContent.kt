@@ -49,7 +49,7 @@ import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleScreen
 import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleUiState
 import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel
 import cn.edu.ubaa.plus.ui.screens.schedule.TodayScheduleState
-import cn.edu.ubaa.plus.ui.screens.signin.SigninScreen
+import cn.edu.ubaa.plus.ui.screens.signin.IclassHomeScreen
 import cn.edu.ubaa.plus.ui.screens.signin.SigninUiState
 import cn.edu.ubaa.plus.ui.screens.signin.SigninViewModel
 import cn.edu.ubaa.plus.ui.screens.spoc.SpocAssignmentDetailScreen
@@ -160,6 +160,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onGradeClick = { navigateTo(AppScreen.GRADE) },
                 onBykcClick = { navigateTo(AppScreen.BYKC_HOME) },
                 onClassroomClick = { navigateTo(AppScreen.CLASSROOM_QUERY) },
+                onIclassClick = { navigateTo(AppScreen.ICLASS_HOME) },
                 onSpocClick = { navigateTo(AppScreen.SPOC_ASSIGNMENTS) },
                 onJudgeClick = { navigateTo(AppScreen.JUDGE_ASSIGNMENTS) },
                 onLibBookClick = { navigateTo(AppScreen.LIBBOOK_HOME) },
@@ -222,7 +223,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 },
             )
         AppScreen.BYKC_STATISTICS -> BykcStatisticsScreen(viewModel = bykcViewModel)
-        AppScreen.SIGNIN -> SigninScreen(viewModel = signinViewModel)
+        AppScreen.ICLASS_HOME -> IclassHomeScreen(viewModel = signinViewModel)
         AppScreen.BYKC_COURSES ->
             BykcCoursesScreen(
                 courses = bykcCoursesState.courses,

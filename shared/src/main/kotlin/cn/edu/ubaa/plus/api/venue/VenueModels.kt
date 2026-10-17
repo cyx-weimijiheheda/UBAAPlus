@@ -28,6 +28,14 @@ data class VenueSite(
 /** 场地列表与可提前预约天数。 */
 data class VenueSiteList(val sites: List<VenueSite>, val advanceReservationDays: Int)
 
+/** 场馆会员预约码。qrCode 是不带 data URI 前缀的 base64 PNG。 */
+data class VenueMembershipCode(
+    val qrCode: String?,
+    val dueDate: String?,
+    val isDynamicCode: Boolean,
+    val currDate: String?,
+)
+
 /** 场地的真实时段（一天可能有非整点时段，不能假设固定小时）。 */
 data class VenueTimeSlot(val timeId: Int, val beginTime: String, val endTime: String) {
   val label: String
@@ -162,6 +170,9 @@ internal interface VenueApiBackend {
 
   suspend fun getSites(): Result<VenueSiteList>
 
+  /** 场馆会员预约码；没有会员卡时 qrCode 为 null。 */
+  suspend fun getMembershipCode(): Result<VenueMembershipCode?>
+
   /** 尚未放票时返回 success(null)。 */
   suspend fun getDayInfo(siteId: Int, date: String): Result<VenueDayInfo?>
 
@@ -201,6 +212,8 @@ class VenueApi internal constructor(private val backend: VenueApiBackend) {
   fun logout() = backend.logout()
 
   suspend fun getSites(): Result<VenueSiteList> = backend.getSites()
+
+  suspend fun getMembershipCode(): Result<VenueMembershipCode?> = backend.getMembershipCode()
 
   suspend fun getDayInfo(siteId: Int, date: String): Result<VenueDayInfo?> =
       backend.getDayInfo(siteId, date)

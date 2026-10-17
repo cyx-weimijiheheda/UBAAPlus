@@ -31,7 +31,7 @@ internal fun bottomTabFor(screen: AppScreen): BottomNavTab? =
       AppScreen.BYKC_DETAIL,
       AppScreen.BYKC_CHOSEN,
       AppScreen.BYKC_STATISTICS,
-      AppScreen.SIGNIN,
+      AppScreen.ICLASS_HOME,
       AppScreen.CGYY_HOME,
       AppScreen.CGYY_RESERVE_PICKER,
       AppScreen.CGYY_RESERVE_FORM,

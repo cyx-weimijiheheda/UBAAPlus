@@ -180,4 +180,40 @@ class VenueParsersTest {
     assertFalse(form.containsKey("orderPrice"))
     assertFalse(form.containsKey("token"))
   }
+
+  @Test
+  fun `解析会员码并兼容字符串形式的 isDynamicCode`() {
+    val data =
+        json
+            .parseToJsonElement(
+                """
+                {
+                  "qrCode": "iVBORw0KGgo=",
+                  "dueDate": "2026-10-17 21:40:00",
+                  "isDynamicCode": "1",
+                  "currDate": "2026-10-17 21:39:50"
+                }
+                """
+                    .trimIndent()
+            )
+            .jsonObject
+
+    val result = parseVenueMembershipCode(data)
+
+    assertEquals("iVBORw0KGgo=", result.qrCode)
+    assertEquals("2026-10-17 21:40:00", result.dueDate)
+    assertTrue(result.isDynamicCode)
+    assertEquals("2026-10-17 21:39:50", result.currDate)
+  }
+
+  @Test
+  fun `没有会员卡时 qrCode 为空`() {
+    val data = json.parseToJsonElement("""{"isDynamicCode": false}""").jsonObject
+
+    val result = parseVenueMembershipCode(data)
+
+    assertNull(result.qrCode)
+    assertNull(result.dueDate)
+    assertFalse(result.isDynamicCode)
+  }
 }

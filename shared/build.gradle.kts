@@ -97,6 +97,8 @@ dependencies {
   implementation(libs.coil3.network.ktor)
   implementation(libs.multiplatform.settings)
   implementation(libs.multiplatform.settings.no.arg)
+  // 智慧教室扫码签到
+  implementation(libs.zxing.android.embedded)
 
   // src/debug 下的测试夹具 TestSettings 需要 MapSettings（仅存在于 -test 构件），只进 debug 产物
   debugImplementation(libs.multiplatform.settings.test)

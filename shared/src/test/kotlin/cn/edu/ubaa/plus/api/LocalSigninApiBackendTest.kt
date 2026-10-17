@@ -651,6 +651,185 @@ class LocalSigninApiBackendTest {
     )
   }
 
+  @Test
+  fun `scanned timestamp is used without fetching server timestamp`() = runTest {
+    val loginName = "Rjc1QkJDMUMxNzVENkY0NkZCNzFDMEM5RjYwNzg4RDg="
+    var timestampRequests = 0
+    var signUrl: String? = null
+    val engine = MockEngine { request ->
+      when {
+        request.url.host == "iclass.buaa.edu.cn" &&
+            request.url.port == 8346 &&
+            request.url.parameters["type"] == "jumpMyCenter" ->
+            respond(
+                content = ByteReadChannel(""),
+                status = HttpStatusCode.Found,
+                headers =
+                    headersOf(
+                        HttpHeaders.Location,
+                        "https://iclass.buaa.edu.cn:8346/?loginName=$loginName&type=jumpMyCenter#/MyCenter",
+                    ),
+            )
+        request.url.host == "iclass.buaa.edu.cn" &&
+            request.url.port == 8347 &&
+            request.url.encodedPath == "/app/user/login.action" ->
+            respond(
+                content =
+                    ByteReadChannel(
+                        """{"STATUS":0,"result":{"id":"user-1","sessionId":"session-1"}}"""
+                    ),
+                status = HttpStatusCode.OK,
+                headers =
+                    headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        request.url.encodedPath == "/app/common/get_timestamp.action" -> {
+          timestampRequests++
+          respond(
+              content = ByteReadChannel("""{"timestamp":"1"}"""),
+              status = HttpStatusCode.OK,
+              headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+          )
+        }
+        request.url.port == 8081 &&
+            request.url.encodedPath == "/eschool/app/course/stu_scan_sign.action" -> {
+          signUrl = request.url.toString()
+          respond(
+              content =
+                  ByteReadChannel("""{"STATUS":0,"ERRMSG":"签到成功","result":{"stuSignStatus":1}}"""),
+              status = HttpStatusCode.OK,
+              headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+          )
+        }
+        else -> error("Unexpected url: ${request.url}")
+      }
+    }
+    useMockUpstream(engine)
+
+    val result = SigninApi().performSignin("course-9", "1713600999888")
+
+    assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
+    assertEquals(0, timestampRequests)
+    assertTrue(signUrl.orEmpty().contains("courseSchedId=course-9"))
+    assertTrue(signUrl.orEmpty().contains("timestamp=1713600999888"))
+  }
+
+  @Test
+  fun `attendance query loads current term courses and sorts records`() = runTest {
+    val loginName = "Rjc1QkJDMUMxNzVENkY0NkZCNzFDMEM5RjYwNzg4RDg="
+    val engine = MockEngine { request ->
+      when {
+        request.url.host == "iclass.buaa.edu.cn" &&
+            request.url.port == 8346 &&
+            request.url.parameters["type"] == "jumpMyCenter" ->
+            respond(
+                content = ByteReadChannel(""),
+                status = HttpStatusCode.Found,
+                headers =
+                    headersOf(
+                        HttpHeaders.Location,
+                        "https://iclass.buaa.edu.cn:8346/?loginName=$loginName&type=jumpMyCenter#/MyCenter",
+                    ),
+            )
+        request.url.host == "iclass.buaa.edu.cn" &&
+            request.url.port == 8347 &&
+            request.url.encodedPath == "/app/user/login.action" ->
+            respond(
+                content =
+                    ByteReadChannel(
+                        """{"STATUS":0,"result":{"id":"user-1","sessionId":"session-1"}}"""
+                    ),
+                status = HttpStatusCode.OK,
+                headers =
+                    headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        request.url.encodedPath == "/app/course/get_base_school_year.action" -> {
+          assertEquals("user-1", request.url.parameters["userId"])
+          assertEquals("2", request.url.parameters["type"])
+          respond(
+              content =
+                  ByteReadChannel(
+                      """{"STATUS":0,"result":[{"code":"202620271","name":"2026-2027 第一学期","yearStatus":"1"}]}"""
+                  ),
+              status = HttpStatusCode.OK,
+              headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+          )
+        }
+        request.url.encodedPath == "/app/choosecourse/get_myall_course.action" -> {
+          assertEquals("1", request.url.parameters["user_type"])
+          assertEquals("user-1", request.url.parameters["id"])
+          assertEquals("202620271", request.url.parameters["xq_code"])
+          respond(
+              content =
+                  ByteReadChannel(
+                      """
+                      {"STATUS":0,"result":[
+                        {"course_id":"c1","course_name":"软件工程","teacher_name":"张老师"},
+                        {"course_id":"c2","course_name":"编译原理","teacher_name":"李老师"}
+                      ]}
+                      """
+                          .trimIndent()
+                  ),
+              status = HttpStatusCode.OK,
+              headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+          )
+        }
+        request.url.encodedPath == "/app/my/get_my_course_sign_detail.action" -> {
+          assertEquals("user-1", request.url.parameters["id"])
+          assertEquals("session-1", request.headers["sessionId"])
+          when (request.url.parameters["courseId"]) {
+            "c1" ->
+                respond(
+                    content =
+                        ByteReadChannel(
+                            """
+                            {"STATUS":0,"result":[
+                              {"courseSchedId":"s1","teachTime":"2026-09-10","classBeginTime":"08:00","classEndTime":"09:40","signStatus":"1"},
+                              {"courseSchedId":"s2","teachTime":"2026-10-01","classBeginTime":"10:00","classEndTime":"11:40","signStatus":0}
+                            ]}
+                            """
+                                .trimIndent()
+                        ),
+                    status = HttpStatusCode.OK,
+                    headers =
+                        headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            "c2" ->
+                respond(
+                    content =
+                        ByteReadChannel(
+                            """
+                            {"STATUS":0,"result":[
+                              {"courseSchedId":"s3","teachTime":"2026-09-20","classBeginTime":"14:00","classEndTime":"15:40","signStatus":1}
+                            ]}
+                            """
+                                .trimIndent()
+                        ),
+                    status = HttpStatusCode.OK,
+                    headers =
+                        headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            else -> error("Unexpected courseId: ${request.url}")
+          }
+        }
+        else -> error("Unexpected url: ${request.url}")
+      }
+    }
+    useMockUpstream(engine)
+
+    val result = SigninApi().getAttendance()
+
+    assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
+    val response = result.getOrThrow()
+    assertEquals("202620271", response.termCode)
+    assertEquals("2026-2027 第一学期", response.termName)
+    assertEquals(
+        listOf("2026-10-01", "2026-09-20", "2026-09-10"),
+        response.data.map { it.teachTime },
+    )
+    assertEquals(listOf("软件工程", "编译原理", "软件工程"), response.data.map { it.courseName })
+    assertEquals(listOf(0, 1, 1), response.data.map { it.signStatus })
+  }
+
   private fun useMockUpstream(engine: MockEngine) {
     LocalUpstreamClientProvider.clientFactory = { followRedirects ->
       HttpClient(engine) {

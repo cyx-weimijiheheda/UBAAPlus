@@ -12,6 +12,7 @@ import cn.edu.ubaa.plus.api.venue.VenueDayInfo
 import cn.edu.ubaa.plus.api.venue.VenueGrabController
 import cn.edu.ubaa.plus.api.venue.VenueGrabState
 import cn.edu.ubaa.plus.api.venue.VenueGrabTask
+import cn.edu.ubaa.plus.api.venue.VenueMembershipCode
 import cn.edu.ubaa.plus.api.venue.VenuePoint
 import cn.edu.ubaa.plus.api.venue.VenueSite
 import cn.edu.ubaa.plus.api.venue.VenueSpace
@@ -46,6 +47,12 @@ data class VenueLoginForm(
     val captchaImage: String? = null,
     val execution: String? = null,
     val rememberPassword: Boolean = false,
+    val error: String? = null,
+)
+
+data class VenueMembershipCodeUiState(
+    val isLoading: Boolean = false,
+    val code: VenueMembershipCode? = null,
     val error: String? = null,
 )
 
@@ -87,6 +94,27 @@ data class VenueUiState(
         today.plus(it, kotlinx.datetime.DateTimeUnit.DAY)
       }
     }
+
+  /** 下拉框只列出至少还有一块空闲场地的时段；未放票时回退到时段模板。 */
+  val selectableSlots: List<VenueTimeSlot>
+    get() {
+      val day = dayInfo ?: return slotTemplate
+      return day.slots.filter { slot ->
+        day.spaces.any { space -> space.slot(slot.timeId)?.isFree == true }
+      }
+    }
+
+  /** 当前目标时段的展示文本；目标已不可用时保留选择并附加提示。 */
+  val selectedSlotLabel: String
+    get() {
+      val start = selectedStartBegin ?: return ""
+      val source = dayInfo?.slots ?: slotTemplate
+      val slot = source.firstOrNull { it.beginTime == start }
+      val label = slot?.label ?: start
+      val unavailable =
+          dayInfo != null && slot != null && selectableSlots.none { it.timeId == slot.timeId }
+      return if (unavailable) "$label（当前无空闲）" else label
+    }
 }
 
 /**
@@ -104,6 +132,11 @@ class VenueViewModel(
 
   private val grabController = VenueGrabController(venueApi, viewModelScope, foreground, now)
   val grabState: StateFlow<VenueGrabState> = grabController.state
+
+  private val _membershipCodeState = MutableStateFlow(VenueMembershipCodeUiState())
+  val membershipCodeState: StateFlow<VenueMembershipCodeUiState> =
+      _membershipCodeState.asStateFlow()
+  private var membershipCodeEpoch = 0
 
   private var initialized = false
   private var autoLoginAttempted = false
@@ -123,6 +156,7 @@ class VenueViewModel(
     autoLoginAttempted = false
     templateLoadedForSite = null
     _state.value = VenueUiState()
+    clearMembershipCode()
   }
 
   private suspend fun initialize() {
@@ -359,6 +393,37 @@ class VenueViewModel(
     viewModelScope.launch { loadDayInfo() }
   }
 
+  /** 加载会员码；同一时间只允许一个请求，过期响应会被丢弃。 */
+  fun loadMembershipCode() {
+    if (_state.value.authPhase != VenueAuthPhase.READY) {
+      _membershipCodeState.update { it.copy(isLoading = false, error = "请先登录运动场地系统") }
+      return
+    }
+    if (_membershipCodeState.value.isLoading) return
+    val epoch = ++membershipCodeEpoch
+    _membershipCodeState.update { it.copy(isLoading = true, error = null) }
+    viewModelScope.launch {
+      venueApi
+          .getMembershipCode()
+          .onSuccess { code ->
+            if (epoch != membershipCodeEpoch) return@onSuccess
+            _membershipCodeState.value =
+                VenueMembershipCodeUiState(isLoading = false, code = code, error = null)
+          }
+          .onFailure { error ->
+            if (epoch != membershipCodeEpoch) return@onFailure
+            _membershipCodeState.update {
+              it.copy(isLoading = false, error = error.message ?: "会员码加载失败")
+            }
+          }
+    }
+  }
+
+  fun clearMembershipCode() {
+    membershipCodeEpoch++
+    _membershipCodeState.value = VenueMembershipCodeUiState()
+  }
+
   private suspend fun loadSlotTemplate(siteId: Int) {
     if (templateLoadedForSite == siteId && _state.value.slotTemplate.isNotEmpty()) return
     val today = currentVenueDate()
@@ -422,12 +487,18 @@ class VenueViewModel(
         }
   }
 
-  /** 尚未放票时，直接从时段模板中选择目标开始时间。 */
+  /** 从下拉框选择目标开始时间；已放票时校验指定场地在该时段是否仍空闲。 */
   fun selectTemplateSlot(slot: VenueTimeSlot) {
     _state.update {
+      val keepFixedSpace =
+          it.spaceMode == VenueSpaceMode.FIXED &&
+              it.selectedSpaceId?.let { spaceId ->
+                val space = it.dayInfo?.spaces?.firstOrNull { space -> space.spaceId == spaceId }
+                space == null || space.slot(slot.timeId)?.isFree == true
+              } == true
       it.copy(
           selectedStartBegin = slot.beginTime,
-          selectedSpaceId = if (it.spaceMode == VenueSpaceMode.FIXED) it.selectedSpaceId else null,
+          selectedSpaceId = if (keepFixedSpace) it.selectedSpaceId else null,
           message = null,
       )
     }

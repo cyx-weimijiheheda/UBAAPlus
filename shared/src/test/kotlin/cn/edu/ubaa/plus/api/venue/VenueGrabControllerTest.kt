@@ -196,6 +196,8 @@ class VenueGrabControllerTest {
     override suspend fun getSites(): Result<VenueSiteList> =
         Result.success(VenueSiteList(emptyList(), 3))
 
+    override suspend fun getMembershipCode(): Result<VenueMembershipCode?> = Result.success(null)
+
     override suspend fun getDayInfo(siteId: Int, date: String): Result<VenueDayInfo?> =
         Result.success(day)
 

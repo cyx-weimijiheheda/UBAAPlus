@@ -111,6 +111,15 @@ internal fun parseVenueDayInfo(data: JsonObject, siteId: Int, date: String): Ven
 }
 
 /** 解析 `/api/buddies` 的 `data.content`，或 day/info 里的 `buddyList` 数组。 */
+/** 会员码响应。没有会员卡时 qrCode 为空，仍保留 dueDate 等信息。 */
+internal fun parseVenueMembershipCode(data: JsonObject): VenueMembershipCode =
+    VenueMembershipCode(
+        qrCode = data.stringOrNull("qrCode")?.takeIf { it.isNotBlank() },
+        dueDate = data.stringOrNull("dueDate")?.takeIf { it.isNotBlank() },
+        isDynamicCode = data.boolOrNull("isDynamicCode") ?: false,
+        currDate = data.stringOrNull("currDate")?.takeIf { it.isNotBlank() },
+    )
+
 internal fun parseVenueBuddies(element: JsonElement?): List<VenueBuddy> {
   val array =
       when (element) {

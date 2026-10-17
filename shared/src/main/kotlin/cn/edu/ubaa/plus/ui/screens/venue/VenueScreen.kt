@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -366,30 +367,57 @@ private fun VenueAvailabilityCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "可选时段（点击选择目标开始时间）：",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-          state.slotTemplate.forEach { slot ->
-            FilterChip(
-                selected = state.selectedStartBegin == slot.beginTime,
-                onClick = { onTemplateSlotClick(slot) },
-                label = { Text(slot.label) },
-            )
-          }
-        }
-      } else {
+      }
+
+      VenueSlotDropdown(
+          slots = state.selectableSlots,
+          selectedLabel = state.selectedSlotLabel,
+          onSlotSelected = onTemplateSlotClick,
+      )
+
+      if (day != null) {
+        Spacer(modifier = Modifier.height(12.dp))
         AvailabilityTable(day = day, state = state, onCellClick = onCellClick)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "绿色=空闲，橙色=未支付，红色=已预约，灰色=不可用。点击空闲格子设置目标时段。",
+            text = "绿色=空闲，橙色=未支付，红色=已预约，灰色=不可用。点击空闲格子也可以设置目标时段。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+    }
+  }
+}
+
+/** 与场地选择同款的下拉框；只列出当前还有空闲场地的时段。 */
+@Composable
+private fun VenueSlotDropdown(
+    slots: List<VenueTimeSlot>,
+    selectedLabel: String,
+    onSlotSelected: (VenueTimeSlot) -> Unit,
+) {
+  var expanded by remember { mutableStateOf(false) }
+  Box {
+    OutlinedButton(
+        onClick = { expanded = true },
+        enabled = slots.isNotEmpty(),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+      Text(
+          text = selectedLabel.ifBlank { if (slots.isEmpty()) "暂无可用时段" else "选择时段" },
+          maxLines = 1,
+          modifier = Modifier.weight(1f),
+      )
+      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+      slots.forEach { slot ->
+        DropdownMenuItem(
+            text = { Text(slot.label) },
+            onClick = {
+              expanded = false
+              onSlotSelected(slot)
+            },
         )
       }
     }

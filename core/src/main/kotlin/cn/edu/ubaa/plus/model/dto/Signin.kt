@@ -43,3 +43,27 @@ data class SigninStatusResponse(
  */
 @Serializable
 data class SigninActionResponse(val code: Int, val success: Boolean, val message: String)
+
+/** iClass 考勤明细中的一条课堂记录。 */
+@Serializable
+data class IclassAttendanceRecordDto(
+    val courseSchedId: String = "",
+    val courseId: String = "",
+    val courseName: String = "",
+    val teacherName: String = "",
+    val teachTime: String = "",
+    val classBeginTime: String = "",
+    val classEndTime: String = "",
+    /** 0: 未签到, 1: 已签到；其它值原样保留。 */
+    val signStatus: Int = 0,
+)
+
+/** 本学期考勤查询结果。 */
+@Serializable
+data class SigninAttendanceResponse(
+    val code: Int,
+    val message: String,
+    val termCode: String? = null,
+    val termName: String? = null,
+    val data: List<IclassAttendanceRecordDto> = emptyList(),
+)

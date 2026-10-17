@@ -169,6 +169,23 @@ internal class LocalVenueApi(
         parseVenueSiteList(data)
       }
 
+  override suspend fun getMembershipCode(): Result<VenueMembershipCode?> =
+      execute("会员码加载失败，请稍后重试") {
+        val envelope =
+            requestEnvelope(
+                HttpMethod.Get,
+                "/api/vip/code/view",
+                params =
+                    mapOf(
+                        "isNeedReservation" to 1,
+                        "isNeedVipCard" to 1,
+                        "qrRgb" to MEMBERSHIP_QR_RGB,
+                    ),
+            )
+        val data = envelope.requireOk("会员码加载失败")["data"]?.jsonObject ?: return@execute null
+        parseVenueMembershipCode(data)
+      }
+
   override suspend fun getDayInfo(siteId: Int, date: String): Result<VenueDayInfo?> =
       execute("运动场地可用信息加载失败，请稍后重试") {
         val envelope =
@@ -495,6 +512,7 @@ internal class LocalVenueApi(
     const val SSO_CAPTCHA_URL = "https://sso.buaa.edu.cn/captcha"
     const val CAPTCHA_TYPE = "clickWord"
     const val CLIENT_UID = "buaa-venue-selector"
+    const val MEMBERSHIP_QR_RGB = "10,45,103"
   }
 }
 

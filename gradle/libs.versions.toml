@@ -30,6 +30,7 @@ kover = "0.9.7"
 micrometer = "1.16.4"
 redis = "7.2.1.RELEASE"
 spotless = "8.4.0"
+zxing-embedded = "4.3.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -83,6 +84,7 @@ ktor-server-metrics-micrometer = { module = "io.ktor:ktor-server-metrics-microme
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
 dotenv-kotlin = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
 redis-kotlin = { module = "io.lettuce:lettuce-core", version.ref = "redis" }
+zxing-android-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxing-embedded" }
 
 
 [plugins]

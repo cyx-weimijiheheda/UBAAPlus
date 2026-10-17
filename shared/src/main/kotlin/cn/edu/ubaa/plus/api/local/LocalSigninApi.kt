@@ -4,10 +4,13 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.ConnectionRuntime
 import cn.edu.ubaa.plus.api.SIGNIN_LOGIN_REDIRECT_LIMIT
 import cn.edu.ubaa.plus.api.SIGNIN_MY_CENTER_URL
+import cn.edu.ubaa.plus.api.auth.ApiCallException
 import cn.edu.ubaa.plus.api.extractSigninLoginNameFromUrl
 import cn.edu.ubaa.plus.api.feature.SigninApiBackend
 import cn.edu.ubaa.plus.api.resolveSigninRedirectUrl
+import cn.edu.ubaa.plus.model.dto.IclassAttendanceRecordDto
 import cn.edu.ubaa.plus.model.dto.SigninActionResponse
+import cn.edu.ubaa.plus.model.dto.SigninAttendanceResponse
 import cn.edu.ubaa.plus.model.dto.SigninClassDto
 import cn.edu.ubaa.plus.model.dto.SigninStatusResponse
 import io.ktor.client.request.forms.submitForm
@@ -106,12 +109,16 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     }
   }
 
-  override suspend fun performSignin(courseId: String): Result<SigninActionResponse> {
-    return performSignin(courseId, allowRetry = true)
+  override suspend fun performSignin(
+      courseId: String,
+      timestamp: String?,
+  ): Result<SigninActionResponse> {
+    return performSignin(courseId, timestamp, allowRetry = true)
   }
 
   private suspend fun performSignin(
       courseId: String,
+      scannedTimestamp: String?,
       allowRetry: Boolean,
   ): Result<SigninActionResponse> {
     val authSession =
@@ -124,14 +131,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     }
 
     return try {
-      val timestamp =
-          LocalUpstreamClientProvider.shared()
-              .get(localSigninCheckinUrl("app/common/get_timestamp.action"))
-              .bodyAsText()
-              .let(json::parseToJsonElement)
-              .jsonObject["timestamp"]
-              ?.jsonPrimitive
-              ?.content
+      val timestamp = scannedTimestamp?.takeIf { it.isNotBlank() } ?: fetchSigninTimestamp()
       if (timestamp.isNullOrBlank()) {
         return Result.success(
             SigninActionResponse(code = 400, success = false, message = "获取服务器时间失败")
@@ -160,7 +160,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
         if (allowRetry && rawMessage?.contains("登录") == true) {
           invalidateSession(authSession.studentId())
           val refreshed = runCatching { currentSession(authSession.studentId()) }.getOrNull()
-          if (refreshed != null) return performSignin(courseId, allowRetry = false)
+          if (refreshed != null) return performSignin(courseId, timestamp, allowRetry = false)
         }
       }
       Result.success(
@@ -174,6 +174,220 @@ internal class LocalSigninApiBackend : SigninApiBackend {
       Result.success(SigninActionResponse(code = 400, success = false, message = "签到失败，请稍后重试"))
     }
   }
+
+  private suspend fun fetchSigninTimestamp(): String? =
+      runCatching {
+            LocalUpstreamClientProvider.shared()
+                .get(localSigninCheckinUrl("app/common/get_timestamp.action"))
+                .bodyAsText()
+                .let(json::parseToJsonElement)
+                .jsonObject["timestamp"]
+                ?.jsonPrimitive
+                ?.content
+          }
+          .getOrNull()
+
+  override suspend fun getAttendance(): Result<SigninAttendanceResponse> =
+      getAttendance(allowRetry = true)
+
+  private suspend fun getAttendance(allowRetry: Boolean): Result<SigninAttendanceResponse> {
+    val authSession =
+        LocalAuthSessionStore.get() ?: return Result.failure(localUnauthenticatedApiException())
+    val studentId = authSession.studentId()
+    val session = runCatching { currentSession(studentId) }.getOrNull()
+    if (session == null) {
+      val error = loginLastError ?: "iclass 登录失败"
+      loginLastError = null
+      return Result.failure(ApiCallException(error, code = "signin_error"))
+    }
+
+    return try {
+      val term = runCatching { fetchCurrentTerm(session) }.getOrNull()
+      val termCode = term?.code ?: inferredTermCode()
+      val courses = fetchCourses(session, termCode)
+      val records = mutableListOf<IclassAttendanceRecordDto>()
+      for (course in courses) {
+        records += fetchCourseAttendance(session, course)
+      }
+      Result.success(
+          SigninAttendanceResponse(
+              code = 200,
+              message = "获取成功",
+              termCode = termCode,
+              termName = term?.name,
+              data =
+                  records.sortedWith(
+                      compareByDescending<IclassAttendanceRecordDto> { it.teachTime }
+                          .thenByDescending { it.classBeginTime }
+                  ),
+          )
+      )
+    } catch (e: LocalSigninAuthenticationException) {
+      if (allowRetry) {
+        invalidateSession(studentId)
+        getAttendance(allowRetry = false)
+      } else {
+        Result.failure(
+            ApiCallException(
+                message = "iclass 登录状态已失效，请重新登录",
+                code = "signin_error",
+                cause = e,
+            )
+        )
+      }
+    } catch (e: ApiCallException) {
+      Result.failure(e)
+    } catch (e: Exception) {
+      Result.failure(ApiCallException(message = "考勤查询失败，请稍后重试", code = "signin_error", cause = e))
+    }
+  }
+
+  private suspend fun fetchCurrentTerm(session: LocalSigninSession): LocalSigninTerm? {
+    val payload =
+        iclassGetJson(
+            "https://iclass.buaa.edu.cn:8347/app/course/get_base_school_year.action",
+            session,
+            mapOf("userId" to session.userId, "type" to "2"),
+        )
+    if (!isSigninStatusSuccess(payload)) return null
+    val items =
+        (payload["result"] as? kotlinx.serialization.json.JsonArray)
+            ?: (payload["data"] as? kotlinx.serialization.json.JsonArray)
+            ?: return null
+    val objects = items.mapNotNull { it as? JsonObject }
+    val current =
+        objects.firstOrNull { jsonStringValue(it, "yearStatus") == "1" } ?: objects.firstOrNull()
+    val code =
+        current?.let { jsonStringValue(it, "code") }?.takeIf { it.isNotBlank() } ?: return null
+    return LocalSigninTerm(code = code, name = current.let { jsonStringValue(it, "name") })
+  }
+
+  private suspend fun fetchCourses(
+      session: LocalSigninSession,
+      termCode: String?,
+  ): List<LocalSigninCourse> {
+    val params = buildMap {
+      put("user_type", "1")
+      put("id", session.userId)
+      termCode?.takeIf { it.isNotBlank() }?.let { put("xq_code", it) }
+    }
+    val payload =
+        iclassGetJson(
+            "https://iclass.buaa.edu.cn:8347/app/choosecourse/get_myall_course.action",
+            session,
+            params,
+        )
+    if (isSigninNoData(payload)) return emptyList()
+    requireSigninStatus(payload)
+    val items = payload["result"] as? kotlinx.serialization.json.JsonArray ?: return emptyList()
+    return items.mapNotNull { element ->
+      val item = element as? JsonObject ?: return@mapNotNull null
+      val id =
+          (jsonStringValue(item, "course_id") ?: jsonStringValue(item, "courseId"))?.takeIf {
+            it.isNotBlank()
+          } ?: return@mapNotNull null
+      LocalSigninCourse(
+          id = id,
+          name =
+              jsonStringValue(item, "course_name") ?: jsonStringValue(item, "courseName") ?: "未知课程",
+          teacherName =
+              jsonStringValue(item, "teacher_name") ?: jsonStringValue(item, "teacherName"),
+      )
+    }
+  }
+
+  private suspend fun fetchCourseAttendance(
+      session: LocalSigninSession,
+      course: LocalSigninCourse,
+  ): List<IclassAttendanceRecordDto> {
+    val payload =
+        iclassGetJson(
+            "https://iclass.buaa.edu.cn:8347/app/my/get_my_course_sign_detail.action",
+            session,
+            mapOf(
+                "id" to session.userId,
+                "courseId" to course.id,
+                "sessionId" to session.sessionId,
+            ),
+        )
+    if (isSigninNoData(payload)) return emptyList()
+    requireSigninStatus(payload)
+    val items = payload["result"] as? kotlinx.serialization.json.JsonArray ?: return emptyList()
+    return items.mapNotNull { element ->
+      val item = element as? JsonObject ?: return@mapNotNull null
+      IclassAttendanceRecordDto(
+          courseSchedId =
+              jsonStringValue(item, "courseSchedId") ?: jsonStringValue(item, "id") ?: "",
+          courseId = course.id,
+          courseName =
+              jsonStringValue(item, "courseName")
+                  ?: jsonStringValue(item, "course_name")
+                  ?: course.name,
+          teacherName =
+              jsonStringValue(item, "teacherName")
+                  ?: jsonStringValue(item, "teacher_name")
+                  ?: course.teacherName.orEmpty(),
+          teachTime =
+              jsonStringValue(item, "teachTime") ?: jsonStringValue(item, "teach_time") ?: "",
+          classBeginTime =
+              jsonStringValue(item, "classBeginTime")
+                  ?: jsonStringValue(item, "class_begin_time")
+                  ?: "",
+          classEndTime =
+              jsonStringValue(item, "classEndTime")
+                  ?: jsonStringValue(item, "class_end_time")
+                  ?: "",
+          signStatus = attendanceSignStatus(item),
+      )
+    }
+  }
+
+  private fun attendanceSignStatus(item: JsonObject): Int {
+    val primitive = item["signStatus"]?.jsonPrimitive ?: return 0
+    primitive.intOrNull?.let {
+      return it
+    }
+    primitive.contentOrNull?.toIntOrNull()?.let {
+      return it
+    }
+    val text = primitive.contentOrNull.orEmpty()
+    return when {
+      text.contains("已签") -> 1
+      text.contains("未签") -> 0
+      else -> 0
+    }
+  }
+
+  private suspend fun iclassGetJson(
+      url: String,
+      session: LocalSigninSession,
+      params: Map<String, String>,
+  ): JsonObject {
+    val response =
+        LocalUpstreamClientProvider.shared().get(localUpstreamUrl(url)) {
+          header("sessionId", session.sessionId)
+          params.forEach { (key, value) -> parameter(key, value) }
+        }
+    if (response.status != HttpStatusCode.OK) {
+      throw IllegalStateException("iclass 请求失败：HTTP ${response.status.value}")
+    }
+    return json.parseToJsonElement(response.bodyAsText()).jsonObject
+  }
+
+  private fun requireSigninStatus(payload: JsonObject) {
+    if (isSigninStatusSuccess(payload)) return
+    val message = jsonStringValue(payload, "ERRMSG")?.takeIf { it.isNotBlank() } ?: "请求失败"
+    if (message.contains("登录")) throw LocalSigninAuthenticationException(message)
+    throw ApiCallException(message, code = "signin_error")
+  }
+
+  private fun isSigninStatusSuccess(payload: JsonObject): Boolean {
+    val status = jsonStringValue(payload, "STATUS") ?: return true
+    return status == "0" || status == "200" || status == "success"
+  }
+
+  private fun isSigninNoData(payload: JsonObject): Boolean =
+      jsonStringValue(payload, "STATUS") == "2"
 
   private suspend fun currentSession(studentId: String): LocalSigninSession? {
     sessionMutex
@@ -260,6 +474,16 @@ private data class LocalSigninSession(
     val sessionId: String,
 )
 
+private data class LocalSigninTerm(val code: String, val name: String?)
+
+private data class LocalSigninCourse(
+    val id: String,
+    val name: String,
+    val teacherName: String?,
+)
+
+internal class LocalSigninAuthenticationException(message: String) : RuntimeException(message)
+
 // 8347 的签到提交入口没有 /eschool 前缀，端口和路径需要一起选择。
 private fun localSigninCheckinUrl(directPath: String, webVpnPath: String = directPath): String {
   val upstreamUrl =
@@ -301,6 +525,18 @@ private fun currentSigninDate(): String {
     append(date.year)
     append(date.month.ordinal.plus(1).toString().padStart(2, '0'))
     append(date.day.toString().padStart(2, '0'))
+  }
+}
+
+/** 学期接口不可用时按月份推断，例如 2026 年 10 月 -> 202620271。 */
+private fun inferredTermCode(): String {
+  val date = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+  val year = date.year
+  val month = date.month.ordinal + 1
+  return when {
+    month >= 9 -> "${year}${year + 1}1"
+    month == 1 -> "${year - 1}${year}1"
+    else -> "${year - 1}${year}2"
   }
 }
 

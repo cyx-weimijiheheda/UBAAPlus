@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CoPresent
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.EventSeat
@@ -43,6 +44,66 @@ internal fun regularFeatureItems(): List<FeatureItem> =
             icon = Icons.Default.CalendarToday,
         ),
         FeatureItem(
+            id = "classroom",
+            title = "空教室查询",
+            description = "查询各校区空闲教室",
+            icon = Icons.Default.MeetingRoom,
+        ),
+        FeatureItem(
+            id = "iclass",
+            title = "智慧教室",
+            description = "扫码签到与考勤查询",
+            icon = Icons.Default.CoPresent,
+        ),
+        FeatureItem(
+            id = "libbook",
+            title = "图书馆座位",
+            description = "预约图书馆座位并管理记录",
+            icon = Icons.Default.EventSeat,
+        ),
+        FeatureItem(
+            id = "spoc",
+            title = "SPOC作业",
+            description = "查看当前学期作业与提交状态",
+            icon = Icons.Default.AssignmentTurnedIn,
+        ),
+        FeatureItem(
+            id = "bykc",
+            title = "博雅课程",
+            description = "浏览选课，查看已选，签到签退",
+            icon = Icons.Default.School,
+        ),
+        FeatureItem(
+            id = "venue",
+            title = "运动场地",
+            description = "查询体育场馆空闲时段并自动预约",
+            icon = Icons.Default.SportsTennis,
+        ),
+        FeatureItem(
+            id = "ygdk",
+            title = "阳光打卡",
+            description = "查看记录并提交体育活动打卡",
+            icon = Icons.Default.WbSunny,
+        ),
+        FeatureItem(
+            id = "cgyy",
+            title = "研讨室预约",
+            description = "查询、提交和管理研讨室预约",
+            icon = Icons.Default.DateRange,
+        ),
+        FeatureItem(
+            id = "judge",
+            title = "希冀作业",
+            description = "聚合希冀平台作业与提交进度",
+            icon = Icons.Default.Code,
+        ),
+        FeatureItem(
+            id = "evaluation",
+            title = "自动评教",
+            description = "一键完成学期末评教任务",
+            icon = Icons.Default.AssignmentTurnedIn,
+        ),
+        FeatureItem(
             id = "exam",
             title = "考试查询",
             description = "查看考试安排，支持学期切换",
@@ -54,60 +115,6 @@ internal fun regularFeatureItems(): List<FeatureItem> =
             description = "查看课程成绩、学分和绩点",
             icon = Icons.Default.Grade,
         ),
-        FeatureItem(
-            id = "bykc",
-            title = "博雅课程",
-            description = "浏览选课，查看已选，签到签退",
-            icon = Icons.Default.School,
-        ),
-        FeatureItem(
-            id = "classroom",
-            title = "空教室查询",
-            description = "查询各校区空闲教室",
-            icon = Icons.Default.MeetingRoom,
-        ),
-        FeatureItem(
-            id = "spoc",
-            title = "SPOC作业",
-            description = "查看当前学期作业与提交状态",
-            icon = Icons.Default.AssignmentTurnedIn,
-        ),
-        FeatureItem(
-            id = "judge",
-            title = "希冀作业",
-            description = "聚合希冀平台作业与提交进度",
-            icon = Icons.Default.Code,
-        ),
-        FeatureItem(
-            id = "libbook",
-            title = "图书馆座位",
-            description = "预约图书馆座位并管理记录",
-            icon = Icons.Default.EventSeat,
-        ),
-        FeatureItem(
-            id = "venue",
-            title = "运动场地",
-            description = "查询体育场馆空闲时段并自动预约",
-            icon = Icons.Default.SportsTennis,
-        ),
-        FeatureItem(
-            id = "cgyy",
-            title = "研讨室预约",
-            description = "查询、提交和管理研讨室预约",
-            icon = Icons.Default.DateRange,
-        ),
-        FeatureItem(
-            id = "ygdk",
-            title = "阳光打卡",
-            description = "查看记录并提交体育活动打卡",
-            icon = Icons.Default.WbSunny,
-        ),
-        FeatureItem(
-            id = "evaluation",
-            title = "自动评教",
-            description = "一键完成学期末评教任务",
-            icon = Icons.Default.AssignmentTurnedIn,
-        ),
     )
 
 @Composable
@@ -117,6 +124,7 @@ fun RegularFeaturesScreen(
     onGradeClick: () -> Unit,
     onBykcClick: () -> Unit,
     onClassroomClick: () -> Unit,
+    onIclassClick: () -> Unit,
     onSpocClick: () -> Unit,
     onJudgeClick: () -> Unit,
     onLibBookClick: () -> Unit,
@@ -144,6 +152,7 @@ fun RegularFeaturesScreen(
                 "grade" -> onGradeClick()
                 "bykc" -> onBykcClick()
                 "classroom" -> onClassroomClick()
+                "iclass" -> onIclassClick()
                 "spoc" -> onSpocClick()
                 "judge" -> onJudgeClick()
                 "libbook" -> onLibBookClick()

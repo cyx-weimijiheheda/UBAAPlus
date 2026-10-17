@@ -1,11 +1,14 @@
 package cn.edu.ubaa.plus.ui.navigation
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,9 +41,12 @@ import cn.edu.ubaa.plus.ui.screens.menu.*
 import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel
 import cn.edu.ubaa.plus.ui.screens.signin.SigninViewModel
 import cn.edu.ubaa.plus.ui.screens.spoc.SpocViewModel
+import cn.edu.ubaa.plus.ui.screens.venue.VenueMembershipCodeDialog
 import cn.edu.ubaa.plus.ui.screens.venue.VenueViewModel
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkUiState
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkViewModel
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
@@ -63,7 +69,7 @@ enum class AppScreen {
   BYKC_DETAIL,
   BYKC_CHOSEN,
   BYKC_STATISTICS,
-  SIGNIN,
+  ICLASS_HOME,
   CGYY_HOME,
   CGYY_RESERVE_PICKER,
   CGYY_RESERVE_FORM,
@@ -177,6 +183,18 @@ fun MainAppScreen(
   val signinViewModel: SigninViewModel =
       viewModel(key = "signin-${userData.schoolid}") { SigninViewModel() }
   val signinUiState by signinViewModel.uiState.collectAsState()
+  var showVenueMembershipCodeDialog by remember { mutableStateOf(false) }
+  val iclassScanOptions = remember {
+    ScanOptions()
+        .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+        .setPrompt("将签到二维码放入框内")
+        .setBeepEnabled(false)
+        .setOrientationLocked(true)
+  }
+  val iclassScanLauncher =
+      rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents?.takeIf { it.isNotBlank() }?.let(signinViewModel::performScannedSignin)
+      }
   val evaluationViewModel: EvaluationViewModel? =
       if (currentScreen == AppScreen.EVALUATION) {
         viewModel(key = "evaluation") { EvaluationViewModel() }
@@ -471,6 +489,8 @@ fun MainAppScreen(
     }
     if (currentScreen == AppScreen.VENUE_HOME) {
       hasVisitedVenue = true
+    } else {
+      showVenueMembershipCodeDialog = false
     }
     if (currentScreen != AppScreen.HOME) {
       homeManualRefreshPending = false
@@ -513,7 +533,10 @@ fun MainAppScreen(
       }
       AppScreen.BYKC_CHOSEN -> bykcViewModel.ensureChosenCoursesLoaded(forceRefresh = true)
       AppScreen.BYKC_STATISTICS -> bykcViewModel.ensureStatisticsLoaded(forceRefresh = true)
-      AppScreen.SIGNIN -> signinViewModel.ensureTodayLoaded(forceRefresh = true)
+      AppScreen.ICLASS_HOME -> {
+        signinViewModel.ensureTodayLoaded(forceRefresh = true)
+        signinViewModel.ensureAttendanceLoaded(forceRefresh = true)
+      }
       AppScreen.CGYY_HOME,
       AppScreen.CGYY_RESERVE_PICKER,
       AppScreen.CGYY_RESERVE_FORM -> cgyyViewModel?.ensureInitialDataLoaded(forceRefresh = true)
@@ -566,7 +589,10 @@ fun MainAppScreen(
       }
       AppScreen.BYKC_CHOSEN -> bykcViewModel.ensureChosenCoursesLoaded()
       AppScreen.BYKC_STATISTICS -> bykcViewModel.ensureStatisticsLoaded()
-      AppScreen.SIGNIN -> signinViewModel.ensureTodayLoaded()
+      AppScreen.ICLASS_HOME -> {
+        signinViewModel.ensureTodayLoaded()
+        signinViewModel.ensureAttendanceLoaded()
+      }
       AppScreen.CGYY_HOME,
       AppScreen.CGYY_RESERVE_PICKER,
       AppScreen.CGYY_RESERVE_FORM -> {
@@ -620,7 +646,7 @@ fun MainAppScreen(
         AppScreen.BYKC_DETAIL -> "课程详情"
         AppScreen.BYKC_CHOSEN -> "我的课程"
         AppScreen.BYKC_STATISTICS -> "课程统计"
-        AppScreen.SIGNIN -> "课程签到"
+        AppScreen.ICLASS_HOME -> "智慧教室"
         AppScreen.CGYY_HOME -> "研讨室预约"
         AppScreen.CGYY_RESERVE_PICKER -> "预约研讨室"
         AppScreen.CGYY_RESERVE_FORM -> "填写预约信息"
@@ -711,6 +737,24 @@ fun MainAppScreen(
               } else if (currentScreen == AppScreen.JUDGE_ASSIGNMENTS) {
                 IconButton(onClick = { showJudgeSortFilterDialog = true }) {
                   Icon(Icons.Default.Tune, contentDescription = "排序和筛选")
+                }
+              } else if (currentScreen == AppScreen.VENUE_HOME) {
+                IconButton(onClick = { showVenueMembershipCodeDialog = true }) {
+                  Icon(Icons.Default.QrCode2, contentDescription = "会员预约码")
+                }
+              } else if (currentScreen == AppScreen.ICLASS_HOME) {
+                IconButton(
+                    onClick = { iclassScanLauncher.launch(iclassScanOptions) },
+                    enabled = !signinUiState.isScanSigning,
+                ) {
+                  if (signinUiState.isScanSigning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                  } else {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = "扫码签到")
+                  }
                 }
               }
             },
@@ -814,6 +858,15 @@ fun MainAppScreen(
           modifier =
               Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 88.dp),
       )
+    }
+
+    if (showVenueMembershipCodeDialog) {
+      venueViewModel?.let { viewModel ->
+        VenueMembershipCodeDialog(
+            viewModel = viewModel,
+            onDismiss = { showVenueMembershipCodeDialog = false },
+        )
+      }
     }
 
     if (showSpocSortFilterDialog && currentScreen == AppScreen.SPOC_ASSIGNMENTS) {
