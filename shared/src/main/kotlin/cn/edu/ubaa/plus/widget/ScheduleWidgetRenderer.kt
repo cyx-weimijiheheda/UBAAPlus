@@ -37,7 +37,7 @@ internal fun renderScheduleWidget(
   val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   val text =
       TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(40, 58, 80)
+        color = Color.rgb(0, 91, 172)
         textSize = 10f
       }
   val courses = schedule?.arrangedList.orEmpty()
@@ -54,7 +54,7 @@ internal fun renderScheduleWidget(
     canvas.drawText("周$day", center, 11f, text)
     canvas.drawText(start.plus(index, DateTimeUnit.DAY).toString().substring(5), center, 25f, text)
   }
-  paint.color = Color.rgb(220, 229, 241)
+  paint.color = Color.rgb(214, 227, 255)
   for (i in 0..periods) canvas.drawLine(left, top + i * row, width.toFloat(), top + i * row, paint)
   for (i in 0..7) canvas.drawLine(
       left + i * column,
@@ -102,7 +102,7 @@ internal fun renderScheduleWidget(
                   left + (day - 1) * column + (lane + 1) * laneWidth - 1f,
                   top + end * row - 1f,
               )
-          paint.color = Color.rgb(222, 234, 253)
+          paint.color = Color.rgb(214, 227, 255)
           canvas.drawRoundRect(rect, 4f, 4f, paint)
           val label =
               "${course.courseName}\n${course.beginTime.orEmpty()}\n${course.placeName.orEmpty()}"
@@ -146,7 +146,7 @@ private fun drawWidgetText(
 ) {
   val paint =
       TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(35, 57, 82)
+        color = Color.rgb(0, 48, 98)
         textSize = size
       }
   val layout =

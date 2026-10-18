@@ -216,4 +216,51 @@ class VenueParsersTest {
     assertNull(result.dueDate)
     assertFalse(result.isDynamicCode)
   }
+
+  @Test
+  fun `解析预约记录分页与字符串状态`() {
+    val envelope =
+        json
+            .parseToJsonElement(
+                """
+                {
+                  "code": 200,
+                  "data": {
+                    "totalElements": 3,
+                    "content": [
+                      {
+                        "id": "101",
+                        "tradeNo": "T101",
+                        "campusStr": "学院路校区",
+                        "venueName": "体育馆",
+                        "siteName": "羽毛球",
+                        "reservationDate": "2026-10-20",
+                        "reservationDateDetail": "2026-10-20 19:00-20:00",
+                        "amountFee": "25.00",
+                        "payStatus": "2",
+                        "orderStatus": 1,
+                        "gmtCreate": "2026-10-18 10:00"
+                      }
+                    ]
+                  }
+                }
+                """
+                    .trimIndent()
+            )
+            .jsonObject
+
+    val page = parseVenueOrderPage(envelope)
+
+    assertEquals(3, page.totalElements)
+    val record = page.records.single()
+    assertEquals(101L, record.id)
+    assertEquals("学院路校区", record.campusName)
+    assertEquals("体育馆", record.venueName)
+    assertEquals("羽毛球", record.siteName)
+    assertEquals("2026-10-20 19:00-20:00", record.reservationDateDetail)
+    assertEquals(25.0, record.amountFee)
+    assertEquals(2, record.payStatus)
+    assertEquals(1, record.orderStatus)
+    assertEquals("2026-10-18 10:00", record.createDate)
+  }
 }

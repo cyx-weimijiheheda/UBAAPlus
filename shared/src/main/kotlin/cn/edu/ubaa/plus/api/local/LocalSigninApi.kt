@@ -8,7 +8,9 @@ import cn.edu.ubaa.plus.api.auth.ApiCallException
 import cn.edu.ubaa.plus.api.extractSigninLoginNameFromUrl
 import cn.edu.ubaa.plus.api.feature.SigninApiBackend
 import cn.edu.ubaa.plus.api.resolveSigninRedirectUrl
+import cn.edu.ubaa.plus.model.dto.IclassAttendanceCourseDto
 import cn.edu.ubaa.plus.model.dto.IclassAttendanceRecordDto
+import cn.edu.ubaa.plus.model.dto.IclassAttendanceTermDto
 import cn.edu.ubaa.plus.model.dto.SigninActionResponse
 import cn.edu.ubaa.plus.model.dto.SigninAttendanceResponse
 import cn.edu.ubaa.plus.model.dto.SigninClassDto
@@ -42,8 +44,11 @@ internal class LocalSigninApiBackend : SigninApiBackend {
   private val sessionCache = mutableMapOf<String, LocalSigninSession>()
   private var loginLastError: String? = null
 
+  private val courseCache = mutableMapOf<String, List<LocalSigninCourse>>()
+
   internal fun clearCache() {
     sessionCache.clear()
+    courseCache.clear()
   }
 
   /** 兼容 iclass 返回的 STATUS/stuSignStatus 等字段可能为字符串或整数的情况。 */
@@ -187,10 +192,64 @@ internal class LocalSigninApiBackend : SigninApiBackend {
           }
           .getOrNull()
 
-  override suspend fun getAttendance(): Result<SigninAttendanceResponse> =
-      getAttendance(allowRetry = true)
+  override suspend fun getAttendanceTerms(): Result<List<IclassAttendanceTermDto>> =
+      withSigninSession("考勤学期加载失败，请以校园网登录查看") { _, session ->
+        val terms = fetchTerms(session).ifEmpty { listOf(inferredTerm()) }
+        terms.map { term ->
+          IclassAttendanceTermDto(
+              code = term.code,
+              name = termDisplayName(term),
+              isCurrent = term.isCurrent,
+          )
+        }
+      }
 
-  private suspend fun getAttendance(allowRetry: Boolean): Result<SigninAttendanceResponse> {
+  override suspend fun getAttendanceCourses(
+      termCode: String
+  ): Result<List<IclassAttendanceCourseDto>> =
+      withSigninSession("课程列表加载失败，请以校园网登录查看") { _, session ->
+        fetchCoursesCached(session, termCode).map { course ->
+          IclassAttendanceCourseDto(
+              courseId = course.id,
+              courseName = course.name,
+              teacherName = course.teacherName.orEmpty(),
+          )
+        }
+      }
+
+  override suspend fun getAttendance(
+      termCode: String,
+      courseId: String,
+  ): Result<SigninAttendanceResponse> =
+      withSigninSession("考勤查询失败，请以校园网登录查看") { _, session ->
+        val term =
+            runCatching { fetchTerms(session) }
+                .getOrDefault(emptyList())
+                .firstOrNull { it.code == termCode } ?: LocalSigninTerm(termCode, null)
+        val courses = fetchCoursesCached(session, termCode)
+        val course =
+            courses.firstOrNull { it.id == courseId }
+                ?: throw ApiCallException("未找到所选课程，请刷新后重试", code = "signin_error")
+        val records = fetchCourseAttendance(session, course)
+        SigninAttendanceResponse(
+            code = 200,
+            message = "获取成功",
+            termCode = termCode,
+            termName = termDisplayName(term),
+            data =
+                records.sortedWith(
+                    compareByDescending<IclassAttendanceRecordDto> { it.teachTime }
+                        .thenByDescending { it.classBeginTime }
+                ),
+        )
+      }
+
+  /** 统一的 iClass 会话与登录失效重试逻辑。 */
+  private suspend fun <T> withSigninSession(
+      failureMessage: String,
+      allowRetry: Boolean = true,
+      block: suspend (studentId: String, session: LocalSigninSession) -> T,
+  ): Result<T> {
     val authSession =
         LocalAuthSessionStore.get() ?: return Result.failure(localUnauthenticatedApiException())
     val studentId = authSession.studentId()
@@ -202,30 +261,11 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     }
 
     return try {
-      val term = runCatching { fetchCurrentTerm(session) }.getOrNull()
-      val termCode = term?.code ?: inferredTermCode()
-      val courses = fetchCourses(session, termCode)
-      val records = mutableListOf<IclassAttendanceRecordDto>()
-      for (course in courses) {
-        records += fetchCourseAttendance(session, course)
-      }
-      Result.success(
-          SigninAttendanceResponse(
-              code = 200,
-              message = "获取成功",
-              termCode = termCode,
-              termName = term?.name,
-              data =
-                  records.sortedWith(
-                      compareByDescending<IclassAttendanceRecordDto> { it.teachTime }
-                          .thenByDescending { it.classBeginTime }
-                  ),
-          )
-      )
+      Result.success(block(studentId, session))
     } catch (e: LocalSigninAuthenticationException) {
       if (allowRetry) {
         invalidateSession(studentId)
-        getAttendance(allowRetry = false)
+        withSigninSession(failureMessage, allowRetry = false, block = block)
       } else {
         Result.failure(
             ApiCallException(
@@ -238,30 +278,55 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     } catch (e: ApiCallException) {
       Result.failure(e)
     } catch (e: Exception) {
-      Result.failure(
-          ApiCallException(message = "考勤查询失败，请以校园网登录查看", code = "signin_error", cause = e)
-      )
+      Result.failure(ApiCallException(message = failureMessage, code = "signin_error", cause = e))
     }
   }
 
-  private suspend fun fetchCurrentTerm(session: LocalSigninSession): LocalSigninTerm? {
+  private suspend fun fetchTerms(session: LocalSigninSession): List<LocalSigninTerm> {
     val payload =
         iclassGetJson(
             "https://iclass.buaa.edu.cn:8347/app/course/get_base_school_year.action",
             session,
             mapOf("userId" to session.userId, "type" to "2"),
         )
-    if (!isSigninStatusSuccess(payload)) return null
+    if (!isSigninStatusSuccess(payload)) return emptyList()
     val items =
         (payload["result"] as? kotlinx.serialization.json.JsonArray)
             ?: (payload["data"] as? kotlinx.serialization.json.JsonArray)
-            ?: return null
-    val objects = items.mapNotNull { it as? JsonObject }
-    val current =
-        objects.firstOrNull { jsonStringValue(it, "yearStatus") == "1" } ?: objects.firstOrNull()
-    val code =
-        current?.let { jsonStringValue(it, "code") }?.takeIf { it.isNotBlank() } ?: return null
-    return LocalSigninTerm(code = code, name = current.let { jsonStringValue(it, "name") })
+            ?: return emptyList()
+    return items.mapNotNull { element ->
+      val item = element as? JsonObject ?: return@mapNotNull null
+      val code = jsonStringValue(item, "code")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+      LocalSigninTerm(
+          code = code,
+          name = jsonStringValue(item, "name")?.takeIf { it.isNotBlank() },
+          isCurrent = jsonStringValue(item, "yearStatus") == "1",
+      )
+    }
+  }
+
+  private fun inferredTerm(): LocalSigninTerm =
+      LocalSigninTerm(code = inferredTermCode(), name = null, isCurrent = true)
+
+  private fun termDisplayName(term: LocalSigninTerm): String =
+      term.name?.takeIf { it.isNotBlank() } ?: formatTermCode(term.code)
+
+  private fun formatTermCode(code: String): String {
+    if (code.length < 9) return code
+    val start = code.take(4).toIntOrNull() ?: return code
+    val end = code.substring(4, 8).toIntOrNull() ?: return code
+    val termName = if (code.last() == '2') "第二学期" else "第一学期"
+    return "$start-$end 学年$termName"
+  }
+
+  private suspend fun fetchCoursesCached(
+      session: LocalSigninSession,
+      termCode: String,
+  ): List<LocalSigninCourse> {
+    courseCache[termCode]?.let {
+      return it
+    }
+    return fetchCourses(session, termCode).also { courseCache[termCode] = it }
   }
 
   private suspend fun fetchCourses(
@@ -403,6 +468,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
 
   private fun invalidateSession(studentId: String) {
     sessionCache.remove(studentId)
+    courseCache.clear()
   }
 
   private suspend fun login(studentId: String): LocalSigninSession? {
@@ -476,7 +542,11 @@ private data class LocalSigninSession(
     val sessionId: String,
 )
 
-private data class LocalSigninTerm(val code: String, val name: String?)
+private data class LocalSigninTerm(
+    val code: String,
+    val name: String?,
+    val isCurrent: Boolean = false,
+)
 
 private data class LocalSigninCourse(
     val id: String,

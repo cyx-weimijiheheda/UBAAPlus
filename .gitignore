@@ -73,10 +73,10 @@ _bmad-output
 wiki/
 .codex
 ktfmt-0.61-with-dependencies.jar
-# CLAUDE.md
+CLAUDE.md
 REDIS_MIGRATION.md
 .claude
-# AGENTS.md
+AGENTS.md
 todo.md
 .worktrees/
 .playwright-cli/

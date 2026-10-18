@@ -23,16 +23,13 @@ internal fun bottomTabFor(screen: AppScreen): BottomNavTab? =
       AppScreen.SPOC_ASSIGNMENT_DETAIL,
       AppScreen.JUDGE_ASSIGNMENTS,
       AppScreen.JUDGE_ASSIGNMENT_DETAIL,
-      AppScreen.LIBBOOK_HOME,
       AppScreen.LIBBOOK_RESERVE,
       AppScreen.LIBBOOK_BOOKINGS,
-      AppScreen.BYKC_HOME,
       AppScreen.BYKC_COURSES,
       AppScreen.BYKC_DETAIL,
       AppScreen.BYKC_CHOSEN,
       AppScreen.BYKC_STATISTICS,
       AppScreen.ICLASS_HOME,
-      AppScreen.CGYY_HOME,
       AppScreen.CGYY_RESERVE_PICKER,
       AppScreen.CGYY_RESERVE_FORM,
       AppScreen.CGYY_ORDERS,
@@ -41,5 +38,4 @@ internal fun bottomTabFor(screen: AppScreen): BottomNavTab? =
       AppScreen.YGDK_HOME,
       AppScreen.YGDK_FORM,
       AppScreen.VENUE_HOME -> BottomNavTab.REGULAR
-      else -> null
     }

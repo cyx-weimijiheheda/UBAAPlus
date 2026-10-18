@@ -13,11 +13,18 @@ import cn.edu.ubaa.plus.api.venue.VenueGrabController
 import cn.edu.ubaa.plus.api.venue.VenueGrabState
 import cn.edu.ubaa.plus.api.venue.VenueGrabTask
 import cn.edu.ubaa.plus.api.venue.VenueMembershipCode
+import cn.edu.ubaa.plus.api.venue.VenueOrderRecord
 import cn.edu.ubaa.plus.api.venue.VenuePoint
 import cn.edu.ubaa.plus.api.venue.VenueSite
 import cn.edu.ubaa.plus.api.venue.VenueSpace
 import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
 import cn.edu.ubaa.plus.api.venue.VenueTimeSlot
+import cn.edu.ubaa.plus.api.venue.campusLabel
+import cn.edu.ubaa.plus.api.venue.sportCategoryLabel
+import cn.edu.ubaa.plus.api.venue.venueCampusOptions
+import cn.edu.ubaa.plus.api.venue.venueLabel
+import cn.edu.ubaa.plus.api.venue.venueSiteOptions
+import cn.edu.ubaa.plus.api.venue.venueSportOptions
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
@@ -31,6 +38,8 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
+
+private const val ORDER_PAGE_SIZE = 20
 
 enum class VenueAuthPhase {
   CHECKING,
@@ -47,6 +56,15 @@ data class VenueLoginForm(
     val captchaImage: String? = null,
     val execution: String? = null,
     val rememberPassword: Boolean = false,
+    val error: String? = null,
+)
+
+/** 运动场地预约记录弹窗状态。 */
+data class VenueOrderHistoryUiState(
+    val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val records: List<VenueOrderRecord> = emptyList(),
+    val hasMore: Boolean = false,
     val error: String? = null,
 )
 
@@ -86,6 +104,25 @@ data class VenueUiState(
 ) {
   val selectedSite: VenueSite?
     get() = sites.firstOrNull { it.id == selectedSiteId }
+
+  /** 三级下拉：校区 → 运动类型 → 场馆。 */
+  val campusOptions: List<String>
+    get() = venueCampusOptions(sites)
+
+  val selectedCampus: String
+    get() = selectedSite?.campusLabel() ?: campusOptions.firstOrNull().orEmpty()
+
+  val sportOptions: List<String>
+    get() = venueSportOptions(sites, selectedCampus)
+
+  val selectedSport: String
+    get() = selectedSite?.sportCategoryLabel() ?: sportOptions.firstOrNull().orEmpty()
+
+  val venueOptions: List<VenueSite>
+    get() = venueSiteOptions(sites, selectedCampus, selectedSport)
+
+  val selectedVenueLabel: String
+    get() = selectedSite?.let { "${it.venueLabel()} · ${it.siteName}" } ?: ""
 
   val availableDates: List<LocalDate>
     get() {
@@ -138,9 +175,14 @@ class VenueViewModel(
       _membershipCodeState.asStateFlow()
   private var membershipCodeEpoch = 0
 
+  private val _orderHistoryState = MutableStateFlow(VenueOrderHistoryUiState())
+  val orderHistoryState: StateFlow<VenueOrderHistoryUiState> = _orderHistoryState.asStateFlow()
+  private var orderEpoch = 0
+
   private var initialized = false
   private var autoLoginAttempted = false
   private var dayInfoEpoch = 0
+  private var templateEpoch = 0
   private var templateLoadedForSite: Int? = null
 
   fun ensureInitialized() {
@@ -155,8 +197,10 @@ class VenueViewModel(
     initialized = false
     autoLoginAttempted = false
     templateLoadedForSite = null
+    templateEpoch++
     _state.value = VenueUiState()
     clearMembershipCode()
+    clearOrderHistory()
   }
 
   private suspend fun initialize() {
@@ -360,6 +404,7 @@ class VenueViewModel(
 
   fun selectSite(siteId: Int) {
     if (_state.value.selectedSiteId == siteId) return
+    templateEpoch++
     _state.update {
       it.copy(
           selectedSiteId = siteId,
@@ -374,6 +419,29 @@ class VenueViewModel(
       loadSlotTemplate(siteId)
       loadDayInfo()
     }
+  }
+
+  /** 切换校区：自动选中该校区第一片场地。 */
+  fun selectCampus(campus: String) {
+    val state = _state.value
+    if (state.selectedCampus == campus) return
+    val sports = venueSportOptions(state.sites, campus)
+    val sport = sports.firstOrNull { it == state.selectedSport } ?: sports.firstOrNull().orEmpty()
+    val site = venueSiteOptions(state.sites, campus, sport).firstOrNull() ?: return
+    selectSite(site.id)
+  }
+
+  /** 切换运动类型：自动选中该校区该运动的第一片场地。 */
+  fun selectSport(sport: String) {
+    val state = _state.value
+    if (state.selectedSport == sport) return
+    val site = venueSiteOptions(state.sites, state.selectedCampus, sport).firstOrNull() ?: return
+    selectSite(site.id)
+  }
+
+  /** 切换场馆（具体可预约场地）。 */
+  fun selectVenue(siteId: Int) {
+    selectSite(siteId)
   }
 
   fun selectDate(date: LocalDate) {
@@ -424,18 +492,90 @@ class VenueViewModel(
     _membershipCodeState.value = VenueMembershipCodeUiState()
   }
 
+  /** 加载第一页预约记录。 */
+  fun loadOrderHistory(refresh: Boolean = true) {
+    if (_state.value.authPhase != VenueAuthPhase.READY) {
+      _orderHistoryState.update { it.copy(isLoading = false, error = "请先登录运动场地系统") }
+      return
+    }
+    if (_orderHistoryState.value.isLoading) return
+    val epoch = ++orderEpoch
+    _orderHistoryState.update {
+      it.copy(
+          isLoading = true,
+          isLoadingMore = false,
+          error = null,
+          records = if (refresh) emptyList() else it.records,
+      )
+    }
+    viewModelScope.launch {
+      venueApi
+          .getMyOrders(page = 0, size = ORDER_PAGE_SIZE)
+          .onSuccess { page ->
+            if (epoch != orderEpoch) return@onSuccess
+            _orderHistoryState.value =
+                VenueOrderHistoryUiState(
+                    records = page.records,
+                    hasMore = page.records.size < page.totalElements,
+                )
+          }
+          .onFailure { error ->
+            if (epoch != orderEpoch) return@onFailure
+            _orderHistoryState.update {
+              it.copy(isLoading = false, error = error.message ?: "预约记录加载失败")
+            }
+          }
+    }
+  }
+
+  /** 追加下一页预约记录。 */
+  fun loadMoreOrderHistory() {
+    val current = _orderHistoryState.value
+    if (current.isLoading || current.isLoadingMore || !current.hasMore) return
+    val epoch = orderEpoch
+    val page = current.records.size / ORDER_PAGE_SIZE
+    _orderHistoryState.update { it.copy(isLoadingMore = true, error = null) }
+    viewModelScope.launch {
+      venueApi
+          .getMyOrders(page = page, size = ORDER_PAGE_SIZE)
+          .onSuccess { result ->
+            if (epoch != orderEpoch) return@onSuccess
+            val merged = current.records + result.records
+            _orderHistoryState.value =
+                VenueOrderHistoryUiState(
+                    records = merged,
+                    hasMore = merged.size < result.totalElements,
+                )
+          }
+          .onFailure { error ->
+            if (epoch != orderEpoch) return@onFailure
+            _orderHistoryState.update {
+              it.copy(isLoadingMore = false, error = error.message ?: "预约记录加载失败")
+            }
+          }
+    }
+  }
+
+  fun clearOrderHistory() {
+    orderEpoch++
+    _orderHistoryState.value = VenueOrderHistoryUiState()
+  }
+
   private suspend fun loadSlotTemplate(siteId: Int) {
     if (templateLoadedForSite == siteId && _state.value.slotTemplate.isNotEmpty()) return
+    val epoch = ++templateEpoch
     val today = currentVenueDate()
     var template: List<VenueTimeSlot> = emptyList()
     for (offset in 0..7) {
       val date = today.plus(offset, kotlinx.datetime.DateTimeUnit.DAY).toString()
       val day = venueApi.getDayInfo(siteId, date).getOrNull()
+      if (epoch != templateEpoch || _state.value.selectedSiteId != siteId) return
       if (day != null && day.slots.isNotEmpty()) {
         template = day.slots
         break
       }
     }
+    if (epoch != templateEpoch || _state.value.selectedSiteId != siteId) return
     if (template.isEmpty()) template = fallbackVenueTemplate()
     templateLoadedForSite = siteId
     _state.update { it.copy(slotTemplate = template) }
@@ -628,7 +768,7 @@ class VenueViewModel(
 
     val preferred =
         if (current.spaceMode == VenueSpaceMode.FIXED && current.selectedSpaceId != null) {
-          mapOf(startBegin to current.selectedSpaceId!!)
+          mapOf(startBegin to current.selectedSpaceId)
         } else {
           emptyMap()
         }

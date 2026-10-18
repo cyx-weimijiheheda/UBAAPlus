@@ -11,8 +11,17 @@ interface SigninApiBackend {
       timestamp: String? = null,
   ): Result<SigninActionResponse>
 
-  /** 本学期考勤明细。 */
-  suspend fun getAttendance(): Result<SigninAttendanceResponse>
+  /** 可用于考勤查询的学年学期。 */
+  suspend fun getAttendanceTerms(): Result<List<IclassAttendanceTermDto>>
+
+  /** 指定学年学期的课程列表。 */
+  suspend fun getAttendanceCourses(termCode: String): Result<List<IclassAttendanceCourseDto>>
+
+  /** 指定学年学期、指定课程的考勤明细。 */
+  suspend fun getAttendance(
+      termCode: String,
+      courseId: String,
+  ): Result<SigninAttendanceResponse>
 }
 
 /** 课堂签到 API 服务。 用于查询今日可签到的课堂及执行签到动作。 */
@@ -48,8 +57,21 @@ class SigninApi(
     return currentBackend().performSignin(courseId, timestamp)
   }
 
-  /** 查询本学期考勤明细。 */
-  suspend fun getAttendance(): Result<SigninAttendanceResponse> {
-    return currentBackend().getAttendance()
+  /** 查询可选学年学期。 */
+  suspend fun getAttendanceTerms(): Result<List<IclassAttendanceTermDto>> {
+    return currentBackend().getAttendanceTerms()
+  }
+
+  /** 查询指定学年学期的课程。 */
+  suspend fun getAttendanceCourses(termCode: String): Result<List<IclassAttendanceCourseDto>> {
+    return currentBackend().getAttendanceCourses(termCode)
+  }
+
+  /** 查询指定学年学期、指定课程的考勤明细。 */
+  suspend fun getAttendance(
+      termCode: String,
+      courseId: String,
+  ): Result<SigninAttendanceResponse> {
+    return currentBackend().getAttendance(termCode, courseId)
   }
 }

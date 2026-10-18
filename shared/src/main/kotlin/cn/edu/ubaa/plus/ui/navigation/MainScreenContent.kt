@@ -17,7 +17,6 @@ import cn.edu.ubaa.plus.ui.screens.bykc.BykcCourseDetailUiState
 import cn.edu.ubaa.plus.ui.screens.bykc.BykcCourseFilters
 import cn.edu.ubaa.plus.ui.screens.bykc.BykcCoursesUiState
 import cn.edu.ubaa.plus.ui.screens.bykc.BykcViewModel
-import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyHomeScreen
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyLockCodeScreen
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyOrdersScreen
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyReserveFormScreen
@@ -37,7 +36,6 @@ import cn.edu.ubaa.plus.ui.screens.judge.JudgeAssignmentDetailScreen
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeAssignmentsScreen
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeViewModel
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookBookingsScreen
-import cn.edu.ubaa.plus.ui.screens.libbook.LibBookHomeScreen
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookReserveScreen
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
 import cn.edu.ubaa.plus.ui.screens.menu.*
@@ -114,7 +112,6 @@ internal class MainScreenActions(
     val refreshHomeData: () -> Unit,
     val openScoresFromHomeNotice: () -> Unit,
     val handleHomeTodoClick: (HomeTodoItem) -> Unit,
-    val updateBykcCourseFilters: (BykcCourseFilters) -> Unit,
     val onConnectionModeSelected: (ConnectionMode) -> Unit,
     val onSelectedCourseChange: (CourseClass?) -> Unit,
     val onSelectedBykcCourseChange: (Long?, BykcCourseDto?) -> Unit,
@@ -158,14 +155,14 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onScheduleClick = { navigateTo(AppScreen.SCHEDULE) },
                 onExamClick = { navigateTo(AppScreen.EXAM) },
                 onGradeClick = { navigateTo(AppScreen.GRADE) },
-                onBykcClick = { navigateTo(AppScreen.BYKC_HOME) },
+                onBykcClick = { navigateTo(AppScreen.BYKC_COURSES) },
                 onClassroomClick = { navigateTo(AppScreen.CLASSROOM_QUERY) },
                 onIclassClick = { navigateTo(AppScreen.ICLASS_HOME) },
                 onSpocClick = { navigateTo(AppScreen.SPOC_ASSIGNMENTS) },
                 onJudgeClick = { navigateTo(AppScreen.JUDGE_ASSIGNMENTS) },
-                onLibBookClick = { navigateTo(AppScreen.LIBBOOK_HOME) },
+                onLibBookClick = { navigateTo(AppScreen.LIBBOOK_RESERVE) },
                 onVenueClick = { navigateTo(AppScreen.VENUE_HOME) },
-                onCgyyClick = { navigateTo(AppScreen.CGYY_HOME) },
+                onCgyyClick = { navigateTo(AppScreen.CGYY_RESERVE_PICKER) },
                 onYgdkClick = { navigateTo(AppScreen.YGDK_HOME) },
                 onEvaluationClick = { navigateTo(AppScreen.EVALUATION) },
             )
@@ -213,15 +210,6 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
         AppScreen.EXAM -> examViewModel?.let { ExamScreen(viewModel = it) }
         AppScreen.GRADE -> gradeViewModel?.let { GradeScreen(viewModel = it) }
         AppScreen.COURSE_DETAIL -> selectedCourse?.let { CourseDetailScreen(course = it) }
-        AppScreen.BYKC_HOME ->
-            BykcHomeScreen(
-                onSelectCourseClick = { navigateTo(AppScreen.BYKC_COURSES) },
-                onMyCoursesClick = { navigateTo(AppScreen.BYKC_CHOSEN) },
-                onStatisticsClick = {
-                  bykcViewModel.ensureStatisticsLoaded()
-                  navigateTo(AppScreen.BYKC_STATISTICS)
-                },
-            )
         AppScreen.BYKC_STATISTICS -> BykcStatisticsScreen(viewModel = bykcViewModel)
         AppScreen.ICLASS_HOME -> IclassHomeScreen(viewModel = signinViewModel)
         AppScreen.BYKC_COURSES ->
@@ -238,7 +226,11 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                   bykcViewModel.loadCourseDetail(it.id)
                   navigateTo(AppScreen.BYKC_DETAIL)
                 },
-                onFiltersChange = updateBykcCourseFilters,
+                onChosenClick = { navigateTo(AppScreen.BYKC_CHOSEN) },
+                onStatisticsClick = {
+                  bykcViewModel.ensureStatisticsLoaded()
+                  navigateTo(AppScreen.BYKC_STATISTICS)
+                },
                 onRefresh = {
                   bykcViewModel.loadCourses(includeExpired = bykcCourseFilters.requiresAllCourses())
                 },
@@ -303,20 +295,16 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
             classroomViewModel?.let {
               ClassroomQueryScreen(viewModel = it, onBackClick = { navigateBack() })
             }
-        AppScreen.CGYY_HOME ->
-            CgyyHomeScreen(
-                onReserveClick = { navigateTo(AppScreen.CGYY_RESERVE_PICKER) },
-                onOrdersClick = {
-                  cgyyViewModel?.ensureOrdersLoaded()
-                  navigateTo(AppScreen.CGYY_ORDERS)
-                },
-                onLockCodeClick = { navigateTo(AppScreen.CGYY_LOCK_CODE) },
-            )
         AppScreen.CGYY_RESERVE_PICKER ->
             cgyyViewModel?.let {
               CgyyReservePickerScreen(
                   viewModel = it,
                   onNext = { navigateTo(AppScreen.CGYY_RESERVE_FORM) },
+                  onOrdersClick = {
+                    cgyyViewModel.ensureOrdersLoaded()
+                    navigateTo(AppScreen.CGYY_ORDERS)
+                  },
+                  onLockCodeClick = { navigateTo(AppScreen.CGYY_LOCK_CODE) },
               )
             }
         AppScreen.CGYY_RESERVE_FORM ->
@@ -397,18 +385,14 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                   }
                 },
             )
-        AppScreen.LIBBOOK_HOME ->
-            LibBookHomeScreen(
-                onReserveClick = { navigateTo(AppScreen.LIBBOOK_RESERVE) },
-                onBookingsClick = {
-                  libBookViewModel?.ensureBookingsLoaded()
-                  navigateTo(AppScreen.LIBBOOK_BOOKINGS)
-                },
-            )
         AppScreen.LIBBOOK_RESERVE ->
             libBookViewModel?.let {
               LibBookReserveScreen(
                   viewModel = it,
+                  onBookingsClick = {
+                    libBookViewModel.ensureBookingsLoaded()
+                    navigateTo(AppScreen.LIBBOOK_BOOKINGS)
+                  },
                   onSubmitSuccess = { navigateTo(AppScreen.LIBBOOK_BOOKINGS) },
               )
             }

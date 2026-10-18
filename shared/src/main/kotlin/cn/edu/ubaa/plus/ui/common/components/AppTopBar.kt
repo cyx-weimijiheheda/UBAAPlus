@@ -3,10 +3,11 @@ package cn.edu.ubaa.plus.ui.common.components
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.ui.theme.UbaaBrandBlue
+import cn.edu.ubaa.plus.ui.theme.UbaaOnBrandBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -20,14 +21,19 @@ fun AppTopBar(
       expandedHeight = 56.dp,
       title = { Text(title) },
       navigationIcon = {
-        IconButton(onClick = onNavigationIconClick) {
-          if (canNavigateBack) {
+        if (canNavigateBack) {
+          IconButton(onClick = onNavigationIconClick) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-          } else {
-            Icon(Icons.Default.Menu, contentDescription = "菜单")
           }
         }
       },
       actions = actions,
+      colors =
+          TopAppBarDefaults.topAppBarColors(
+              containerColor = UbaaBrandBlue,
+              titleContentColor = UbaaOnBrandBlue,
+              navigationIconContentColor = UbaaOnBrandBlue,
+              actionIconContentColor = UbaaOnBrandBlue,
+          ),
   )
 }

@@ -1,14 +1,18 @@
 package cn.edu.ubaa.plus.ui.screens.venue
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,12 +24,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import cn.edu.ubaa.plus.api.venue.VenueDayInfo
 import cn.edu.ubaa.plus.api.venue.VenueGrabPhase
+import cn.edu.ubaa.plus.api.venue.VenueOrderRecord
 import cn.edu.ubaa.plus.api.venue.VenueSpace
 import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
 import cn.edu.ubaa.plus.api.venue.VenueSpaceSlot
 import cn.edu.ubaa.plus.api.venue.VenueTimeSlot
+import cn.edu.ubaa.plus.api.venue.venueLabel
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
 
@@ -34,9 +41,11 @@ import kotlinx.datetime.LocalDate
 fun VenueScreen(viewModel: VenueViewModel) {
   val state by viewModel.state.collectAsState()
   val grabState by viewModel.grabState.collectAsState()
+  val orderHistoryState by viewModel.orderHistoryState.collectAsState()
   val foreground by cn.edu.ubaa.plus.AppForegroundMonitor.foreground.collectAsState()
   val snackbarHostState = remember { SnackbarHostState() }
   var showBuddyDialog by remember { mutableStateOf(false) }
+  var showOrderHistoryDialog by remember { mutableStateOf(false) }
 
   val grabbing =
       grabState.phase == VenueGrabPhase.WAITING ||
@@ -121,9 +130,19 @@ fun VenueScreen(viewModel: VenueViewModel) {
               verticalArrangement = Arrangement.spacedBy(16.dp),
           ) {
             item {
+              VenueOrderHistoryCard(
+                  onClick = {
+                    viewModel.loadOrderHistory()
+                    showOrderHistoryDialog = true
+                  }
+              )
+            }
+            item {
               VenueSiteDateCard(
                   state = state,
-                  onSiteSelected = viewModel::selectSite,
+                  onCampusSelected = viewModel::selectCampus,
+                  onSportSelected = viewModel::selectSport,
+                  onVenueSelected = viewModel::selectVenue,
                   onDateSelected = viewModel::selectDate,
                   onRefresh = viewModel::refreshDayInfo,
               )
@@ -182,6 +201,15 @@ fun VenueScreen(viewModel: VenueViewModel) {
         onAdd = viewModel::addBuddy,
         onDelete = viewModel::deleteBuddy,
         onDismiss = { showBuddyDialog = false },
+    )
+  }
+
+  if (showOrderHistoryDialog) {
+    VenueOrderHistoryDialog(
+        state = orderHistoryState,
+        onRefresh = { viewModel.loadOrderHistory() },
+        onLoadMore = viewModel::loadMoreOrderHistory,
+        onDismiss = { showOrderHistoryDialog = false },
     )
   }
 }
@@ -275,7 +303,9 @@ private fun VenueLoginCard(
 @Composable
 private fun VenueSiteDateCard(
     state: VenueUiState,
-    onSiteSelected: (Int) -> Unit,
+    onCampusSelected: (String) -> Unit,
+    onSportSelected: (String) -> Unit,
+    onVenueSelected: (Int) -> Unit,
     onDateSelected: (LocalDate) -> Unit,
     onRefresh: () -> Unit,
 ) {
@@ -291,26 +321,32 @@ private fun VenueSiteDateCard(
         IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "刷新") }
       }
 
-      var expanded by remember { mutableStateOf(false) }
-      Box {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-          Text(
-              text = state.selectedSite?.let { "${it.displayName}${it.openRange}" } ?: "选择场地",
-              maxLines = 1,
-          )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-          state.sites.forEach { site ->
-            DropdownMenuItem(
-                text = { Text("${site.displayName}${site.openRange}") },
-                onClick = {
-                  expanded = false
-                  onSiteSelected(site.id)
-                },
-            )
-          }
-        }
-      }
+      VenueFilterDropdown(
+          label = "校区",
+          selectedText = state.selectedCampus.ifBlank { "选择校区" },
+          options = state.campusOptions.map { it to it },
+          enabled = state.campusOptions.isNotEmpty(),
+          onSelected = onCampusSelected,
+      )
+      Spacer(modifier = Modifier.height(8.dp))
+      VenueFilterDropdown(
+          label = "运动类型",
+          selectedText = state.selectedSport.ifBlank { "选择运动类型" },
+          options = state.sportOptions.map { it to it },
+          enabled = state.sportOptions.isNotEmpty(),
+          onSelected = onSportSelected,
+      )
+      Spacer(modifier = Modifier.height(8.dp))
+      VenueFilterDropdown(
+          label = "场馆类型",
+          selectedText = state.selectedVenueLabel.ifBlank { "选择场馆类型" },
+          options =
+              state.venueOptions.map { site ->
+                site.id to "${site.venueLabel()} · ${site.siteName}${site.openRange}"
+              },
+          enabled = state.venueOptions.isNotEmpty(),
+          onSelected = onVenueSelected,
+      )
 
       Spacer(modifier = Modifier.height(12.dp))
 
@@ -339,6 +375,241 @@ private fun VenueSiteDateCard(
       if (state.isLoadingDayInfo) {
         Spacer(modifier = Modifier.height(8.dp))
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+      }
+    }
+  }
+}
+
+@Composable
+private fun VenueOrderHistoryCard(onClick: () -> Unit) {
+  Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      Icon(
+          imageVector = Icons.Default.History,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.primary,
+      )
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+            text = "预约记录",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "查看已预约的场地、支付状态与使用时间",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+      Icon(
+          imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+  }
+}
+
+@Composable
+private fun VenueOrderHistoryDialog(
+    state: VenueOrderHistoryUiState,
+    onRefresh: () -> Unit,
+    onLoadMore: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+  Dialog(onDismissRequest = onDismiss) {
+    Card(modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp)) {
+      Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text(
+              text = "预约记录",
+              style = MaterialTheme.typography.titleLarge,
+              fontWeight = FontWeight.Bold,
+              modifier = Modifier.weight(1f),
+          )
+          IconButton(onClick = onRefresh, enabled = !state.isLoading) {
+            Icon(Icons.Default.Refresh, contentDescription = "刷新")
+          }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        when {
+          state.isLoading && state.records.isEmpty() ->
+              Box(
+                  modifier = Modifier.fillMaxWidth().height(120.dp),
+                  contentAlignment = Alignment.Center,
+              ) {
+                CircularProgressIndicator()
+              }
+          state.error != null && state.records.isEmpty() ->
+              Column(modifier = Modifier.fillMaxWidth()) {
+                Text(state.error, color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(onClick = onRefresh) { Text("重试") }
+              }
+          state.records.isEmpty() ->
+              Text(
+                  text = "暂无预约记录",
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  modifier = Modifier.padding(vertical = 24.dp),
+              )
+          else ->
+              LazyColumn(
+                  modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+                  verticalArrangement = Arrangement.spacedBy(8.dp),
+              ) {
+                items(state.records, key = { it.id ?: it.hashCode() }) { record ->
+                  VenueOrderRecordCard(record)
+                }
+                item {
+                  if (state.error != null) {
+                    Text(
+                        text = state.error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                  }
+                  if (state.hasMore) {
+                    TextButton(onClick = onLoadMore, enabled = !state.isLoadingMore) {
+                      Text(if (state.isLoadingMore) "加载中…" else "加载更多")
+                    }
+                  } else {
+                    Text(
+                        text = "已显示全部记录",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                  }
+                }
+              }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("关闭") }
+      }
+    }
+  }
+}
+
+@Composable
+private fun VenueOrderRecordCard(record: VenueOrderRecord) {
+  Card(
+      modifier = Modifier.fillMaxWidth(),
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+  ) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+      Text(
+          text =
+              listOfNotNull(
+                      record.campusName,
+                      record.venueName?.ifBlank { null },
+                      record.siteName?.ifBlank { null },
+                      record.spaceName?.ifBlank { null },
+                  )
+                  .joinToString(" · ")
+                  .ifBlank { "运动场地" },
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.Bold,
+      )
+      Text(
+          text =
+              record.reservationDateDetail?.ifBlank { null }
+                  ?: record.reservationDate?.ifBlank { null }
+                  ?: "时间未知",
+          style = MaterialTheme.typography.bodyMedium,
+      )
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = venuePayStatusText(record.payStatus),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = venueOrderStatusText(record.orderStatus),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        record.amountFee
+            ?.takeIf { it > 0 }
+            ?.let {
+              Text(
+                  text = "¥${"%.2f".format(it)}",
+                  style = MaterialTheme.typography.labelMedium,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+      }
+      record.createDate
+          ?.takeIf { it.isNotBlank() }
+          ?.let {
+            Text(
+                text = "创建于 $it",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+    }
+  }
+}
+
+private fun venueOrderStatusText(status: Int?): String =
+    when (status) {
+      1 -> "正常"
+      2 -> "已取消"
+      3 -> "占用"
+      null -> "状态未知"
+      else -> "状态 $status"
+    }
+
+private fun venuePayStatusText(status: Int?): String =
+    when (status) {
+      1 -> "未支付"
+      2 -> "已支付"
+      3 -> "退款中"
+      4 -> "已退款"
+      5 -> "退款失败"
+      null -> "支付未知"
+      else -> "支付状态 $status"
+    }
+
+@Composable
+private fun <T> VenueFilterDropdown(
+    label: String,
+    selectedText: String,
+    options: List<Pair<T, String>>,
+    enabled: Boolean = true,
+    onSelected: (T) -> Unit,
+) {
+  var expanded by remember { mutableStateOf(false) }
+  Box(modifier = Modifier.fillMaxWidth()) {
+    OutlinedButton(
+        onClick = { expanded = true },
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+      Text(
+          text = "$label：$selectedText",
+          maxLines = 1,
+          modifier = Modifier.weight(1f),
+      )
+      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+      options.forEach { (value, text) ->
+        DropdownMenuItem(
+            text = { Text(text) },
+            onClick = {
+              expanded = false
+              onSelected(value)
+            },
+        )
       }
     }
   }

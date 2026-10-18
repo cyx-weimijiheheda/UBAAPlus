@@ -8,6 +8,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import cn.edu.ubaa.plus.ui.theme.UbaaBrandBlue
+import cn.edu.ubaa.plus.ui.theme.UbaaOnBrandBlue
 
 enum class BottomNavTab {
   HOME,
@@ -21,16 +24,26 @@ fun BottomNavigation(
     onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+  val itemColors =
+      NavigationBarItemDefaults.colors(
+          selectedIconColor = UbaaOnBrandBlue,
+          selectedTextColor = UbaaOnBrandBlue,
+          indicatorColor = Color.White.copy(alpha = 0.2f),
+          unselectedIconColor = Color.White.copy(alpha = 0.72f),
+          unselectedTextColor = Color.White.copy(alpha = 0.72f),
+      )
+
   NavigationBar(
       modifier = modifier.fillMaxWidth(),
-      containerColor = MaterialTheme.colorScheme.surface,
-      contentColor = MaterialTheme.colorScheme.onSurface,
+      containerColor = UbaaBrandBlue,
+      contentColor = UbaaOnBrandBlue,
   ) {
     NavigationBarItem(
         icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "主页") },
         label = { Text("主页") },
         selected = currentTab == BottomNavTab.HOME,
         onClick = { onTabSelected(BottomNavTab.HOME) },
+        colors = itemColors,
     )
 
     NavigationBarItem(
@@ -38,6 +51,7 @@ fun BottomNavigation(
         label = { Text("功能") },
         selected = currentTab == BottomNavTab.REGULAR,
         onClick = { onTabSelected(BottomNavTab.REGULAR) },
+        colors = itemColors,
     )
 
     NavigationBarItem(
@@ -45,6 +59,7 @@ fun BottomNavigation(
         label = { Text("个人中心") },
         selected = currentTab == BottomNavTab.PROFILE,
         onClick = { onTabSelected(BottomNavTab.PROFILE) },
+        colors = itemColors,
     )
   }
 }

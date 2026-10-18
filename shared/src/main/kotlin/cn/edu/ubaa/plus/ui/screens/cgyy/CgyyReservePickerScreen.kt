@@ -18,19 +18,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -67,18 +73,10 @@ private val tableRowHeight = 56.dp
 fun CgyyReservePickerScreen(
     viewModel: CgyyViewModel,
     onNext: () -> Unit,
+    onOrdersClick: () -> Unit,
+    onLockCodeClick: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
-
-  if (uiState.isInitialLoading && uiState.sites.isEmpty()) {
-    CgyyLoadingState("正在加载场地与可预约信息...")
-    return
-  }
-
-  if (uiState.initialError != null && uiState.sites.isEmpty()) {
-    CgyyErrorState(uiState.initialError, onRetry = viewModel::loadInitialData)
-    return
-  }
 
   val campusOptions =
       listOf(CgyyViewModel.ALL_CAMPUSES) +
@@ -127,84 +125,101 @@ fun CgyyReservePickerScreen(
                 .pullRefresh(pullRefreshState)
     ) {
       Column(modifier = Modifier.fillMaxSize()) {
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-          items(campusOptions) { campus ->
-            FilterChip(
-                selected = selectedCampus == campus,
-                onClick = { viewModel.setReserveCampus(campus) },
-                label = {
-                  Text(
-                      text = campusDisplayName(campus),
-                      maxLines = 1,
-                      overflow = TextOverflow.Ellipsis,
-                  )
-                },
-            )
-          }
-        }
-
-        if (availableDates.isNotEmpty()) {
-          LazyRow(
-              modifier = Modifier.fillMaxWidth(),
-              contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            items(availableDates) { date ->
-              FilterChip(
-                  selected = uiState.selectedDate == date,
-                  onClick = { viewModel.selectDate(date) },
-                  label = {
-                    Text(
-                        text = formatCompactDateLabel(date),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                  },
-              )
-            }
-          }
-        }
-
-        if (visibleSites.isNotEmpty()) {
-          LazyRow(
-              modifier = Modifier.fillMaxWidth(),
-              contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            items(visibleSites) { site ->
-              FilterChip(
-                  selected = uiState.selectedSiteId == site.id,
-                  onClick = { viewModel.selectSite(site.id) },
-                  label = {
-                    Text(
-                        text = siteSelectionLabel(site),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                  },
-              )
-            }
-          }
-        }
+        CgyySecondaryEntriesRow(
+            onOrdersClick = onOrdersClick,
+            onLockCodeClick = onLockCodeClick,
+        )
 
         when {
-          uiState.isDayInfoLoading ->
-              CgyyLoadingState("正在刷新可预约时段...", modifier = Modifier.fillMaxSize())
-          uiState.dayInfoError != null ->
-              CgyyErrorState(uiState.dayInfoError, onRetry = viewModel::refreshReserveData)
-          uiState.selectedSiteId == null -> CgyyEmptyState("请选择楼栋/层", "先从上方横向列表中选择一个研讨室位置。")
-          visibleSpaces.isEmpty() -> CgyyEmptyState("暂无可预约教室", "当前楼栋或搜索条件下没有匹配教室。")
-          else ->
-              CgyyReservationTable(
-                  spaces = visibleSpaces,
-                  timeSlots = uiState.dayInfo?.timeSlots.orEmpty(),
-                  selectedSelections = uiState.selections,
-                  onSlotToggle = viewModel::toggleSlot,
+          uiState.isInitialLoading && uiState.sites.isEmpty() ->
+              CgyyLoadingState("正在加载场地与可预约信息...", modifier = Modifier.weight(1f))
+          uiState.initialError != null && uiState.sites.isEmpty() ->
+              CgyyErrorState(
+                  uiState.initialError,
+                  onRetry = viewModel::loadInitialData,
+                  modifier = Modifier.weight(1f),
               )
+          else -> {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              items(campusOptions) { campus ->
+                FilterChip(
+                    selected = selectedCampus == campus,
+                    onClick = { viewModel.setReserveCampus(campus) },
+                    label = {
+                      Text(
+                          text = campusDisplayName(campus),
+                          maxLines = 1,
+                          overflow = TextOverflow.Ellipsis,
+                      )
+                    },
+                )
+              }
+            }
+
+            if (availableDates.isNotEmpty()) {
+              LazyRow(
+                  modifier = Modifier.fillMaxWidth(),
+                  contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                  horizontalArrangement = Arrangement.spacedBy(8.dp),
+              ) {
+                items(availableDates) { date ->
+                  FilterChip(
+                      selected = uiState.selectedDate == date,
+                      onClick = { viewModel.selectDate(date) },
+                      label = {
+                        Text(
+                            text = formatCompactDateLabel(date),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                      },
+                  )
+                }
+              }
+            }
+
+            if (visibleSites.isNotEmpty()) {
+              LazyRow(
+                  modifier = Modifier.fillMaxWidth(),
+                  contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                  horizontalArrangement = Arrangement.spacedBy(8.dp),
+              ) {
+                items(visibleSites) { site ->
+                  FilterChip(
+                      selected = uiState.selectedSiteId == site.id,
+                      onClick = { viewModel.selectSite(site.id) },
+                      label = {
+                        Text(
+                            text = siteSelectionLabel(site),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                      },
+                  )
+                }
+              }
+            }
+
+            when {
+              uiState.isDayInfoLoading ->
+                  CgyyLoadingState("正在刷新可预约时段...", modifier = Modifier.fillMaxSize())
+              uiState.dayInfoError != null ->
+                  CgyyErrorState(uiState.dayInfoError, onRetry = viewModel::refreshReserveData)
+              uiState.selectedSiteId == null -> CgyyEmptyState("请选择楼栋/层", "先从上方横向列表中选择一个研讨室位置。")
+              visibleSpaces.isEmpty() -> CgyyEmptyState("暂无可预约教室", "当前楼栋或搜索条件下没有匹配教室。")
+              else ->
+                  CgyyReservationTable(
+                      spaces = visibleSpaces,
+                      timeSlots = uiState.dayInfo?.timeSlots.orEmpty(),
+                      selectedSelections = uiState.selections,
+                      onSlotToggle = viewModel::toggleSlot,
+                  )
+            }
+          }
         }
       }
 
@@ -214,6 +229,32 @@ fun CgyyReservePickerScreen(
           modifier = Modifier.align(Alignment.TopCenter),
       )
     }
+  }
+}
+
+@Composable
+private fun CgyySecondaryEntriesRow(
+    onOrdersClick: () -> Unit,
+    onLockCodeClick: () -> Unit,
+) {
+  Row(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+  ) {
+    AssistChip(
+        onClick = onOrdersClick,
+        label = { Text("我的预约") },
+        leadingIcon = {
+          Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
+        },
+    )
+    AssistChip(
+        onClick = onLockCodeClick,
+        label = { Text("门锁密码") },
+        leadingIcon = {
+          Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+        },
+    )
   }
 }
 

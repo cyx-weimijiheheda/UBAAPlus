@@ -201,6 +201,9 @@ class VenueGrabControllerTest {
     override suspend fun getDayInfo(siteId: Int, date: String): Result<VenueDayInfo?> =
         Result.success(day)
 
+    override suspend fun getMyOrders(page: Int, size: Int): Result<VenueOrderPage> =
+        Result.success(VenueOrderPage(emptyList(), 0))
+
     override suspend fun getBuddies(): Result<List<VenueBuddy>> = Result.success(emptyList())
 
     override suspend fun addBuddy(userUid: String): Result<Unit> = Result.success(Unit)

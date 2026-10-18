@@ -22,10 +22,10 @@ class FeaturesScreenTest {
             "venue",
             "ygdk",
             "cgyy",
-            "judge",
             "evaluation",
             "exam",
             "grade",
+            "judge",
         ),
         ids,
     )

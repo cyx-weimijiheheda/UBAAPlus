@@ -1,6 +1,10 @@
 package cn.edu.ubaa.plus
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
@@ -12,9 +16,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -210,6 +217,17 @@ fun App() {
       )
     }
 
+    // 主界面以外的页面（开屏、连接方式、登录）没有蓝色标题栏，按主题选择系统栏图标颜色。
+    val mainAppVisible =
+        uiState.isLoggedIn && uiState.userData != null && isSplashFinished && !showOfflineSchedule
+    if (!mainAppVisible) {
+      val useDarkIcons = !isSystemInDarkTheme()
+      SystemBarsAppearance(
+          darkStatusBarIcons = useDarkIcons,
+          darkNavigationBarIcons = useDarkIcons,
+      )
+    }
+
     // 视图切换状态机
     when {
       !modeResolved -> SplashScreen(modifier = Modifier.fillMaxSize())
@@ -301,3 +319,27 @@ internal fun confirmAnnouncement(
   markRead(announcement.id)
   announcement.linkUrl?.takeIf { it.isNotBlank() }?.let(openUri)
 }
+
+/** 设置状态栏与系统导航栏图标明暗，适配浅色/深色背景。 */
+@Composable
+internal fun SystemBarsAppearance(
+    darkStatusBarIcons: Boolean,
+    darkNavigationBarIcons: Boolean,
+) {
+  val view = LocalView.current
+  val context = LocalContext.current
+  SideEffect {
+    val window = context.findActivity()?.window ?: return@SideEffect
+    WindowCompat.getInsetsController(window, view).apply {
+      isAppearanceLightStatusBars = darkStatusBarIcons
+      isAppearanceLightNavigationBars = darkNavigationBarIcons
+    }
+  }
+}
+
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+      is Activity -> this
+      is ContextWrapper -> baseContext.findActivity()
+      else -> null
+    }

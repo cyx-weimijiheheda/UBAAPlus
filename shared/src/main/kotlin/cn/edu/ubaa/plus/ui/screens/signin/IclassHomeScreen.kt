@@ -20,15 +20,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -38,7 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -66,7 +72,7 @@ fun IclassHomeScreen(viewModel: SigninViewModel) {
         FloatingActionButton(
             onClick = {
               viewModel.loadTodayClasses()
-              viewModel.loadAttendance()
+              viewModel.reloadAttendanceIndex(preserveSelection = true)
             }
         ) {
           Icon(Icons.Default.Refresh, contentDescription = "刷新")
@@ -131,12 +137,45 @@ fun IclassHomeScreen(viewModel: SigninViewModel) {
       item {
         SectionTitle(
             text = "考勤查询",
-            subtitle = uiState.attendanceTermName ?: "本学期",
+            subtitle = uiState.attendanceTermName,
         )
       }
 
+      item {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          AttendanceDropdown(
+              label = "学年学期",
+              selectedText = uiState.selectedAttendanceTerm?.name ?: "选择学年学期",
+              options = uiState.attendanceTerms.map { it.code to it.name },
+              enabled = uiState.attendanceTerms.isNotEmpty() && !uiState.attendanceTermsLoading,
+              onSelected = viewModel::selectAttendanceTerm,
+          )
+          AttendanceDropdown(
+              label = "课程",
+              selectedText =
+                  uiState.selectedAttendanceCourse?.let { course ->
+                    course.courseName +
+                        course.teacherName.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
+                  } ?: "选择课程",
+              options =
+                  uiState.attendanceCourses.map { course ->
+                    course.courseId to
+                        course.courseName +
+                            course.teacherName
+                                .takeIf { it.isNotBlank() }
+                                ?.let { " · $it" }
+                                .orEmpty()
+                  },
+              enabled = uiState.attendanceCourses.isNotEmpty() && !uiState.attendanceCoursesLoading,
+              onSelected = viewModel::selectAttendanceCourse,
+          )
+        }
+      }
+
       when {
-        uiState.attendanceLoading && uiState.attendanceRecords.isEmpty() ->
+        uiState.attendanceTermsLoading ||
+            uiState.attendanceCoursesLoading ||
+            (uiState.attendanceLoading && uiState.attendanceRecords.isEmpty()) ->
             item {
               Box(
                   modifier = Modifier.fillMaxWidth().height(80.dp),
@@ -149,10 +188,12 @@ fun IclassHomeScreen(viewModel: SigninViewModel) {
             item {
               RetryRow(
                   message = uiState.attendanceError.orEmpty(),
-                  onRetry = viewModel::loadAttendance,
+                  onRetry = viewModel::retryAttendance,
               )
             }
-        uiState.attendanceRecords.isEmpty() -> item { EmptyHint("暂无考勤记录") }
+        uiState.attendanceCourses.isEmpty() -> item { EmptyHint("该学期暂无课程") }
+        uiState.attendanceSelectedCourseId == null -> item { EmptyHint("请选择课程") }
+        uiState.attendanceRecords.isEmpty() -> item { EmptyHint("该课程暂无考勤记录") }
         else -> {
           val groups =
               uiState.attendanceRecords.groupBy { record -> recordDate(record).ifBlank { "未知日期" } }
@@ -168,6 +209,42 @@ fun IclassHomeScreen(viewModel: SigninViewModel) {
             items(records) { record -> AttendanceRecordCard(record) }
           }
         }
+      }
+    }
+  }
+}
+
+@Composable
+private fun AttendanceDropdown(
+    label: String,
+    selectedText: String,
+    options: List<Pair<String, String>>,
+    enabled: Boolean,
+    onSelected: (String) -> Unit,
+) {
+  var expanded by remember { mutableStateOf(false) }
+  Box(modifier = Modifier.fillMaxWidth()) {
+    OutlinedButton(
+        onClick = { expanded = true },
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+      Text(
+          text = "$label：$selectedText",
+          maxLines = 1,
+          modifier = Modifier.weight(1f),
+      )
+      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+      options.forEach { (value, text) ->
+        DropdownMenuItem(
+            text = { Text(text) },
+            onClick = {
+              expanded = false
+              onSelected(value)
+            },
+        )
       }
     }
   }

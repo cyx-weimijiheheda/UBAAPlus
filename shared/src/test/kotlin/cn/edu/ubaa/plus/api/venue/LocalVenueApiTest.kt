@@ -94,4 +94,61 @@ class LocalVenueApiTest {
     assertTrue(code.qrCode == "iVBORw0KGgo=")
     assertTrue(code.isDynamicCode)
   }
+
+  @Test
+  fun `预约记录使用分页 GET 请求`() = runTest {
+    LocalCookieStore.storage(ConnectionMode.DIRECT)
+        .addCookie(
+            Url("https://cgyy.buaa.edu.cn/"),
+            Cookie(name = "sso_buaa_token", value = "sso-token"),
+        )
+
+    val engine = MockEngine { request ->
+      when (request.url.encodedPath) {
+        "/venue-server/sso/manageLogin" ->
+            respond(content = ByteReadChannel(""), status = HttpStatusCode.OK)
+        "/venue-server/api/login" ->
+            respond(
+                content =
+                    ByteReadChannel(
+                        """{"code":200,"data":{"token":{"access_token":"access"},"roles":[]}}"""
+                    ),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        "/venue-server/api/orders/mine" -> {
+          assertTrue(request.url.parameters["page"] == "0")
+          assertTrue(request.url.parameters["size"] == "20")
+          assertNotNull(request.url.parameters["nocache"])
+          assertNotNull(request.headers["sign"])
+          respond(
+              content =
+                  ByteReadChannel(
+                      """
+                      {"code":200,"data":{"totalElements":1,"content":[
+                        {"id":101,"campusStr":"学院路校区","venueName":"体育馆",
+                         "siteName":"羽毛球","reservationDate":"2026-10-20",
+                         "reservationDateDetail":"2026-10-20 19:00-20:00",
+                         "amountFee":25.0,"payStatus":2,"orderStatus":1}
+                      ]}}
+                      """
+                          .trimIndent()
+                  ),
+              status = HttpStatusCode.OK,
+              headers = headersOf(HttpHeaders.ContentType, "application/json"),
+          )
+        }
+        else -> error("Unexpected url: ${request.url}")
+      }
+    }
+
+    val api = LocalVenueApi(clientProvider = { HttpClient(engine) })
+    val result = api.getMyOrders(page = 0, size = 20)
+
+    assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
+    val page = result.getOrThrow()
+    assertTrue(page.totalElements == 1)
+    assertTrue(page.records.single().venueName == "体育馆")
+    assertTrue(page.records.single().payStatus == 2)
+  }
 }

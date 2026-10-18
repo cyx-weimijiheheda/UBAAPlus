@@ -27,12 +27,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -67,7 +71,11 @@ import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.shared.R
 
 @Composable
-fun LibBookReserveScreen(viewModel: LibBookViewModel, onSubmitSuccess: () -> Unit) {
+fun LibBookReserveScreen(
+    viewModel: LibBookViewModel,
+    onBookingsClick: () -> Unit,
+    onSubmitSuccess: () -> Unit,
+) {
   val uiState by viewModel.uiState.collectAsState()
   val snackbarHostState = remember { SnackbarHostState() }
   var showMapDialog by remember { mutableStateOf(false) }
@@ -95,152 +103,161 @@ fun LibBookReserveScreen(viewModel: LibBookViewModel, onSubmitSuccess: () -> Uni
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       snackbarHost = { SnackbarHost(snackbarHostState) },
   ) { paddingValues ->
-    Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-      when {
-        uiState.isInitialLoading && uiState.libraries.isEmpty() -> LoadingBox("正在加载图书馆楼馆...")
-        uiState.initialError != null && uiState.libraries.isEmpty() ->
-            LibBookErrorState(
-                message = uiState.initialError,
-                onRetry = viewModel::loadLibraries,
-                modifier = Modifier.fillMaxSize(),
-            )
-        else ->
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-              item {
-                SectionTitle(
-                    title = "楼馆",
-                    trailing = {
-                      IconButton(onClick = viewModel::refreshReserveData) {
-                        Icon(Icons.Default.Refresh, contentDescription = "刷新")
-                      }
-                    },
-                )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                  items(uiState.libraries) { library ->
-                    FilterChip(
-                        selected = library.id == uiState.selectedLibraryId,
-                        onClick = { viewModel.selectLibrary(library.id) },
-                        label = {
-                          Text(
-                              "${library.name} ${library.freeNum}/${library.totalNum}",
-                              maxLines = 1,
-                              overflow = TextOverflow.Ellipsis,
-                          )
-                        },
-                    )
-                  }
-                }
-              }
+    Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+      Row(
+          modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        AssistChip(
+            onClick = onBookingsClick,
+            label = { Text("我的预约") },
+            leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
+        )
+      }
 
-              uiState.selectedLibrary
-                  ?.storeys
-                  ?.takeIf { it.isNotEmpty() }
-                  ?.let { storeys ->
-                    item {
-                      SectionTitle("楼层")
-                      LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(storeys) { storey ->
-                          FilterChip(
-                              selected = storey.id == uiState.selectedStoreyId,
-                              onClick = { viewModel.selectStorey(storey.id) },
-                              label = {
-                                Text("${storey.name} ${storey.freeNum}/${storey.totalNum}")
-                              },
-                          )
+      Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+        when {
+          uiState.isInitialLoading && uiState.libraries.isEmpty() -> LoadingBox("正在加载图书馆楼馆...")
+          uiState.initialError != null && uiState.libraries.isEmpty() ->
+              LibBookErrorState(
+                  message = uiState.initialError,
+                  onRetry = viewModel::loadLibraries,
+                  modifier = Modifier.fillMaxSize(),
+              )
+          else ->
+              LazyColumn(
+                  modifier = Modifier.fillMaxSize(),
+                  contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                  verticalArrangement = Arrangement.spacedBy(10.dp),
+              ) {
+                item {
+                  SectionTitle(
+                      title = "楼馆",
+                      trailing = {
+                        IconButton(onClick = viewModel::refreshReserveData) {
+                          Icon(Icons.Default.Refresh, contentDescription = "刷新")
                         }
+                      },
+                  )
+                  LibBookDropdown(
+                      label = "楼馆",
+                      selectedText =
+                          uiState.selectedLibrary?.let { "${it.name} ${it.freeNum}/${it.totalNum}" }
+                              ?: "选择楼馆",
+                      options =
+                          uiState.libraries.map {
+                            it.id to "${it.name} ${it.freeNum}/${it.totalNum}"
+                          },
+                      enabled = uiState.libraries.isNotEmpty(),
+                      onSelected = viewModel::selectLibrary,
+                  )
+                }
+
+                uiState.selectedLibrary
+                    ?.storeys
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { storeys ->
+                      item {
+                        SectionTitle("楼层")
+                        LibBookDropdown(
+                            label = "楼层",
+                            selectedText =
+                                storeys
+                                    .firstOrNull { it.id == uiState.selectedStoreyId }
+                                    ?.let { "${it.name} ${it.freeNum}/${it.totalNum}" } ?: "选择楼层",
+                            options =
+                                storeys.map { it.id to "${it.name} ${it.freeNum}/${it.totalNum}" },
+                            onSelected = viewModel::selectStorey,
+                        )
                       }
                     }
-                  }
 
-              item {
-                SectionTitle("分区")
-                when {
-                  uiState.isAreasLoading -> InlineLoading("正在加载分区...")
-                  uiState.areasError != null ->
-                      LibBookInlineError(
-                          uiState.areasError,
-                          onRetry = viewModel::refreshReserveData,
-                      )
-                  uiState.areas.isEmpty() ->
-                      Text("当前楼层暂无可预约分区", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                  else ->
-                      LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(uiState.areas) { area ->
-                          FilterChip(
-                              selected = area.id == uiState.selectedAreaId,
-                              onClick = { viewModel.selectArea(area.id) },
-                              label = { Text("${area.name} ${area.freeNum}/${area.totalNum}") },
-                          )
+                item {
+                  SectionTitle("分区")
+                  when {
+                    uiState.isAreasLoading -> InlineLoading("正在加载分区...")
+                    uiState.areasError != null ->
+                        LibBookInlineError(
+                            uiState.areasError,
+                            onRetry = viewModel::refreshReserveData,
+                        )
+                    uiState.areas.isEmpty() ->
+                        Text("当前楼层暂无可预约分区", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else ->
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                          items(uiState.areas) { area ->
+                            FilterChip(
+                                selected = area.id == uiState.selectedAreaId,
+                                onClick = { viewModel.selectArea(area.id) },
+                                label = { Text("${area.name} ${area.freeNum}/${area.totalNum}") },
+                            )
+                          }
                         }
-                      }
-                }
-              }
-
-              item {
-                val mapAvailable = selectedMapResource != null
-                SectionTitle(
-                    title = "座位",
-                    trailing = {
-                      OutlinedButton(
-                          enabled = mapAvailable,
-                          onClick = { showMapDialog = true },
-                      ) {
-                        Text("查看座位分布")
-                      }
-                    },
-                )
-                if (!mapAvailable && uiState.selectedAreaId != null) {
-                  Text("当前分区暂无平面图", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-              }
-
-              item {
-                val visibleSeats = visibleLibBookSeats(uiState.seats)
-                when {
-                  uiState.isSeatsLoading -> InlineLoading("正在加载座位...")
-                  uiState.seatsError != null ->
-                      LibBookInlineError(
-                          uiState.seatsError,
-                          onRetry = viewModel::refreshReserveData,
-                      )
-                  uiState.seats.isEmpty() ->
-                      Text("当前分区暂无座位数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                  visibleSeats.isEmpty() ->
-                      Text("当前分区暂无可预约座位", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                  else ->
-                      SeatGrid(
-                          seats = visibleSeats,
-                          selectedSeatId = uiState.selectedSeatId,
-                          onSeatClick = viewModel::selectSeat,
-                      )
-                }
-              }
-
-              item {
-                ReserveSummary(uiState)
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled =
-                        uiState.selectedSeatId != null &&
-                            uiState.selectedSlotId != null &&
-                            !uiState.isSubmitting,
-                    onClick = viewModel::submitReservation,
-                ) {
-                  if (uiState.isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.height(18.dp).width(18.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(Modifier.width(8.dp))
                   }
-                  Text("确认预约")
+                }
+
+                item {
+                  val mapAvailable = selectedMapResource != null
+                  SectionTitle(
+                      title = "座位",
+                      trailing = {
+                        OutlinedButton(
+                            enabled = mapAvailable,
+                            onClick = { showMapDialog = true },
+                        ) {
+                          Text("查看座位分布")
+                        }
+                      },
+                  )
+                  if (!mapAvailable && uiState.selectedAreaId != null) {
+                    Text("当前分区暂无平面图", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                  }
+                }
+
+                item {
+                  val visibleSeats = visibleLibBookSeats(uiState.seats)
+                  when {
+                    uiState.isSeatsLoading -> InlineLoading("正在加载座位...")
+                    uiState.seatsError != null ->
+                        LibBookInlineError(
+                            uiState.seatsError,
+                            onRetry = viewModel::refreshReserveData,
+                        )
+                    uiState.seats.isEmpty() ->
+                        Text("当前分区暂无座位数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    visibleSeats.isEmpty() ->
+                        Text("当前分区暂无可预约座位", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else ->
+                        SeatGrid(
+                            seats = visibleSeats,
+                            selectedSeatId = uiState.selectedSeatId,
+                            onSeatClick = viewModel::selectSeat,
+                        )
+                  }
+                }
+
+                item {
+                  ReserveSummary(uiState)
+                  Button(
+                      modifier = Modifier.fillMaxWidth(),
+                      enabled =
+                          uiState.selectedSeatId != null &&
+                              uiState.selectedSlotId != null &&
+                              !uiState.isSubmitting,
+                      onClick = viewModel::submitReservation,
+                  ) {
+                    if (uiState.isSubmitting) {
+                      CircularProgressIndicator(
+                          modifier = Modifier.height(18.dp).width(18.dp),
+                          strokeWidth = 2.dp,
+                      )
+                      Spacer(Modifier.width(8.dp))
+                    }
+                    Text("确认预约")
+                  }
                 }
               }
-            }
+        }
       }
     }
   }
@@ -443,6 +460,43 @@ private fun SectionTitle(title: String, trailing: @Composable (() -> Unit)? = nu
     trailing?.invoke()
   }
   Spacer(Modifier.height(4.dp))
+}
+
+@Composable
+private fun <T> LibBookDropdown(
+    label: String,
+    selectedText: String,
+    options: List<Pair<T, String>>,
+    enabled: Boolean = true,
+    onSelected: (T) -> Unit,
+) {
+  var expanded by remember { mutableStateOf(false) }
+  Box(modifier = Modifier.fillMaxWidth()) {
+    OutlinedButton(
+        onClick = { expanded = true },
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+      Text(
+          text = "$label：$selectedText",
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          modifier = Modifier.weight(1f),
+      )
+      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+      options.forEach { (value, text) ->
+        DropdownMenuItem(
+            text = { Text(text) },
+            onClick = {
+              expanded = false
+              onSelected(value)
+            },
+        )
+      }
+    }
+  }
 }
 
 internal fun visibleLibBookSeats(seats: List<LibBookSeatDto>): List<LibBookSeatDto> =

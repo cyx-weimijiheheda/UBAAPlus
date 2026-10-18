@@ -211,6 +211,29 @@ internal class LocalVenueApi(
         parseVenueDayInfo(data, siteId, date)
       }
 
+  override suspend fun getMyOrders(page: Int, size: Int): Result<VenueOrderPage> =
+      execute("预约记录加载失败，请稍后重试") { requestMyOrders(page = page, size = size, allowRetry = true) }
+
+  private suspend fun requestMyOrders(
+      page: Int,
+      size: Int,
+      allowRetry: Boolean,
+  ): VenueOrderPage {
+    val envelope =
+        requestEnvelope(
+            HttpMethod.Get,
+            "/api/orders/mine",
+            params = mapOf("page" to page, "size" to size),
+        )
+    val code = envelope["code"]?.jsonPrimitive?.intOrNull
+    if (code == 401 && allowRetry) {
+      accessToken = null
+      ensureSession()
+      return requestMyOrders(page = page, size = size, allowRetry = false)
+    }
+    return parseVenueOrderPage(envelope.requireOk("预约记录加载失败"))
+  }
+
   override suspend fun getBuddies(): Result<List<VenueBuddy>> =
       execute("同伴列表加载失败，请稍后重试") {
         val envelope =

@@ -2,7 +2,6 @@ package cn.edu.ubaa.plus.ui.screens.bykc
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -15,8 +14,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Tune
@@ -51,14 +51,13 @@ fun BykcCoursesScreen(
     error: String?,
     listState: LazyListState,
     onCourseClick: (BykcCourseDto) -> Unit,
-    onFiltersChange: (BykcCourseFilters) -> Unit,
+    onChosenClick: () -> Unit,
+    onStatisticsClick: () -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
-  var showFiltersDialog by remember { mutableStateOf(false) }
-  val defaultFilters = remember { defaultBykcCourseFilters() }
   val now by
       produceState(
           initialValue = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -68,23 +67,37 @@ fun BykcCoursesScreen(
           value = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         }
       }
-  val filterOptions =
-      remember(courses, filters.campuses) {
-        buildBykcCourseFilterOptions(courses, selectedCampuses = filters.campuses)
-      }
-  val hasCustomSelections = remember(filters) { filters.hasCustomSelections(defaultFilters) }
-  val activeFilterLabels = remember(filters) { filters.activeLabels(defaultFilters) }
   val visibleCourses = remember(courses, filters) { filterBykcCourses(courses, filters) }
 
   Box(modifier = modifier.fillMaxSize().pullRefresh(pullRefreshState)) {
     Column(modifier = Modifier.fillMaxSize()) {
-      BykcCourseFiltersBar(
-          filters = filters,
-          activeFilterLabels = activeFilterLabels,
-          hasCustomSelections = hasCustomSelections,
-          onOpenFilters = { showFiltersDialog = true },
-          onClearFilters = { onFiltersChange(defaultFilters) },
-      )
+      Row(
+          modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        AssistChip(
+            onClick = onChosenClick,
+            label = { Text("我的课程") },
+            leadingIcon = {
+              Icon(
+                  Icons.Default.Book,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+              )
+            },
+        )
+        AssistChip(
+            onClick = onStatisticsClick,
+            label = { Text("课程统计") },
+            leadingIcon = {
+              Icon(
+                  Icons.Default.BarChart,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+              )
+            },
+        )
+      }
 
       when {
         isLoading && courses.isEmpty() -> {
@@ -115,7 +128,7 @@ fun BykcCoursesScreen(
                 ) {
                   Text(
                       text =
-                          if (hasCustomSelections && courses.isNotEmpty()) {
+                          if (filters.hasActiveSelections && courses.isNotEmpty()) {
                             "当前筛选条件下暂无课程"
                           } else {
                             "暂无可选课程"
@@ -178,189 +191,11 @@ fun BykcCoursesScreen(
         scale = true,
     )
   }
-
-  if (showFiltersDialog) {
-    BykcCourseFiltersDialog(
-        filters = filters,
-        filterOptions = filterOptions,
-        defaultFilters = defaultFilters,
-        onDismissRequest = { showFiltersDialog = false },
-        onFiltersChange = onFiltersChange,
-    )
-  }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun BykcCourseFiltersBar(
-    filters: BykcCourseFilters,
-    activeFilterLabels: List<String>,
-    hasCustomSelections: Boolean,
-    onOpenFilters: () -> Unit,
-    onClearFilters: () -> Unit,
-) {
-  BoxWithConstraints(
-      modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-  ) {
-    val isCompact = maxWidth < 560.dp
-    val verticalPadding = if (isCompact) 12.dp else 16.dp
-    val titleText =
-        when {
-          hasCustomSelections && isCompact -> "筛选中 ${activeFilterLabels.size} 项"
-          hasCustomSelections -> "已应用交叉筛选"
-          else -> "课程筛选"
-        }
-    val subtitleText =
-        when {
-          isCompact && filters.requiresAllCourses() -> "包含选课结束和已过期课程"
-          isCompact -> "默认仅显示仍可交互课程"
-          filters.requiresAllCourses() -> "支持查看预告、可选、已选，以及选课结束/已过期课程"
-          else -> "默认显示仍可交互课程，可按状态、类别、校区多选交叉筛选"
-        }
-
-    Surface(
-        shape = RoundedCornerShape(if (isCompact) 18.dp else 22.dp),
-        tonalElevation = if (isCompact) 2.dp else 3.dp,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-      Column(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = verticalPadding)
-      ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-          Row(
-              modifier = Modifier.weight(1f),
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(if (isCompact) 10.dp else 12.dp),
-          ) {
-            Surface(
-                shape = RoundedCornerShape(if (isCompact) 12.dp else 14.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-            ) {
-              Icon(
-                  imageVector = Icons.Default.Tune,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                  modifier = Modifier.padding(if (isCompact) 8.dp else 10.dp),
-              )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                  text = titleText,
-                  style = MaterialTheme.typography.titleSmall,
-                  fontWeight = FontWeight.SemiBold,
-                  maxLines = 1,
-                  overflow = TextOverflow.Ellipsis,
-              )
-              Text(
-                  text = subtitleText,
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  maxLines = if (isCompact) 1 else 2,
-                  overflow = TextOverflow.Ellipsis,
-              )
-            }
-          }
-          Spacer(modifier = Modifier.width(10.dp))
-          if (isCompact) {
-            FilledTonalIconButton(onClick = onOpenFilters) {
-              Icon(Icons.Default.FilterList, contentDescription = "调整筛选")
-            }
-          } else {
-            FilledTonalButton(onClick = onOpenFilters) {
-              Icon(Icons.Default.FilterList, contentDescription = null)
-              Spacer(modifier = Modifier.width(8.dp))
-              Text(if (hasCustomSelections) "调整" else "筛选")
-            }
-          }
-        }
-
-        if (hasCustomSelections) {
-          Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-          if (isCompact) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Row(
-                  modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-                  horizontalArrangement = Arrangement.spacedBy(6.dp),
-              ) {
-                activeFilterLabels.forEach { label ->
-                  SuggestionChip(
-                      onClick = {},
-                      label = {
-                        Text(
-                            text = label,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                      },
-                      colors =
-                          SuggestionChipDefaults.suggestionChipColors(
-                              containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                              labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                          ),
-                  )
-                }
-              }
-              Spacer(modifier = Modifier.width(6.dp))
-              TextButton(
-                  onClick = onClearFilters,
-                  contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-              ) {
-                Text("重置")
-              }
-            }
-          } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Text(
-                  text = "当前条件",
-                  style = MaterialTheme.typography.labelLarge,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-              TextButton(onClick = onClearFilters) {
-                Icon(Icons.Default.Clear, contentDescription = null)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("重置默认")
-              }
-            }
-            Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-              FlowRow(
-                  horizontalArrangement = Arrangement.spacedBy(6.dp),
-                  verticalArrangement = Arrangement.spacedBy(6.dp),
-              ) {
-                activeFilterLabels.forEach { label ->
-                  SuggestionChip(
-                      onClick = {},
-                      label = { Text(label) },
-                      colors =
-                          SuggestionChipDefaults.suggestionChipColors(
-                              containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                              labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                          ),
-                  )
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun BykcCourseFiltersDialog(
+internal fun BykcCourseFiltersDialog(
     filters: BykcCourseFilters,
     filterOptions: BykcCourseFilterOptions,
     defaultFilters: BykcCourseFilters,

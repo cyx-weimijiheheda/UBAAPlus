@@ -137,6 +137,31 @@ data class VenuePayResult(
     val message: String,
 )
 
+/** 一条运动场地预约记录。字段可能缺失，展示时按空值降级。 */
+data class VenueOrderRecord(
+    val id: Long?,
+    val tradeNo: String?,
+    val campusName: String?,
+    val venueName: String?,
+    val siteName: String?,
+    val spaceName: String?,
+    val reservationDate: String?,
+    val reservationDateDetail: String?,
+    val reservationStartDate: String?,
+    val reservationEndDate: String?,
+    val amountFee: Double?,
+    val payStatus: Int?,
+    val orderStatus: Int?,
+    val orderType: Int?,
+    val createDate: String?,
+)
+
+/** 预约记录分页结果。 */
+data class VenueOrderPage(
+    val records: List<VenueOrderRecord>,
+    val totalElements: Int,
+)
+
 /** 会话建立结果。 */
 sealed interface VenueAuthOutcome {
   /** 已有可用业务 token。 */
@@ -175,6 +200,9 @@ internal interface VenueApiBackend {
 
   /** 尚未放票时返回 success(null)。 */
   suspend fun getDayInfo(siteId: Int, date: String): Result<VenueDayInfo?>
+
+  /** 当前学生的场地预约记录。 */
+  suspend fun getMyOrders(page: Int, size: Int): Result<VenueOrderPage>
 
   suspend fun getBuddies(): Result<List<VenueBuddy>>
 
@@ -217,6 +245,9 @@ class VenueApi internal constructor(private val backend: VenueApiBackend) {
 
   suspend fun getDayInfo(siteId: Int, date: String): Result<VenueDayInfo?> =
       backend.getDayInfo(siteId, date)
+
+  suspend fun getMyOrders(page: Int, size: Int): Result<VenueOrderPage> =
+      backend.getMyOrders(page, size)
 
   suspend fun getBuddies(): Result<List<VenueBuddy>> = backend.getBuddies()
 

@@ -58,6 +58,22 @@ data class IclassAttendanceRecordDto(
     val signStatus: Int = 0,
 )
 
+/** 考勤查询可选的学年学期。 */
+@Serializable
+data class IclassAttendanceTermDto(
+    val code: String,
+    val name: String,
+    val isCurrent: Boolean = false,
+)
+
+/** 某个学年学期下的一门课程。 */
+@Serializable
+data class IclassAttendanceCourseDto(
+    val courseId: String,
+    val courseName: String,
+    val teacherName: String = "",
+)
+
 /** 本学期考勤查询结果。 */
 @Serializable
 data class SigninAttendanceResponse(

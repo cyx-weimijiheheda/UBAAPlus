@@ -39,6 +39,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.model.dto.*
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
+import cn.edu.ubaa.plus.ui.theme.UbaaBrandBlue
+import cn.edu.ubaa.plus.ui.theme.UbaaOnBrandBlue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -398,6 +400,13 @@ private fun ScheduleTopAppBar(
           Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "下一周")
         }
       },
+      colors =
+          TopAppBarDefaults.topAppBarColors(
+              containerColor = UbaaBrandBlue,
+              titleContentColor = UbaaOnBrandBlue,
+              navigationIconContentColor = UbaaOnBrandBlue,
+              actionIconContentColor = UbaaOnBrandBlue,
+          ),
   )
 }
 

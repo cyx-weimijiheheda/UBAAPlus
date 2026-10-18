@@ -816,18 +816,26 @@ class LocalSigninApiBackendTest {
     }
     useMockUpstream(engine)
 
-    val result = SigninApi().getAttendance()
+    val api = SigninApi()
 
+    val terms = api.getAttendanceTerms()
+    assertTrue(terms.isSuccess, terms.exceptionOrNull()?.message.orEmpty())
+    assertEquals("202620271", terms.getOrThrow().single().code)
+    assertEquals("2026-2027 第一学期", terms.getOrThrow().single().name)
+    assertTrue(terms.getOrThrow().single().isCurrent)
+
+    val courses = api.getAttendanceCourses("202620271")
+    assertTrue(courses.isSuccess, courses.exceptionOrNull()?.message.orEmpty())
+    assertEquals(listOf("c1", "c2"), courses.getOrThrow().map { it.courseId })
+
+    val result = api.getAttendance("202620271", "c1")
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
     val response = result.getOrThrow()
     assertEquals("202620271", response.termCode)
     assertEquals("2026-2027 第一学期", response.termName)
-    assertEquals(
-        listOf("2026-10-01", "2026-09-20", "2026-09-10"),
-        response.data.map { it.teachTime },
-    )
-    assertEquals(listOf("软件工程", "编译原理", "软件工程"), response.data.map { it.courseName })
-    assertEquals(listOf(0, 1, 1), response.data.map { it.signStatus })
+    assertEquals(listOf("2026-10-01", "2026-09-10"), response.data.map { it.teachTime })
+    assertEquals(listOf("软件工程", "软件工程"), response.data.map { it.courseName })
+    assertEquals(listOf(0, 1), response.data.map { it.signStatus })
   }
 
   private fun useMockUpstream(engine: MockEngine) {

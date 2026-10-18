@@ -356,7 +356,11 @@ private class FakeSigninApiBackend : SigninApiBackend {
 
   override suspend fun performSignin(courseId: String, timestamp: String?) = error("unused")
 
-  override suspend fun getAttendance() = error("unused")
+  override suspend fun getAttendanceTerms() = error("unused")
+
+  override suspend fun getAttendanceCourses(termCode: String) = error("unused")
+
+  override suspend fun getAttendance(termCode: String, courseId: String) = error("unused")
 }
 
 private class FakeSpocApiBackend : SpocApiBackend {

@@ -1,6 +1,7 @@
 package cn.edu.ubaa.plus.ui.navigation
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.edu.ubaa.plus.SystemBarsAppearance
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.storage.BykcCourseFilterStore
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
@@ -45,6 +47,7 @@ import cn.edu.ubaa.plus.ui.screens.venue.VenueMembershipCodeDialog
 import cn.edu.ubaa.plus.ui.screens.venue.VenueViewModel
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkUiState
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkViewModel
+import cn.edu.ubaa.plus.ui.theme.UbaaOnBrandBlue
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlin.time.Clock
@@ -64,13 +67,11 @@ enum class AppScreen {
   EXAM,
   GRADE,
   COURSE_DETAIL,
-  BYKC_HOME,
   BYKC_COURSES,
   BYKC_DETAIL,
   BYKC_CHOSEN,
   BYKC_STATISTICS,
   ICLASS_HOME,
-  CGYY_HOME,
   CGYY_RESERVE_PICKER,
   CGYY_RESERVE_FORM,
   CGYY_ORDERS,
@@ -81,7 +82,6 @@ enum class AppScreen {
   SPOC_ASSIGNMENT_DETAIL,
   JUDGE_ASSIGNMENTS,
   JUDGE_ASSIGNMENT_DETAIL,
-  LIBBOOK_HOME,
   LIBBOOK_RESERVE,
   LIBBOOK_BOOKINGS,
   YGDK_HOME,
@@ -113,7 +113,6 @@ fun MainAppScreen(
   val currentScreen = navController.currentScreen
   val cgyyScreens = remember {
     setOf(
-        AppScreen.CGYY_HOME,
         AppScreen.CGYY_RESERVE_PICKER,
         AppScreen.CGYY_RESERVE_FORM,
         AppScreen.CGYY_ORDERS,
@@ -121,12 +120,9 @@ fun MainAppScreen(
     )
   }
   val ygdkScreens = remember { setOf(AppScreen.YGDK_HOME, AppScreen.YGDK_FORM) }
-  val libBookScreens = remember {
-    setOf(AppScreen.LIBBOOK_HOME, AppScreen.LIBBOOK_RESERVE, AppScreen.LIBBOOK_BOOKINGS)
-  }
+  val libBookScreens = remember { setOf(AppScreen.LIBBOOK_RESERVE, AppScreen.LIBBOOK_BOOKINGS) }
 
   var selectedBottomTab by remember { mutableStateOf(BottomNavTab.HOME) }
-  var showSidebar by remember { mutableStateOf(false) }
   var homeManualRefreshPending by remember { mutableStateOf(false) }
   var homeManualRefreshStarted by remember { mutableStateOf(false) }
   val homeSnackbarHostState = remember { SnackbarHostState() }
@@ -273,6 +269,7 @@ fun MainAppScreen(
       }
   var selectedSpocAssignmentId by remember { mutableStateOf<String?>(null) }
   var showSpocSortFilterDialog by remember { mutableStateOf(false) }
+  var showBykcFiltersDialog by remember { mutableStateOf(false) }
   var selectedJudgeCourseId by remember { mutableStateOf<String?>(null) }
   var selectedJudgeAssignmentId by remember { mutableStateOf<String?>(null) }
   var showJudgeSortFilterDialog by remember { mutableStateOf(false) }
@@ -387,7 +384,6 @@ fun MainAppScreen(
   fun setRoot(screen: AppScreen, tab: BottomNavTab) {
     navController.setRoot(screen)
     selectedBottomTab = tab
-    showSidebar = false
   }
 
   /** 跳转至指定页面，并自动更新底部 Tab 激活状态。 */
@@ -395,7 +391,6 @@ fun MainAppScreen(
     navController.navigateTo(screen)
     val tab = bottomTab ?: bottomTabFor(screen)
     tab?.let { selectedBottomTab = it }
-    showSidebar = false
   }
 
   /** 统一的返回逻辑处理。 */
@@ -409,7 +404,6 @@ fun MainAppScreen(
             AppScreen.PROFILE -> BottomNavTab.PROFILE
             else -> BottomNavTab.HOME
           }
-      showSidebar = false
     }
   }
 
@@ -492,6 +486,9 @@ fun MainAppScreen(
     } else {
       showVenueMembershipCodeDialog = false
     }
+    if (currentScreen != AppScreen.BYKC_COURSES) {
+      showBykcFiltersDialog = false
+    }
     if (currentScreen != AppScreen.HOME) {
       homeManualRefreshPending = false
       homeManualRefreshStarted = false
@@ -537,7 +534,6 @@ fun MainAppScreen(
         signinViewModel.ensureTodayLoaded(forceRefresh = true)
         signinViewModel.ensureAttendanceLoaded(forceRefresh = true)
       }
-      AppScreen.CGYY_HOME,
       AppScreen.CGYY_RESERVE_PICKER,
       AppScreen.CGYY_RESERVE_FORM -> cgyyViewModel?.ensureInitialDataLoaded(forceRefresh = true)
       AppScreen.CGYY_ORDERS -> {
@@ -547,7 +543,6 @@ fun MainAppScreen(
       AppScreen.EVALUATION -> evaluationViewModel?.ensureLoaded(forceRefresh = true)
       AppScreen.SPOC_ASSIGNMENTS -> spocViewModel.ensureAssignmentsLoaded(forceRefresh = true)
       AppScreen.JUDGE_ASSIGNMENTS -> judgeViewModel.ensureAssignmentsLoaded(forceRefresh = true)
-      AppScreen.LIBBOOK_HOME,
       AppScreen.LIBBOOK_RESERVE -> libBookViewModel?.ensureInitialLoaded(forceRefresh = true)
       AppScreen.LIBBOOK_BOOKINGS -> libBookViewModel?.ensureBookingsLoaded(forceRefresh = true)
       AppScreen.YGDK_HOME,
@@ -593,7 +588,6 @@ fun MainAppScreen(
         signinViewModel.ensureTodayLoaded()
         signinViewModel.ensureAttendanceLoaded()
       }
-      AppScreen.CGYY_HOME,
       AppScreen.CGYY_RESERVE_PICKER,
       AppScreen.CGYY_RESERVE_FORM -> {
         cgyyViewModel?.ensureInitialDataLoaded()
@@ -611,7 +605,6 @@ fun MainAppScreen(
       AppScreen.SPOC_ASSIGNMENT_DETAIL -> spocViewModel.ensureAssignmentsLoaded()
       AppScreen.JUDGE_ASSIGNMENTS,
       AppScreen.JUDGE_ASSIGNMENT_DETAIL -> judgeViewModel.ensureAssignmentsLoaded()
-      AppScreen.LIBBOOK_HOME,
       AppScreen.LIBBOOK_RESERVE -> libBookViewModel?.ensureInitialLoaded()
       AppScreen.LIBBOOK_BOOKINGS -> libBookViewModel?.ensureBookingsLoaded()
       AppScreen.YGDK_HOME,
@@ -641,14 +634,12 @@ fun MainAppScreen(
         AppScreen.EXAM -> "考试查询"
         AppScreen.GRADE -> gradeUiState.selectedTerm?.itemName ?: "成绩查询"
         AppScreen.COURSE_DETAIL -> "课程详情"
-        AppScreen.BYKC_HOME -> "博雅课程"
-        AppScreen.BYKC_COURSES -> "选择课程"
+        AppScreen.BYKC_COURSES -> "博雅课程"
         AppScreen.BYKC_DETAIL -> "课程详情"
         AppScreen.BYKC_CHOSEN -> "我的课程"
         AppScreen.BYKC_STATISTICS -> "课程统计"
         AppScreen.ICLASS_HOME -> "智慧教室"
-        AppScreen.CGYY_HOME -> "研讨室预约"
-        AppScreen.CGYY_RESERVE_PICKER -> "预约研讨室"
+        AppScreen.CGYY_RESERVE_PICKER -> "研讨室预约"
         AppScreen.CGYY_RESERVE_FORM -> "填写预约信息"
         AppScreen.CGYY_ORDERS -> "我的预约"
         AppScreen.CGYY_LOCK_CODE -> "查看密码"
@@ -658,35 +649,39 @@ fun MainAppScreen(
         AppScreen.SPOC_ASSIGNMENT_DETAIL -> "作业详情"
         AppScreen.JUDGE_ASSIGNMENTS -> "希冀作业"
         AppScreen.JUDGE_ASSIGNMENT_DETAIL -> "作业详情"
-        AppScreen.LIBBOOK_HOME -> "图书馆座位"
-        AppScreen.LIBBOOK_RESERVE -> "预约座位"
+        AppScreen.LIBBOOK_RESERVE -> "图书馆座位"
         AppScreen.LIBBOOK_BOOKINGS -> "我的座位预约"
         AppScreen.YGDK_HOME -> "阳光打卡"
         AppScreen.YGDK_FORM -> "新增打卡"
         AppScreen.VENUE_HOME -> "运动场地"
       }
 
+  val isRootScreen = currentScreen in listOf(AppScreen.HOME, AppScreen.REGULAR, AppScreen.PROFILE)
+  SystemBarsAppearance(
+      darkStatusBarIcons = false,
+      darkNavigationBarIcons = if (isRootScreen) false else !isSystemInDarkTheme(),
+  )
+
   Box(modifier = modifier.fillMaxSize()) {
-    BackHandlerCompat(enabled = showSidebar || navController.navStack.size > 1) {
-      if (showSidebar) showSidebar = false else if (navController.navStack.size > 1) navigateBack()
+    BackHandlerCompat(enabled = navController.navStack.size > 1) {
+      if (navController.navStack.size > 1) navigateBack()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-      val isRootScreen =
-          currentScreen in listOf(AppScreen.HOME, AppScreen.REGULAR, AppScreen.PROFILE)
       val showGlobalTopBar = currentScreen != AppScreen.SCHEDULE
       if (showGlobalTopBar) {
         AppTopBar(
             title = screenTitle,
             canNavigateBack = !isRootScreen,
-            onNavigationIconClick = {
-              if (isRootScreen) showSidebar = !showSidebar else navigateBack()
-            },
+            onNavigationIconClick = { navigateBack() },
             actions = {
               // 特殊页面的顶部栏动作按钮
               if (currentScreen == AppScreen.EXAM) {
                 Box {
-                  TextButton(onClick = { showExamTermMenu = true }) {
+                  TextButton(
+                      onClick = { showExamTermMenu = true },
+                      colors = ButtonDefaults.textButtonColors(contentColor = UbaaOnBrandBlue),
+                  ) {
                     Text(examUiState.selectedTerm?.itemName ?: "选择学期")
                     Icon(Icons.Default.ArrowDropDown, null)
                   }
@@ -734,6 +729,10 @@ fun MainAppScreen(
                 IconButton(onClick = { showSpocSortFilterDialog = true }) {
                   Icon(Icons.Default.Tune, contentDescription = "排序和筛选")
                 }
+              } else if (currentScreen == AppScreen.BYKC_COURSES) {
+                IconButton(onClick = { showBykcFiltersDialog = true }) {
+                  Icon(Icons.Default.Tune, contentDescription = "筛选课程")
+                }
               } else if (currentScreen == AppScreen.JUDGE_ASSIGNMENTS) {
                 IconButton(onClick = { showJudgeSortFilterDialog = true }) {
                   Icon(Icons.Default.Tune, contentDescription = "排序和筛选")
@@ -751,6 +750,7 @@ fun MainAppScreen(
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
+                        color = UbaaOnBrandBlue,
                     )
                   } else {
                     Icon(Icons.Default.QrCodeScanner, contentDescription = "扫码签到")
@@ -812,7 +812,6 @@ fun MainAppScreen(
               refreshHomeData = { refreshHomeData() },
               openScoresFromHomeNotice = { openScoresFromHomeNotice() },
               handleHomeTodoClick = { handleHomeTodoClick(it) },
-              updateBykcCourseFilters = { updateBykcCourseFilters(it) },
               onConnectionModeSelected = onConnectionModeSelected,
               onSelectedCourseChange = { selectedCourse = it },
               onSelectedBykcCourseChange = { id, snapshot ->
@@ -844,13 +843,6 @@ fun MainAppScreen(
         )
       }
     }
-
-    MainSidebar(
-        visible = showSidebar,
-        userData = userData,
-        onDismiss = { showSidebar = false },
-        onLogout = { performLogout() },
-    )
 
     if (currentScreen == AppScreen.HOME) {
       SnackbarHost(
@@ -885,6 +877,20 @@ fun MainAppScreen(
             spocViewModel.setShowOnlyUnsubmitted(showOnlyUnsubmitted)
             showSpocSortFilterDialog = false
           },
+      )
+    }
+
+    if (showBykcFiltersDialog && currentScreen == AppScreen.BYKC_COURSES) {
+      BykcCourseFiltersDialog(
+          filters = bykcCourseFilters,
+          filterOptions =
+              buildBykcCourseFilterOptions(
+                  bykcCoursesState.courses,
+                  selectedCampuses = bykcCourseFilters.campuses,
+              ),
+          defaultFilters = defaultBykcFilters,
+          onDismissRequest = { showBykcFiltersDialog = false },
+          onFiltersChange = { updateBykcCourseFilters(it) },
       )
     }
 

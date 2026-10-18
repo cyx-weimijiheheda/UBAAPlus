@@ -92,12 +92,6 @@ internal fun regularFeatureItems(): List<FeatureItem> =
             icon = Icons.Default.DateRange,
         ),
         FeatureItem(
-            id = "judge",
-            title = "希冀作业",
-            description = "聚合希冀平台作业与提交进度",
-            icon = Icons.Default.Code,
-        ),
-        FeatureItem(
             id = "evaluation",
             title = "自动评教",
             description = "一键完成学期末评教任务",
@@ -114,6 +108,12 @@ internal fun regularFeatureItems(): List<FeatureItem> =
             title = "成绩查询",
             description = "查看课程成绩、学分和绩点",
             icon = Icons.Default.Grade,
+        ),
+        FeatureItem(
+            id = "judge",
+            title = "希冀作业",
+            description = "聚合希冀平台作业与提交进度",
+            icon = Icons.Default.Code,
         ),
     )
 

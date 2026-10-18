@@ -169,6 +169,36 @@ internal fun parseVenueOrderResult(envelope: JsonObject): VenueOrderResult {
   )
 }
 
+internal fun parseVenueOrderPage(envelope: JsonObject): VenueOrderPage {
+  val data = envelope["data"] as? JsonObject ?: return VenueOrderPage(emptyList(), 0)
+  val content = data["content"] as? JsonArray ?: return VenueOrderPage(emptyList(), 0)
+  val records =
+      content.mapNotNull { element ->
+        val item = element as? JsonObject ?: return@mapNotNull null
+        VenueOrderRecord(
+            id = item.longOrNull("id"),
+            tradeNo = item.stringOrNull("tradeNo"),
+            campusName = item.stringOrNull("campusName") ?: item.stringOrNull("campusStr"),
+            venueName = item.stringOrNull("venueName"),
+            siteName = item.stringOrNull("siteName"),
+            spaceName = item.stringOrNull("spaceName"),
+            reservationDate = item.stringOrNull("reservationDate"),
+            reservationDateDetail = item.stringOrNull("reservationDateDetail"),
+            reservationStartDate = item.stringOrNull("reservationStartDate"),
+            reservationEndDate = item.stringOrNull("reservationEndDate"),
+            amountFee = item.doubleOrNull("amountFee"),
+            payStatus = item.intOrNull("payStatus"),
+            orderStatus = item.intOrNull("orderStatus"),
+            orderType = item.intOrNull("orderType"),
+            createDate = item.stringOrNull("createDate") ?: item.stringOrNull("gmtCreate"),
+        )
+      }
+  return VenueOrderPage(
+      records = records,
+      totalElements = data.intOrNull("totalElements") ?: records.size,
+  )
+}
+
 internal fun parseVenuePayResult(envelope: JsonObject): VenuePayResult {
   val data = envelope["data"] as? JsonObject
   return VenuePayResult(
