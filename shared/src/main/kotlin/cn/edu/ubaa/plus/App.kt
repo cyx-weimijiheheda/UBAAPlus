@@ -33,6 +33,7 @@ import cn.edu.ubaa.plus.api.auth.AppAnnouncement
 import cn.edu.ubaa.plus.api.auth.AppVersionCheckResponse
 import cn.edu.ubaa.plus.api.auth.UpdateService
 import cn.edu.ubaa.plus.api.storage.AnnouncementReadStore
+import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.components.ReleaseNotesText
 import cn.edu.ubaa.plus.ui.navigation.MainAppScreen
@@ -61,8 +62,12 @@ import kotlinx.coroutines.launch
 fun App() {
   // 预加载应用所需的中文字体
   PreloadFonts()
+  val preferences by AppPreferencesStore.state.collectAsState()
 
-  UBAATheme {
+  UBAATheme(
+      palette = preferences.themePalette,
+      followWallpaper = preferences.followWallpaper,
+  ) {
     val authViewModel: AuthViewModel = viewModel { AuthViewModel() }
     val uiState by authViewModel.uiState.collectAsState()
     val loginForm by authViewModel.loginForm.collectAsState()

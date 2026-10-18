@@ -39,8 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.model.dto.*
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
-import cn.edu.ubaa.plus.ui.theme.UbaaBrandBlue
-import cn.edu.ubaa.plus.ui.theme.UbaaOnBrandBlue
+import cn.edu.ubaa.plus.ui.theme.UbaaBrand
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -402,10 +401,10 @@ private fun ScheduleTopAppBar(
       },
       colors =
           TopAppBarDefaults.topAppBarColors(
-              containerColor = UbaaBrandBlue,
-              titleContentColor = UbaaOnBrandBlue,
-              navigationIconContentColor = UbaaOnBrandBlue,
-              actionIconContentColor = UbaaOnBrandBlue,
+              containerColor = UbaaBrand.current.brand,
+              titleContentColor = UbaaBrand.current.onBrand,
+              navigationIconContentColor = UbaaBrand.current.onBrand,
+              actionIconContentColor = UbaaBrand.current.onBrand,
           ),
   )
 }

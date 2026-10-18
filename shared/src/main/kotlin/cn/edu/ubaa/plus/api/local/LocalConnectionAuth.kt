@@ -13,6 +13,7 @@ import cn.edu.ubaa.plus.api.auth.UserServiceBackend
 import cn.edu.ubaa.plus.api.auth.toUserFacingApiException
 import cn.edu.ubaa.plus.api.auth.userFacingMessageForCode
 import cn.edu.ubaa.plus.api.core.getDefaultEngine
+import cn.edu.ubaa.plus.api.storage.CredentialStore
 import cn.edu.ubaa.plus.model.dto.CaptchaInfo
 import cn.edu.ubaa.plus.model.dto.LoginPreloadResponse
 import cn.edu.ubaa.plus.model.dto.LoginRequest
@@ -404,6 +405,7 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
         activateUcLogin()
         return when (val validation = validateLocalConnectionSession()) {
           is LocalConnectionSessionValidationState.Valid -> {
+            ensureDirectSsoSessionIfNeeded()
             reportLocalLoginSuccess(
                 validation.session.username.ifBlank { validation.session.user.schoolid },
                 LoginStatsSuccessMode.PRELOAD_AUTO,
@@ -698,6 +700,19 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
     val separator = if (basePath.endsWith("/")) "" else "/"
     val relativePath = "$basePath$separator$location"
     return "$authority$relativePath"
+  }
+
+  /** 自动登录时也确保 WEBVPN 模式拥有直连 SSO 会话，供网页 ticket handoff 使用。 */
+  private suspend fun ensureDirectSsoSessionIfNeeded() {
+    if (ConnectionRuntime.currentMode() != ConnectionMode.WEBVPN) return
+    val hasDirect =
+        LocalCookieStore.storage(ConnectionMode.DIRECT)
+            .get(Url("https://sso.buaa.edu.cn/"))
+            .isNotEmpty()
+    if (hasDirect) return
+    val username = CredentialStore.getUsername() ?: return
+    val password = CredentialStore.getPassword() ?: return
+    establishDirectSsoSession(username, password)
   }
 
   /** WEBVPN 模式下额外建立直连 SSO 会话，供 CGYY 等可直连的子系统使用。 */

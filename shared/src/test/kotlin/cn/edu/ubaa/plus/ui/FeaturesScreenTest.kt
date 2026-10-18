@@ -8,7 +8,7 @@ import kotlin.test.assertFalse
 class FeaturesScreenTest {
 
   @Test
-  fun `功能页包含十三个入口且顺序固定`() {
+  fun `功能页包含十七个入口且顺序固定`() {
     val ids = regularFeatureItems().map { it.id }
 
     assertEquals(
@@ -17,11 +17,15 @@ class FeaturesScreenTest {
             "classroom",
             "iclass",
             "libbook",
+            "libservice",
             "spoc",
             "bykc",
             "venue",
             "ygdk",
             "cgyy",
+            "dorm",
+            "network",
+            "card",
             "evaluation",
             "exam",
             "grade",

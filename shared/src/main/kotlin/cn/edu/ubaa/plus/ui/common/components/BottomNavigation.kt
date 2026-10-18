@@ -8,9 +8,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import cn.edu.ubaa.plus.ui.theme.UbaaBrandBlue
-import cn.edu.ubaa.plus.ui.theme.UbaaOnBrandBlue
+import cn.edu.ubaa.plus.ui.theme.UbaaBrand
 
 enum class BottomNavTab {
   HOME,
@@ -24,19 +22,20 @@ fun BottomNavigation(
     onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+  val brand = UbaaBrand.current
   val itemColors =
       NavigationBarItemDefaults.colors(
-          selectedIconColor = UbaaOnBrandBlue,
-          selectedTextColor = UbaaOnBrandBlue,
-          indicatorColor = Color.White.copy(alpha = 0.2f),
-          unselectedIconColor = Color.White.copy(alpha = 0.72f),
-          unselectedTextColor = Color.White.copy(alpha = 0.72f),
+          selectedIconColor = brand.onBrand,
+          selectedTextColor = brand.onBrand,
+          indicatorColor = brand.onBrand.copy(alpha = 0.2f),
+          unselectedIconColor = brand.onBrand.copy(alpha = 0.72f),
+          unselectedTextColor = brand.onBrand.copy(alpha = 0.72f),
       )
 
   NavigationBar(
       modifier = modifier.fillMaxWidth(),
-      containerColor = UbaaBrandBlue,
-      contentColor = UbaaOnBrandBlue,
+      containerColor = brand.brand,
+      contentColor = brand.onBrand,
   ) {
     NavigationBarItem(
         icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "主页") },

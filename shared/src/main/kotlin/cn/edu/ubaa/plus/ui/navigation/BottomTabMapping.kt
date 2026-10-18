@@ -12,7 +12,8 @@ internal fun bottomTabFor(screen: AppScreen): BottomNavTab? =
       AppScreen.HOME -> BottomNavTab.HOME
       AppScreen.PROFILE,
       AppScreen.SETTINGS,
-      AppScreen.ABOUT -> BottomNavTab.PROFILE
+      AppScreen.ABOUT,
+      AppScreen.FEATURE_ORDER -> BottomNavTab.PROFILE
       AppScreen.REGULAR,
       AppScreen.SCHEDULE,
       AppScreen.EXAM,
@@ -37,5 +38,9 @@ internal fun bottomTabFor(screen: AppScreen): BottomNavTab? =
       AppScreen.EVALUATION,
       AppScreen.YGDK_HOME,
       AppScreen.YGDK_FORM,
-      AppScreen.VENUE_HOME -> BottomNavTab.REGULAR
+      AppScreen.VENUE_HOME,
+      AppScreen.DORM_ELECTRICITY,
+      AppScreen.CAMPUS_NETWORK,
+      AppScreen.CAMPUS_CARD,
+      AppScreen.LIBRARY_BORROW -> BottomNavTab.REGULAR
     }

@@ -15,10 +15,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.SystemBarsAppearance
 import cn.edu.ubaa.plus.api.ConnectionMode
+import cn.edu.ubaa.plus.api.local.SsoTicketHandoff
+import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.BykcCourseFilterStore
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
@@ -26,11 +30,15 @@ import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.ui.common.components.AppTopBar
 import cn.edu.ubaa.plus.ui.common.components.BottomNavTab
+import cn.edu.ubaa.plus.ui.common.components.QrScanResultDialog
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
 import cn.edu.ubaa.plus.ui.screens.bykc.*
+import cn.edu.ubaa.plus.ui.screens.campus.CampusCardViewModel
+import cn.edu.ubaa.plus.ui.screens.campus.CampusNetworkViewModel
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyUiState
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyViewModel
 import cn.edu.ubaa.plus.ui.screens.classroom.ClassroomViewModel
+import cn.edu.ubaa.plus.ui.screens.dorm.DormElectricityViewModel
 import cn.edu.ubaa.plus.ui.screens.evaluation.EvaluationViewModel
 import cn.edu.ubaa.plus.ui.screens.exam.ExamUiState
 import cn.edu.ubaa.plus.ui.screens.exam.ExamViewModel
@@ -39,6 +47,7 @@ import cn.edu.ubaa.plus.ui.screens.grade.GradeUiState
 import cn.edu.ubaa.plus.ui.screens.grade.GradeViewModel
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeViewModel
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
+import cn.edu.ubaa.plus.ui.screens.library.LibraryBorrowViewModel
 import cn.edu.ubaa.plus.ui.screens.menu.*
 import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel
 import cn.edu.ubaa.plus.ui.screens.signin.SigninViewModel
@@ -47,12 +56,13 @@ import cn.edu.ubaa.plus.ui.screens.venue.VenueMembershipCodeDialog
 import cn.edu.ubaa.plus.ui.screens.venue.VenueViewModel
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkUiState
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkViewModel
-import cn.edu.ubaa.plus.ui.theme.UbaaOnBrandBlue
+import cn.edu.ubaa.plus.ui.theme.UbaaBrand
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -63,6 +73,7 @@ enum class AppScreen {
   PROFILE,
   SETTINGS,
   ABOUT,
+  FEATURE_ORDER,
   SCHEDULE,
   EXAM,
   GRADE,
@@ -87,6 +98,10 @@ enum class AppScreen {
   YGDK_HOME,
   YGDK_FORM,
   VENUE_HOME,
+  DORM_ELECTRICITY,
+  CAMPUS_NETWORK,
+  CAMPUS_CARD,
+  LIBRARY_BORROW,
 }
 
 /**
@@ -109,6 +124,7 @@ fun MainAppScreen(
     modifier: Modifier = Modifier,
 ) {
   val scope = rememberCoroutineScope()
+  val uriHandler = LocalUriHandler.current
   val navController = rememberNavigationController()
   val currentScreen = navController.currentScreen
   val cgyyScreens = remember {
@@ -191,6 +207,18 @@ fun MainAppScreen(
       rememberLauncherForActivityResult(ScanContract()) { result ->
         result.contents?.takeIf { it.isNotBlank() }?.let(signinViewModel::performScannedSignin)
       }
+  val genericScanOptions = remember {
+    ScanOptions()
+        .setDesiredBarcodeFormats(ScanOptions.ALL_CODE_TYPES)
+        .setPrompt("将二维码或条形码放入框内")
+        .setBeepEnabled(false)
+        .setOrientationLocked(true)
+  }
+  var scanResult by remember { mutableStateOf<String?>(null) }
+  val genericScanLauncher =
+      rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents?.takeIf { it.isNotBlank() }?.let { scanResult = it }
+      }
   val evaluationViewModel: EvaluationViewModel? =
       if (currentScreen == AppScreen.EVALUATION) {
         viewModel(key = "evaluation") { EvaluationViewModel() }
@@ -213,6 +241,30 @@ fun MainAppScreen(
   val classroomViewModel: ClassroomViewModel? =
       if (currentScreen == AppScreen.CLASSROOM_QUERY) {
         viewModel(key = "classroom") { ClassroomViewModel() }
+      } else {
+        null
+      }
+  val dormElectricityViewModel: DormElectricityViewModel? =
+      if (currentScreen == AppScreen.DORM_ELECTRICITY) {
+        viewModel(key = "dorm-${userData.schoolid}") { DormElectricityViewModel() }
+      } else {
+        null
+      }
+  val campusNetworkViewModel: CampusNetworkViewModel? =
+      if (currentScreen == AppScreen.CAMPUS_NETWORK) {
+        viewModel(key = "network-${userData.schoolid}") { CampusNetworkViewModel() }
+      } else {
+        null
+      }
+  val campusCardViewModel: CampusCardViewModel? =
+      if (currentScreen == AppScreen.CAMPUS_CARD) {
+        viewModel(key = "card-${userData.schoolid}") { CampusCardViewModel() }
+      } else {
+        null
+      }
+  val libraryBorrowViewModel: LibraryBorrowViewModel? =
+      if (currentScreen == AppScreen.LIBRARY_BORROW) {
+        viewModel(key = "library-${userData.schoolid}") { LibraryBorrowViewModel() }
       } else {
         null
       }
@@ -266,6 +318,11 @@ fun MainAppScreen(
             BykcCourseFilterStore.get(bykcFilterUserKey)?.toBykcCourseFilters()
                 ?: defaultBykcFilters
         )
+      }
+  val appPreferences by AppPreferencesStore.state.collectAsState()
+  val features =
+      remember(appPreferences.featureOrder, appPreferences.hiddenFeatures) {
+        resolveFeatureItems(appPreferences.featureOrder, appPreferences.hiddenFeatures)
       }
   var selectedSpocAssignmentId by remember { mutableStateOf<String?>(null) }
   var showSpocSortFilterDialog by remember { mutableStateOf(false) }
@@ -407,6 +464,15 @@ fun MainAppScreen(
     }
   }
 
+  /** 尝试用 CAS 一次性 ticket 打开网页；失败时回退普通 URL。 */
+  fun openUrl(url: String) {
+    scope.launch {
+      val target =
+          runCatching { SsoTicketHandoff.authenticatedUrl(url).getOrDefault(url) }.getOrDefault(url)
+      runCatching { uriHandler.openUri(target) }
+    }
+  }
+
   /** 退出登录前先停止所有前台抢单任务，避免带着已清理的会话继续请求。 */
   fun performLogout() {
     bykcViewModel.stopGrab(BykcGrabStopReason.LOGOUT)
@@ -514,6 +580,10 @@ fun MainAppScreen(
     gradeScoreWatchViewModel.resetLoadedState()
     evaluationViewModel?.resetLoadedState()
     libBookViewModel?.resetLoadedState()
+    dormElectricityViewModel?.resetLoadedState()
+    campusNetworkViewModel?.resetLoadedState()
+    campusCardViewModel?.resetLoadedState()
+    libraryBorrowViewModel?.resetLoadedState()
     venueViewModel?.resetLoadedState()
     // 刷新当前页面数据
     when (currentScreen) {
@@ -548,6 +618,11 @@ fun MainAppScreen(
       AppScreen.YGDK_HOME,
       AppScreen.YGDK_FORM -> ygdkViewModel?.ensureLoaded(forceRefresh = true)
       AppScreen.VENUE_HOME -> venueViewModel?.ensureInitialized()
+      AppScreen.DORM_ELECTRICITY -> dormElectricityViewModel?.ensureLoaded(forceRefresh = true)
+      AppScreen.CAMPUS_NETWORK -> campusNetworkViewModel?.ensureLoaded(forceRefresh = true)
+      AppScreen.CAMPUS_CARD -> campusCardViewModel?.ensureLoaded(forceRefresh = true)
+      AppScreen.LIBRARY_BORROW -> libraryBorrowViewModel?.ensureLoaded(forceRefresh = true)
+      AppScreen.FEATURE_ORDER -> Unit
       else -> Unit
     }
   }
@@ -610,6 +685,11 @@ fun MainAppScreen(
       AppScreen.YGDK_HOME,
       AppScreen.YGDK_FORM -> ygdkViewModel?.ensureLoaded()
       AppScreen.VENUE_HOME -> venueViewModel?.ensureInitialized()
+      AppScreen.DORM_ELECTRICITY -> dormElectricityViewModel?.ensureLoaded()
+      AppScreen.CAMPUS_NETWORK -> campusNetworkViewModel?.ensureLoaded()
+      AppScreen.CAMPUS_CARD -> campusCardViewModel?.ensureLoaded()
+      AppScreen.LIBRARY_BORROW -> libraryBorrowViewModel?.ensureLoaded()
+      AppScreen.FEATURE_ORDER -> Unit
       else -> Unit
     }
   }
@@ -630,6 +710,7 @@ fun MainAppScreen(
         AppScreen.PROFILE -> "个人中心"
         AppScreen.SETTINGS -> "设置"
         AppScreen.ABOUT -> "关于"
+        AppScreen.FEATURE_ORDER -> "功能排序与显示"
         AppScreen.SCHEDULE -> "课程表"
         AppScreen.EXAM -> "考试查询"
         AppScreen.GRADE -> gradeUiState.selectedTerm?.itemName ?: "成绩查询"
@@ -654,12 +735,17 @@ fun MainAppScreen(
         AppScreen.YGDK_HOME -> "阳光打卡"
         AppScreen.YGDK_FORM -> "新增打卡"
         AppScreen.VENUE_HOME -> "运动场地"
+        AppScreen.DORM_ELECTRICITY -> "寝室用电"
+        AppScreen.CAMPUS_NETWORK -> "校园网络"
+        AppScreen.CAMPUS_CARD -> "校园卡"
+        AppScreen.LIBRARY_BORROW -> "图书借阅"
       }
 
   val isRootScreen = currentScreen in listOf(AppScreen.HOME, AppScreen.REGULAR, AppScreen.PROFILE)
+  val darkBrandIcons = UbaaBrand.current.brand.luminance() > 0.5f
   SystemBarsAppearance(
-      darkStatusBarIcons = false,
-      darkNavigationBarIcons = if (isRootScreen) false else !isSystemInDarkTheme(),
+      darkStatusBarIcons = darkBrandIcons,
+      darkNavigationBarIcons = if (isRootScreen) darkBrandIcons else !isSystemInDarkTheme(),
   )
 
   Box(modifier = modifier.fillMaxSize()) {
@@ -680,7 +766,8 @@ fun MainAppScreen(
                 Box {
                   TextButton(
                       onClick = { showExamTermMenu = true },
-                      colors = ButtonDefaults.textButtonColors(contentColor = UbaaOnBrandBlue),
+                      colors =
+                          ButtonDefaults.textButtonColors(contentColor = UbaaBrand.current.onBrand),
                   ) {
                     Text(examUiState.selectedTerm?.itemName ?: "选择学期")
                     Icon(Icons.Default.ArrowDropDown, null)
@@ -741,6 +828,10 @@ fun MainAppScreen(
                 IconButton(onClick = { showVenueMembershipCodeDialog = true }) {
                   Icon(Icons.Default.QrCode2, contentDescription = "会员预约码")
                 }
+              } else if (currentScreen == AppScreen.HOME || currentScreen == AppScreen.REGULAR) {
+                IconButton(onClick = { genericScanLauncher.launch(genericScanOptions) }) {
+                  Icon(Icons.Default.QrCodeScanner, contentDescription = "扫一扫")
+                }
               } else if (currentScreen == AppScreen.ICLASS_HOME) {
                 IconButton(
                     onClick = { iclassScanLauncher.launch(iclassScanOptions) },
@@ -750,7 +841,7 @@ fun MainAppScreen(
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = UbaaOnBrandBlue,
+                        color = UbaaBrand.current.onBrand,
                     )
                   } else {
                     Icon(Icons.Default.QrCodeScanner, contentDescription = "扫码签到")
@@ -782,6 +873,8 @@ fun MainAppScreen(
               bykcChosenState = bykcChosenState,
               bykcGrabState = bykcGrabState,
               bykcCourseFilters = bykcCourseFilters,
+              features = features,
+              featureLayout = appPreferences.featureLayout,
               ygdkUiState = ygdkUiState,
               selectedCourse = selectedCourse,
               selectedBykcCourseId = selectedBykcCourseId,
@@ -798,6 +891,10 @@ fun MainAppScreen(
               cgyyViewModel = cgyyViewModel,
               venueViewModel = venueViewModel,
               libBookViewModel = libBookViewModel,
+              dormElectricityViewModel = dormElectricityViewModel,
+              campusNetworkViewModel = campusNetworkViewModel,
+              campusCardViewModel = campusCardViewModel,
+              libraryBorrowViewModel = libraryBorrowViewModel,
               classroomViewModel = classroomViewModel,
               spocViewModel = spocViewModel,
               judgeViewModel = judgeViewModel,
@@ -813,6 +910,8 @@ fun MainAppScreen(
               openScoresFromHomeNotice = { openScoresFromHomeNotice() },
               handleHomeTodoClick = { handleHomeTodoClick(it) },
               onConnectionModeSelected = onConnectionModeSelected,
+              onFeatureLongPressWeb = { feature -> feature.webUrl?.let(::openUrl) },
+              onOpenUrl = { openUrl(it) },
               onSelectedCourseChange = { selectedCourse = it },
               onSelectedBykcCourseChange = { id, snapshot ->
                 selectedBykcCourseId = id
@@ -859,6 +958,17 @@ fun MainAppScreen(
             onDismiss = { showVenueMembershipCodeDialog = false },
         )
       }
+    }
+
+    scanResult?.let { content ->
+      QrScanResultDialog(
+          content = content,
+          onOpenUrl = { url ->
+            openUrl(url)
+            scanResult = null
+          },
+          onDismiss = { scanResult = null },
+      )
     }
 
     if (showSpocSortFilterDialog && currentScreen == AppScreen.SPOC_ASSIGNMENTS) {

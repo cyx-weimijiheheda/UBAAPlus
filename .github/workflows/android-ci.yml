@@ -97,14 +97,37 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Validate release signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "缺少 RELEASE_KEYSTORE_BASE64"; exit 1; }
+          test -n "$STORE_PASSWORD" || { echo "缺少 RELEASE_STORE_PASSWORD"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "缺少 RELEASE_KEY_ALIAS"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "缺少 RELEASE_KEY_PASSWORD"; exit 1; }
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ubaaplus-release.jks"
+
       - name: Assemble release APKs
+        env:
+          SIGNING_KEY: ${{ runner.temp }}/ubaaplus-release.jks
+          SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew :androidApp:assembleRelease -PabiSplits=true
 
       - name: Upload release APKs
         uses: actions/upload-artifact@v7
         with:
           name: ubaaplus-release-apks
-          path: androidApp/build/outputs/apk/release/*.apk
+          path: androidApp/build/outputs/apk/release-renamed/*.apk
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -118,10 +141,10 @@ jobs:
               while read -r asset; do
                 gh release delete-asset "$GITHUB_REF_NAME" "$asset" --yes
               done
-            gh release upload "$GITHUB_REF_NAME" androidApp/build/outputs/apk/release/*.apk --clobber
+            gh release upload "$GITHUB_REF_NAME" androidApp/build/outputs/apk/release-renamed/*.apk --clobber
           else
             gh release create "$GITHUB_REF_NAME" \
               --title "UBAAPlus $GITHUB_REF_NAME" \
               --generate-notes \
-              androidApp/build/outputs/apk/release/*.apk
+              androidApp/build/outputs/apk/release-renamed/*.apk
           fi

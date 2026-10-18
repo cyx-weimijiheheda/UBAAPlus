@@ -38,7 +38,10 @@ import kotlinx.datetime.LocalDate
 
 /** 运动场地页面：登录、选择场地与日期、查看可用性、配置抢场地参数并启动任务。 */
 @Composable
-fun VenueScreen(viewModel: VenueViewModel) {
+fun VenueScreen(
+    viewModel: VenueViewModel,
+    onOpenUrl: (String) -> Unit,
+) {
   val state by viewModel.state.collectAsState()
   val grabState by viewModel.grabState.collectAsState()
   val orderHistoryState by viewModel.orderHistoryState.collectAsState()
@@ -179,6 +182,7 @@ fun VenueScreen(viewModel: VenueViewModel) {
                   onPollIntervalChange = viewModel::updatePollInterval,
                   onStart = viewModel::startGrab,
                   onStop = viewModel::stopGrab,
+                  onOpenUrl = onOpenUrl,
               )
             }
           }

@@ -6,8 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
-import cn.edu.ubaa.plus.ui.theme.UbaaBrandBlue
-import cn.edu.ubaa.plus.ui.theme.UbaaOnBrandBlue
+import cn.edu.ubaa.plus.ui.theme.UbaaBrand
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,10 +29,10 @@ fun AppTopBar(
       actions = actions,
       colors =
           TopAppBarDefaults.topAppBarColors(
-              containerColor = UbaaBrandBlue,
-              titleContentColor = UbaaOnBrandBlue,
-              navigationIconContentColor = UbaaOnBrandBlue,
-              actionIconContentColor = UbaaOnBrandBlue,
+              containerColor = UbaaBrand.current.brand,
+              titleContentColor = UbaaBrand.current.onBrand,
+              navigationIconContentColor = UbaaBrand.current.onBrand,
+              actionIconContentColor = UbaaBrand.current.onBrand,
           ),
   )
 }

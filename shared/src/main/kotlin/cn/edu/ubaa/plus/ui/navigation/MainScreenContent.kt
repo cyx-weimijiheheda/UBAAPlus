@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.api.ConnectionMode
+import cn.edu.ubaa.plus.api.storage.FeatureLayout
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
 import cn.edu.ubaa.plus.model.dto.UserData
@@ -17,6 +18,10 @@ import cn.edu.ubaa.plus.ui.screens.bykc.BykcCourseDetailUiState
 import cn.edu.ubaa.plus.ui.screens.bykc.BykcCourseFilters
 import cn.edu.ubaa.plus.ui.screens.bykc.BykcCoursesUiState
 import cn.edu.ubaa.plus.ui.screens.bykc.BykcViewModel
+import cn.edu.ubaa.plus.ui.screens.campus.CampusCardScreen
+import cn.edu.ubaa.plus.ui.screens.campus.CampusCardViewModel
+import cn.edu.ubaa.plus.ui.screens.campus.CampusNetworkScreen
+import cn.edu.ubaa.plus.ui.screens.campus.CampusNetworkViewModel
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyLockCodeScreen
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyOrdersScreen
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyReserveFormScreen
@@ -24,6 +29,8 @@ import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyReservePickerScreen
 import cn.edu.ubaa.plus.ui.screens.cgyy.CgyyViewModel
 import cn.edu.ubaa.plus.ui.screens.classroom.ClassroomQueryScreen
 import cn.edu.ubaa.plus.ui.screens.classroom.ClassroomViewModel
+import cn.edu.ubaa.plus.ui.screens.dorm.DormElectricityScreen
+import cn.edu.ubaa.plus.ui.screens.dorm.DormElectricityViewModel
 import cn.edu.ubaa.plus.ui.screens.evaluation.EvaluationScreen
 import cn.edu.ubaa.plus.ui.screens.evaluation.EvaluationViewModel
 import cn.edu.ubaa.plus.ui.screens.exam.ExamScreen
@@ -38,6 +45,8 @@ import cn.edu.ubaa.plus.ui.screens.judge.JudgeViewModel
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookBookingsScreen
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookReserveScreen
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
+import cn.edu.ubaa.plus.ui.screens.library.LibraryBorrowScreen
+import cn.edu.ubaa.plus.ui.screens.library.LibraryBorrowViewModel
 import cn.edu.ubaa.plus.ui.screens.menu.*
 import cn.edu.ubaa.plus.ui.screens.menu.HomeTodoItem
 import cn.edu.ubaa.plus.ui.screens.menu.HomeTodoSource
@@ -81,6 +90,8 @@ internal class MainScreenContentState(
     val bykcChosenState: BykcChosenCoursesUiState,
     val bykcGrabState: BykcGrabState,
     val bykcCourseFilters: BykcCourseFilters,
+    val features: List<FeatureItem>,
+    val featureLayout: FeatureLayout,
     val ygdkUiState: YgdkUiState,
     val selectedCourse: CourseClass?,
     val selectedBykcCourseId: Long?,
@@ -97,6 +108,10 @@ internal class MainScreenContentState(
     val cgyyViewModel: CgyyViewModel?,
     val venueViewModel: VenueViewModel?,
     val libBookViewModel: LibBookViewModel?,
+    val dormElectricityViewModel: DormElectricityViewModel?,
+    val campusNetworkViewModel: CampusNetworkViewModel?,
+    val campusCardViewModel: CampusCardViewModel?,
+    val libraryBorrowViewModel: LibraryBorrowViewModel?,
     val classroomViewModel: ClassroomViewModel?,
     val spocViewModel: SpocViewModel,
     val judgeViewModel: JudgeViewModel,
@@ -113,6 +128,8 @@ internal class MainScreenActions(
     val openScoresFromHomeNotice: () -> Unit,
     val handleHomeTodoClick: (HomeTodoItem) -> Unit,
     val onConnectionModeSelected: (ConnectionMode) -> Unit,
+    val onFeatureLongPressWeb: (FeatureItem) -> Unit,
+    val onOpenUrl: (String) -> Unit,
     val onSelectedCourseChange: (CourseClass?) -> Unit,
     val onSelectedBykcCourseChange: (Long?, BykcCourseDto?) -> Unit,
     val onSelectedSpocAssignmentChange: (String?) -> Unit,
@@ -152,19 +169,30 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
             )
         AppScreen.REGULAR ->
             RegularFeaturesScreen(
-                onScheduleClick = { navigateTo(AppScreen.SCHEDULE) },
-                onExamClick = { navigateTo(AppScreen.EXAM) },
-                onGradeClick = { navigateTo(AppScreen.GRADE) },
-                onBykcClick = { navigateTo(AppScreen.BYKC_COURSES) },
-                onClassroomClick = { navigateTo(AppScreen.CLASSROOM_QUERY) },
-                onIclassClick = { navigateTo(AppScreen.ICLASS_HOME) },
-                onSpocClick = { navigateTo(AppScreen.SPOC_ASSIGNMENTS) },
-                onJudgeClick = { navigateTo(AppScreen.JUDGE_ASSIGNMENTS) },
-                onLibBookClick = { navigateTo(AppScreen.LIBBOOK_RESERVE) },
-                onVenueClick = { navigateTo(AppScreen.VENUE_HOME) },
-                onCgyyClick = { navigateTo(AppScreen.CGYY_RESERVE_PICKER) },
-                onYgdkClick = { navigateTo(AppScreen.YGDK_HOME) },
-                onEvaluationClick = { navigateTo(AppScreen.EVALUATION) },
+                features = features,
+                layout = featureLayout,
+                onFeatureClick = { feature ->
+                  when (feature.id) {
+                    "schedule" -> navigateTo(AppScreen.SCHEDULE)
+                    "exam" -> navigateTo(AppScreen.EXAM)
+                    "grade" -> navigateTo(AppScreen.GRADE)
+                    "bykc" -> navigateTo(AppScreen.BYKC_COURSES)
+                    "classroom" -> navigateTo(AppScreen.CLASSROOM_QUERY)
+                    "iclass" -> navigateTo(AppScreen.ICLASS_HOME)
+                    "spoc" -> navigateTo(AppScreen.SPOC_ASSIGNMENTS)
+                    "judge" -> navigateTo(AppScreen.JUDGE_ASSIGNMENTS)
+                    "libbook" -> navigateTo(AppScreen.LIBBOOK_RESERVE)
+                    "venue" -> navigateTo(AppScreen.VENUE_HOME)
+                    "cgyy" -> navigateTo(AppScreen.CGYY_RESERVE_PICKER)
+                    "ygdk" -> navigateTo(AppScreen.YGDK_HOME)
+                    "evaluation" -> navigateTo(AppScreen.EVALUATION)
+                    "libservice" -> navigateTo(AppScreen.LIBRARY_BORROW)
+                    "dorm" -> navigateTo(AppScreen.DORM_ELECTRICITY)
+                    "network" -> navigateTo(AppScreen.CAMPUS_NETWORK)
+                    "card" -> navigateTo(AppScreen.CAMPUS_CARD)
+                  }
+                },
+                onLongPressWeb = onFeatureLongPressWeb,
             )
         AppScreen.PROFILE ->
             ProfileScreen(
@@ -175,12 +203,14 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onAboutClick = { navigateTo(AppScreen.ABOUT) },
                 onLogoutClick = onLogoutClick,
             )
-        AppScreen.VENUE_HOME -> venueViewModel?.let { VenueScreen(viewModel = it) }
+        AppScreen.VENUE_HOME ->
+            venueViewModel?.let { VenueScreen(viewModel = it, onOpenUrl = onOpenUrl) }
         AppScreen.SETTINGS ->
             SettingsScreen(
                 currentMode = connectionMode,
                 availableModes = availableConnectionModes,
                 onModeSelected = onConnectionModeSelected,
+                onFeatureOrderClick = { navigateTo(AppScreen.FEATURE_ORDER) },
             )
         AppScreen.ABOUT -> AboutScreen()
         AppScreen.SCHEDULE ->
@@ -398,6 +428,21 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
             }
         AppScreen.LIBBOOK_BOOKINGS ->
             libBookViewModel?.let { LibBookBookingsScreen(viewModel = it) }
+        AppScreen.FEATURE_ORDER -> FeatureOrderScreen()
+        AppScreen.DORM_ELECTRICITY ->
+            dormElectricityViewModel?.let {
+              DormElectricityScreen(viewModel = it, onOpenUrl = onOpenUrl)
+            }
+        AppScreen.CAMPUS_NETWORK ->
+            campusNetworkViewModel?.let {
+              CampusNetworkScreen(viewModel = it, onOpenUrl = onOpenUrl)
+            }
+        AppScreen.CAMPUS_CARD ->
+            campusCardViewModel?.let { CampusCardScreen(viewModel = it, onOpenUrl = onOpenUrl) }
+        AppScreen.LIBRARY_BORROW ->
+            libraryBorrowViewModel?.let {
+              LibraryBorrowScreen(viewModel = it, onOpenUrl = onOpenUrl)
+            }
       }
     }
   }

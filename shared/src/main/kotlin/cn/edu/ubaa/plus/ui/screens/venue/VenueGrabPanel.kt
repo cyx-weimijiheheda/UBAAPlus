@@ -31,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,8 +51,8 @@ fun VenueGrabPanel(
     onPollIntervalChange: (String) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onOpenUrl: (String) -> Unit,
 ) {
-  val uriHandler = LocalUriHandler.current
   val alreadyReleased = state.dayInfo != null
   var showConfirm by remember { mutableStateOf(false) }
   val active =
@@ -180,12 +179,8 @@ fun VenueGrabPanel(
             order.endAt?.let { Text("结束：$it", style = MaterialTheme.typography.bodySmall) }
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-              grabState.payUrl?.let { url ->
-                Button(onClick = { uriHandler.openUri(url) }) { Text("去支付") }
-              }
-              OutlinedButton(
-                  onClick = { uriHandler.openUri("https://cgyy.buaa.edu.cn/venue/orders") }
-              ) {
+              grabState.payUrl?.let { url -> Button(onClick = { onOpenUrl(url) }) { Text("去支付") } }
+              OutlinedButton(onClick = { onOpenUrl("https://cgyy.buaa.edu.cn/venue/orders") }) {
                 Text("查看订单")
               }
             }

@@ -1,4 +1,6 @@
 import java.util.Properties
+import org.gradle.api.GradleException
+import org.gradle.api.tasks.Sync
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -59,7 +61,12 @@ android {
     getByName("release") {
       isMinifyEnabled = false
       val releaseSigning = signingConfigs.getByName("release")
-      // 没有配置正式签名时退回 debug 签名，保证 CI 能产出可安装的 release APK。
+      val isReleaseTask =
+          gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+      if (isReleaseTask && System.getenv("CI") == "true" && releaseSigning.storeFile == null) {
+        throw GradleException("CI release build requires SIGNING_* environment variables")
+      }
+      // 本地没有配置正式签名时退回 debug 签名；CI 会强制要求正式签名。
       signingConfig =
           if (releaseSigning.storeFile != null) releaseSigning
           else signingConfigs.getByName("debug")
@@ -71,6 +78,24 @@ android {
     targetCompatibility = JavaVersion.VERSION_21
   }
 }
+
+// AGP 9 的 VariantOutput 公共 API 不暴露 outputFileName；
+// 在 assembleRelease 结束后把默认产物同步为 <arch>_<version>.apk。
+val releaseVersion = project.property("project.version").toString()
+val renameReleaseApks by
+    tasks.registering(Sync::class) {
+      notCompatibleWithConfigurationCache("APK rename captures the build script version")
+      from(layout.buildDirectory.dir("outputs/apk/release")) {
+        include("*.apk")
+        rename { name ->
+          val abi = name.removePrefix("UBAAPlus-").removeSuffix("-release.apk")
+          if (abi == name) name else "UBAAPlus-${abi}_${releaseVersion}.apk"
+        }
+      }
+      into(layout.buildDirectory.dir("outputs/apk/release-renamed"))
+    }
+
+tasks.matching { it.name == "assembleRelease" }.configureEach { finalizedBy(renameReleaseApks) }
 
 kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_21) } }
 
