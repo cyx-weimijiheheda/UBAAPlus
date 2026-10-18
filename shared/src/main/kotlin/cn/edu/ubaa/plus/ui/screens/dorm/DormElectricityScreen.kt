@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.DormMeterInfoDto
 import cn.edu.ubaa.plus.model.dto.DormTopUpDto
+import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
 
 @Composable
 fun DormElectricityScreen(
@@ -91,6 +92,12 @@ fun DormElectricityScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+      item {
+        CampusOnlyNotice(
+            text = "寝室用电查询与购电需要连接校园网（北航 WiFi 或有线网）。校外访问时服务通常返回 302 跳转，查询会失败；请连接校园网后重试。"
+        )
+      }
+
       item {
         DormQueryCard(
             state = state,

@@ -3,7 +3,6 @@ package cn.edu.ubaa.plus.ui.screens.schedule
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,7 +38,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.model.dto.*
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
-import cn.edu.ubaa.plus.ui.theme.UbaaBrand
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -401,10 +399,10 @@ private fun ScheduleTopAppBar(
       },
       colors =
           TopAppBarDefaults.topAppBarColors(
-              containerColor = UbaaBrand.current.brand,
-              titleContentColor = UbaaBrand.current.onBrand,
-              navigationIconContentColor = UbaaBrand.current.onBrand,
-              actionIconContentColor = UbaaBrand.current.onBrand,
+              containerColor = MaterialTheme.colorScheme.surfaceContainer,
+              titleContentColor = MaterialTheme.colorScheme.onSurface,
+              navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+              actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
           ),
   )
 }
@@ -589,7 +587,7 @@ private fun WeeklyScheduleGrid(
 /** 单个课程卡片组件。 */
 @Composable
 private fun CourseCell(course: CourseClass, onClick: () -> Unit, modifier: Modifier = Modifier) {
-  val isDark = isSystemInDarkTheme()
+  val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
   val parsedColor = remember(course.color) { parseColor(course.color) }
   // MaterialTheme 只能在组合上下文读取，remember 的 lambda 不是组合函数，故先取出
   val fallbackContainerColor = MaterialTheme.colorScheme.primary

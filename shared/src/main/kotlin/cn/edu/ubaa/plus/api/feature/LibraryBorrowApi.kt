@@ -69,10 +69,11 @@ internal class LocalLibraryBorrowApiBackend(
         var response = request(path, cookieHeader = null)
         if (response.status == HttpStatusCode.Unauthorized) {
           loggedIn = false
-          response = request(path, cookieHeader = cookieHeader())
+          ensureLogin()
+          response = request(path, cookieHeader = cookieHeader(urlFor(path)))
         }
         val body = response.bodyAsText()
-        if (response.status == HttpStatusCode.Unauthorized || looksLikeLoginPage(body)) {
+        if (response.status == HttpStatusCode.Unauthorized) {
           loggedIn = false
           throw ApiCallException("图书馆登录状态已失效，请打开网页登录", code = "library_auth")
         }
@@ -90,38 +91,52 @@ internal class LocalLibraryBorrowApiBackend(
         Result.failure(ApiCallException(message = "借阅记录加载失败", code = "library_error", cause = e))
       }
 
+  /**
+   * 通过图书馆自己的 CAS 入口建立 OPAC 会话。
+   *
+   * 不能直接把 `/space/` 当作 CAS service：图书馆的 service 是 `/meta-local/opac/cas/rosetta`， ticket
+   * 必须交给该地址才会写入会话 cookie。
+   */
   private suspend fun ensureLogin() {
     mutex.withLock {
       if (loggedIn) return
-      client.get(
-          "https://sso.buaa.edu.cn/login?service=https%3A%2F%2Fspace.lib.buaa.edu.cn%2Fspace%2F"
-      ) {
-        header(HttpHeaders.UserAgent, USER_AGENT)
+      val response =
+          client.get("https://space.lib.buaa.edu.cn/meta-local/opac/cas/rosetta") {
+            header(HttpHeaders.UserAgent, USER_AGENT)
+            header(HttpHeaders.Accept, "text/html,application/xhtml+xml,*/*")
+          }
+      val finalUrl = response.call.request.url.toString()
+      if (finalUrl.contains("sso.buaa.edu.cn")) {
+        throw ApiCallException(
+            "图书馆需要统一身份认证登录，请先登录应用或打开网页登录",
+            code = "library_auth",
+        )
+      }
+      if (!response.status.isSuccess()) {
+        throw ApiCallException(
+            message = "图书馆登录返回 ${response.status.value}",
+            status = response.status,
+            code = "library_http_error",
+        )
       }
       loggedIn = true
     }
   }
 
   private suspend fun request(path: String, cookieHeader: String?): HttpResponse =
-      client.get("https://space.lib.buaa.edu.cn/meta-local/opac/users/$path?page=1&pageSize=100") {
+      client.get(urlFor(path)) {
         header(HttpHeaders.Accept, "application/json, text/plain, */*")
         header(HttpHeaders.Referrer, "https://space.lib.buaa.edu.cn/space/")
         header(HttpHeaders.UserAgent, USER_AGENT)
         cookieHeader?.takeIf { it.isNotBlank() }?.let { header(HttpHeaders.Cookie, it) }
       }
 
-  private suspend fun cookieHeader(): String {
-    val cookies =
-        LocalCookieStore.storage(ConnectionMode.DIRECT)
-            .get(Url("https://space.lib.buaa.edu.cn/space/"))
-    return cookies.joinToString("; ") { "${it.name}=${it.value}" }
-  }
+  private fun urlFor(path: String): String =
+      "https://space.lib.buaa.edu.cn/meta-local/opac/users/$path?page=1&pageSize=100"
 
-  private fun looksLikeLoginPage(body: String): Boolean {
-    val trimmed = body.trimStart()
-    return trimmed.startsWith("<!DOCTYPE html", ignoreCase = true) ||
-        body.contains("CAS Login", ignoreCase = true) ||
-        body.contains("统一身份认证", ignoreCase = true)
+  private suspend fun cookieHeader(url: String): String {
+    val cookies = LocalCookieStore.storage(ConnectionMode.DIRECT).get(Url(url))
+    return cookies.joinToString("; ") { "${it.name}=${it.value}" }
   }
 
   private fun parseLoans(body: String): List<LibraryLoanDto> {

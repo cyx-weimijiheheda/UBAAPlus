@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.feature.CampusNetworkInfoDto
 import cn.edu.ubaa.plus.api.feature.CampusTrafficDto
+import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
 import java.util.Locale
 
 @Composable
@@ -60,6 +61,12 @@ fun CampusNetworkScreen(
             Icon(Icons.Default.Refresh, contentDescription = "刷新")
           }
         }
+      }
+
+      item {
+        CampusOnlyNotice(
+            text = "流量与在线账号信息按当前校园网 IP 查询，需要连接北航 WiFi 或有线网。校外访问时可能无法显示数据；套餐与充值可打开自助服务网页。"
+        )
       }
 
       if (state.isLoading && state.info == null && state.traffic == null && state.netFee == null) {

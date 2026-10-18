@@ -64,7 +64,8 @@ internal object SsoTicketHandoff {
               uri.toString().encodeURLParameter()
       host == "pass.cc-pay.cn" ->
           "https://pass.cc-pay.cn/login?backUrl=" + uri.toString().encodeURLParameter()
-      host == "space.lib.buaa.edu.cn" -> "https://space.lib.buaa.edu.cn/space/"
+      host == "space.lib.buaa.edu.cn" ->
+          "https://space.lib.buaa.edu.cn:443/meta-local/opac/cas/rosetta"
       host.endsWith(".buaa.edu.cn") || host == "buaa.edu.cn" -> uri.toString()
       else -> null
     }

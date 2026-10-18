@@ -62,6 +62,28 @@ class SsoTicketHandoffTest {
   }
 
   @Test
+  fun `图书馆使用 rosetta 作为 CAS service`() = runTest {
+    var service = ""
+    val engine = MockEngine { request ->
+      service = request.url.parameters["service"].orEmpty()
+      respond(
+          content = ByteReadChannel(""),
+          status = HttpStatusCode.Found,
+          headers = headersOf(HttpHeaders.Location, "$service?ticket=ST-lib-ticket"),
+      )
+    }
+    LocalUpstreamClientProvider.isolatedClientFactory = { followRedirects, _ ->
+      HttpClient(engine) { this.followRedirects = followRedirects }
+    }
+
+    val result = SsoTicketHandoff.authenticatedUrl("https://space.lib.buaa.edu.cn/space/")
+
+    assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
+    assertTrue(service.endsWith("/meta-local/opac/cas/rosetta"), service)
+    assertTrue(result.getOrThrow().contains("ticket=ST-lib-ticket"))
+  }
+
+  @Test
   fun `非 BUAA 地址直接返回原地址`() = runTest {
     val result = SsoTicketHandoff.authenticatedUrl("https://example.com/pay")
 

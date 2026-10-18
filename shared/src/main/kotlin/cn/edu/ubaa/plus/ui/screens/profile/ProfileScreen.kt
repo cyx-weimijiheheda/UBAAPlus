@@ -24,10 +24,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.AppInfo
 import cn.edu.ubaa.plus.api.ConnectionMode
-import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
-import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
 import kotlin.random.Random
 import kotlinx.coroutines.delay
 
@@ -47,7 +45,6 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
 ) {
   val uriHandler = LocalUriHandler.current
-  val preferences by AppPreferencesStore.state.collectAsState()
   val quips = remember { profileQuips() }
   var quipIndex by remember { mutableIntStateOf(Random.nextInt(quips.size)) }
   val nextQuip = { quipIndex = (quipIndex + 1 + Random.nextInt(quips.size - 1)) % quips.size }
@@ -128,17 +125,6 @@ fun ProfileScreen(
               tint = MaterialTheme.colorScheme.onSecondaryContainer,
           )
         }
-      }
-    }
-
-    item {
-      ProfileSection(title = "外观") {
-        ThemePalettePicker(
-            selected = preferences.themePalette,
-            followWallpaper = preferences.followWallpaper,
-            onPaletteSelected = AppPreferencesStore::setThemePalette,
-            onFollowWallpaperChange = AppPreferencesStore::setFollowWallpaper,
-        )
       }
     }
 

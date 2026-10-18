@@ -17,6 +17,13 @@ enum class ThemePalette(val displayName: String) {
   ROOMMATE_PINK("室友粉"),
 }
 
+/** 深色模式设置。 */
+enum class ThemeMode(val displayName: String) {
+  SYSTEM("跟随系统"),
+  LIGHT("浅色"),
+  DARK("深色"),
+}
+
 /** 功能列表的展示方式。 */
 enum class FeatureLayout(val displayName: String) {
   GRID("网格"),
@@ -26,6 +33,7 @@ enum class FeatureLayout(val displayName: String) {
 /** 非敏感的用户外观与功能偏好。 */
 data class AppPreferences(
     val themePalette: ThemePalette = ThemePalette.BUAA_BLUE,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val followWallpaper: Boolean = false,
     val featureLayout: FeatureLayout = FeatureLayout.GRID,
     val featureOrder: List<String> = emptyList(),
@@ -38,6 +46,7 @@ data class AppPreferences(
 /** 主题、功能排序/显示、寝室默认值等偏好的统一存储。 */
 object AppPreferencesStore {
   private const val KEY_THEME_PALETTE = "app_theme_palette"
+  private const val KEY_THEME_MODE = "app_theme_mode"
   private const val KEY_FOLLOW_WALLPAPER = "app_follow_wallpaper"
   private const val KEY_FEATURE_LAYOUT = "app_feature_layout"
   private const val KEY_FEATURE_ORDER = "app_feature_order"
@@ -68,6 +77,11 @@ object AppPreferencesStore {
     _state.value = _state.value.copy(themePalette = palette)
   }
 
+  fun setThemeMode(mode: ThemeMode) {
+    settings.putString(KEY_THEME_MODE, mode.name)
+    _state.value = _state.value.copy(themeMode = mode)
+  }
+
   fun setFollowWallpaper(enabled: Boolean) {
     settings.putBoolean(KEY_FOLLOW_WALLPAPER, enabled)
     _state.value = _state.value.copy(followWallpaper = enabled)
@@ -88,6 +102,16 @@ object AppPreferencesStore {
     val sanitized = hidden.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
     settings.putString(KEY_FEATURE_HIDDEN, json.encodeToString(sanitized.toList()))
     _state.value = _state.value.copy(hiddenFeatures = sanitized)
+  }
+
+  /** 同时更新顺序与隐藏集合，避免排序页连续写入时出现中间状态。 */
+  fun updateFeatureCustomization(order: List<String>, hidden: Set<String>) {
+    val sanitizedOrder = order.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+    val sanitizedHidden = hidden.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    settings.putString(KEY_FEATURE_ORDER, json.encodeToString(sanitizedOrder))
+    settings.putString(KEY_FEATURE_HIDDEN, json.encodeToString(sanitizedHidden.toList()))
+    _state.value =
+        _state.value.copy(featureOrder = sanitizedOrder, hiddenFeatures = sanitizedHidden)
   }
 
   fun setDormDefaults(campus: String, building: String, room: String) {
@@ -115,6 +139,9 @@ object AppPreferencesStore {
     val palette =
         runCatching { ThemePalette.valueOf(settings.getString(KEY_THEME_PALETTE, "")) }
             .getOrDefault(ThemePalette.BUAA_BLUE)
+    val mode =
+        runCatching { ThemeMode.valueOf(settings.getString(KEY_THEME_MODE, "")) }
+            .getOrDefault(ThemeMode.SYSTEM)
     val layout =
         runCatching { FeatureLayout.valueOf(settings.getString(KEY_FEATURE_LAYOUT, "")) }
             .getOrDefault(FeatureLayout.GRID)
@@ -137,6 +164,7 @@ object AppPreferencesStore {
 
     return AppPreferences(
         themePalette = palette,
+        themeMode = mode,
         followWallpaper = settings.getBoolean(KEY_FOLLOW_WALLPAPER, false),
         featureLayout = layout,
         featureOrder = order,

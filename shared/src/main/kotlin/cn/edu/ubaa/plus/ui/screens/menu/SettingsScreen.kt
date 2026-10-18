@@ -43,6 +43,7 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.feature.DormElectricityApi
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
+import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.model.dto.DormRoomDto
 import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
 
@@ -94,6 +95,17 @@ fun SettingsScreen(
             onFollowWallpaperChange = AppPreferencesStore::setFollowWallpaper,
         )
         Spacer(modifier = Modifier.height(12.dp))
+        Text("深色模式", style = MaterialTheme.typography.bodyLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          ThemeMode.entries.forEach { mode ->
+            FilterChip(
+                selected = preferences.themeMode == mode,
+                onClick = { AppPreferencesStore.setThemeMode(mode) },
+                label = { Text(mode.displayName) },
+            )
+          }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
         Text("功能页布局", style = MaterialTheme.typography.bodyLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
           FeatureLayout.entries.forEach { layout ->
@@ -119,7 +131,7 @@ fun SettingsScreen(
           Column(modifier = Modifier.weight(1f)) {
             Text("功能排序与显示", style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = "长按拖动排序，开关控制是否显示",
+                text = "分显示/隐藏两层，用上下按钮调整顺序",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -135,6 +147,12 @@ fun SettingsScreen(
 
     item {
       SettingsSection(title = "寝室用电默认值") {
+        Text(
+            text = "宿舍列表与用电查询需要连接校园网；校外访问时服务可能返回 302 跳转。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
         when (val state = dormState) {
           DormRoomsState.Loading -> Text("正在加载宿舍列表…")
           is DormRoomsState.Error -> {

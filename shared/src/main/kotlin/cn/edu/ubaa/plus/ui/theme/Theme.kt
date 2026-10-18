@@ -38,13 +38,21 @@ object UbaaBrand {
     @Composable @ReadOnlyComposable get() = LocalUbaaBrandColors.current
 }
 
+/** 配色的主题种子色，用于派生 Material 配色；需要保证文字对比度。 */
 fun ThemePalette.brandColor(): Color =
     when (this) {
       ThemePalette.BUAA_BLUE -> UbaaBrandBlue
-      ThemePalette.PKU_RED -> Color(0xFF94070A)
+      ThemePalette.PKU_RED -> Color(0xFF7B0A0A)
       ThemePalette.THU_PURPLE -> Color(0xFF660874)
       ThemePalette.BJFU_GREEN -> Color(0xFF006B3C)
-      ThemePalette.ROOMMATE_PINK -> Color(0xFFC2185B)
+      ThemePalette.ROOMMATE_PINK -> Color(0xFFC56E8B)
+    }
+
+/** 设置页色块使用的展示色；粉色比主题种子更淡，避免过于刺眼。 */
+fun ThemePalette.swatchColor(): Color =
+    when (this) {
+      ThemePalette.ROOMMATE_PINK -> Color(0xFFF0B6C6)
+      else -> brandColor()
     }
 
 private fun onColorFor(color: Color): Color =

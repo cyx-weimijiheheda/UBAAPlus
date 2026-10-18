@@ -1,7 +1,6 @@
 package cn.edu.ubaa.plus.ui.navigation
 
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -56,7 +55,6 @@ import cn.edu.ubaa.plus.ui.screens.venue.VenueMembershipCodeDialog
 import cn.edu.ubaa.plus.ui.screens.venue.VenueViewModel
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkUiState
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkViewModel
-import cn.edu.ubaa.plus.ui.theme.UbaaBrand
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlin.time.Clock
@@ -742,10 +740,10 @@ fun MainAppScreen(
       }
 
   val isRootScreen = currentScreen in listOf(AppScreen.HOME, AppScreen.REGULAR, AppScreen.PROFILE)
-  val darkBrandIcons = UbaaBrand.current.brand.luminance() > 0.5f
+  val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
   SystemBarsAppearance(
-      darkStatusBarIcons = darkBrandIcons,
-      darkNavigationBarIcons = if (isRootScreen) darkBrandIcons else !isSystemInDarkTheme(),
+      darkStatusBarIcons = !isDarkTheme,
+      darkNavigationBarIcons = !isDarkTheme,
   )
 
   Box(modifier = modifier.fillMaxSize()) {
@@ -767,7 +765,9 @@ fun MainAppScreen(
                   TextButton(
                       onClick = { showExamTermMenu = true },
                       colors =
-                          ButtonDefaults.textButtonColors(contentColor = UbaaBrand.current.onBrand),
+                          ButtonDefaults.textButtonColors(
+                              contentColor = MaterialTheme.colorScheme.primary
+                          ),
                   ) {
                     Text(examUiState.selectedTerm?.itemName ?: "选择学期")
                     Icon(Icons.Default.ArrowDropDown, null)
@@ -841,7 +841,7 @@ fun MainAppScreen(
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = UbaaBrand.current.onBrand,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                   } else {
                     Icon(Icons.Default.QrCodeScanner, contentDescription = "扫码签到")

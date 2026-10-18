@@ -96,6 +96,13 @@ internal class LocalDormElectricityApiBackend(
   private suspend fun getText(path: String): String {
     val response = client.get("$BASE_URL${path}")
     val body = response.bodyAsText()
+    if (response.status.value in 300..399) {
+      throw ApiCallException(
+          message = "寝室用电服务返回 ${response.status.value} 跳转，当前可能不在校园网环境。请连接北航 WiFi 或有线网后重试。",
+          status = response.status,
+          code = "dorm_off_campus",
+      )
+    }
     if (!response.status.isSuccess()) {
       throw ApiCallException(
           message = "寝室用电服务返回 ${response.status.value}",
@@ -173,6 +180,13 @@ internal class LocalDormElectricityApiBackend(
   }
 
   private fun extractPayUrl(body: String, location: String?, status: HttpStatusCode): String {
+    if (status.value in 300..399 && location.isNullOrBlank()) {
+      throw ApiCallException(
+          message = "购电请求返回 ${status.value} 跳转，当前可能不在校园网环境。请连接北航 WiFi 或有线网后重试。",
+          status = status,
+          code = "dorm_off_campus",
+      )
+    }
     location
         ?.takeIf { it.startsWith("http") }
         ?.let {

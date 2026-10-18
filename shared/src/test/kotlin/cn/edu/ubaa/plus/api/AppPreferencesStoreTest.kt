@@ -2,6 +2,7 @@ package cn.edu.ubaa.plus.api
 
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
+import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.api.storage.ThemePalette
 import com.russhwolf.settings.MapSettings
 import kotlin.test.BeforeTest
@@ -16,6 +17,7 @@ class AppPreferencesStoreTest {
     AppPreferencesStore.settings = MapSettings()
     AppPreferencesStore.resetFeatureCustomization()
     AppPreferencesStore.setThemePalette(ThemePalette.BUAA_BLUE)
+    AppPreferencesStore.setThemeMode(ThemeMode.SYSTEM)
     AppPreferencesStore.setFollowWallpaper(false)
     AppPreferencesStore.setFeatureLayout(FeatureLayout.GRID)
     AppPreferencesStore.setDormDefaults("", "", "")
@@ -25,6 +27,7 @@ class AppPreferencesStoreTest {
   fun `默认偏好正确`() {
     val state = AppPreferencesStore.state.value
     assertEquals(ThemePalette.BUAA_BLUE, state.themePalette)
+    assertEquals(ThemeMode.SYSTEM, state.themeMode)
     assertFalse(state.followWallpaper)
     assertEquals(FeatureLayout.GRID, state.featureLayout)
     assertTrue(state.featureOrder.isEmpty())
@@ -34,11 +37,13 @@ class AppPreferencesStoreTest {
   @Test
   fun `主题与布局会持久化到 flow`() {
     AppPreferencesStore.setThemePalette(ThemePalette.PKU_RED)
+    AppPreferencesStore.setThemeMode(ThemeMode.DARK)
     AppPreferencesStore.setFollowWallpaper(true)
     AppPreferencesStore.setFeatureLayout(FeatureLayout.COMPACT_LIST)
 
     val state = AppPreferencesStore.state.value
     assertEquals(ThemePalette.PKU_RED, state.themePalette)
+    assertEquals(ThemeMode.DARK, state.themeMode)
     assertTrue(state.followWallpaper)
     assertEquals(FeatureLayout.COMPACT_LIST, state.featureLayout)
   }
@@ -48,6 +53,18 @@ class AppPreferencesStoreTest {
     AppPreferencesStore.setFeatureOrder(listOf("judge", " ", "judge", "schedule"))
 
     assertEquals(listOf("judge", "schedule"), AppPreferencesStore.state.value.featureOrder)
+  }
+
+  @Test
+  fun `同时更新顺序与隐藏集合`() {
+    AppPreferencesStore.updateFeatureCustomization(
+        order = listOf("judge", "schedule", "judge", ""),
+        hidden = setOf("judge"),
+    )
+
+    val state = AppPreferencesStore.state.value
+    assertEquals(listOf("judge", "schedule"), state.featureOrder)
+    assertEquals(setOf("judge"), state.hiddenFeatures)
   }
 
   @Test

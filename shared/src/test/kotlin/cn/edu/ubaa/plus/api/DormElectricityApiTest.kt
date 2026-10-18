@@ -113,4 +113,30 @@ class DormElectricityApiTest {
     assertTrue(pay.isSuccess, pay.exceptionOrNull()?.message.orEmpty())
     assertEquals("https://pay.example.com/order/1", pay.getOrThrow())
   }
+
+  @Test
+  fun `校外访问返回 302 时提示校园网`() = runTest {
+    val engine = MockEngine {
+      respond(
+          content = ByteReadChannel(""),
+          status = HttpStatusCode.Found,
+          headers = headersOf(HttpHeaders.Location, "https://sso.buaa.edu.cn/login"),
+      )
+    }
+    val offlineBackend =
+        LocalDormElectricityApiBackend(
+            clientProvider = {
+              HttpClient(engine) {
+                followRedirects = false
+                expectSuccess = false
+              }
+            }
+        )
+    offlineBackend.clearRoomCache()
+
+    val result = DormElectricityApi(offlineBackend).getRooms()
+
+    assertTrue(result.isFailure)
+    assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("校园网"))
+  }
 }

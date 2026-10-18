@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalView
@@ -34,7 +35,10 @@ import cn.edu.ubaa.plus.api.auth.AppVersionCheckResponse
 import cn.edu.ubaa.plus.api.auth.UpdateService
 import cn.edu.ubaa.plus.api.storage.AnnouncementReadStore
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
+import cn.edu.ubaa.plus.api.storage.DisclaimerStore
+import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.repository.ScheduleStore
+import cn.edu.ubaa.plus.ui.common.components.FirstRunDisclaimerDialog
 import cn.edu.ubaa.plus.ui.common.components.ReleaseNotesText
 import cn.edu.ubaa.plus.ui.navigation.MainAppScreen
 import cn.edu.ubaa.plus.ui.screens.auth.AuthViewModel
@@ -63,10 +67,17 @@ fun App() {
   // 预加载应用所需的中文字体
   PreloadFonts()
   val preferences by AppPreferencesStore.state.collectAsState()
+  val darkTheme =
+      when (preferences.themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+      }
 
   UBAATheme(
       palette = preferences.themePalette,
       followWallpaper = preferences.followWallpaper,
+      darkTheme = darkTheme,
   ) {
     val authViewModel: AuthViewModel = viewModel { AuthViewModel() }
     val uiState by authViewModel.uiState.collectAsState()
@@ -85,6 +96,9 @@ fun App() {
     val announcementService = remember { AnnouncementService() }
     var updateInfo by remember { mutableStateOf<AppVersionCheckResponse?>(null) }
     var announcementInfo by remember { mutableStateOf<AppAnnouncement?>(null) }
+    var disclaimerAccepted by remember {
+      mutableStateOf(runCatching { DisclaimerStore.isAccepted() }.getOrDefault(false))
+    }
     val uriHandler = LocalUriHandler.current
 
     suspend fun checkStartupPrompts() {
@@ -159,8 +173,18 @@ fun App() {
       if (shouldEndSplash) isSplashFinished = true
     }
 
+    // 首次使用的免责声明：必须同意后才能继续。
+    if (!disclaimerAccepted) {
+      FirstRunDisclaimerDialog(
+          onAccept = {
+            DisclaimerStore.accept()
+            disclaimerAccepted = true
+          }
+      )
+    }
+
     // 版本更新对话框
-    if (updateInfo != null) {
+    if (disclaimerAccepted && updateInfo != null) {
       val release = updateInfo!!
       val releaseNotes = release.releaseNotes?.takeIf { it.isNotBlank() } ?: "点击下方按钮下载最新客户端。"
       val updateMessage = buildString {
@@ -195,7 +219,7 @@ fun App() {
       )
     }
 
-    if (shouldShowAnnouncementDialog(updateInfo, announcementInfo)) {
+    if (disclaimerAccepted && shouldShowAnnouncementDialog(updateInfo, announcementInfo)) {
       val announcement = announcementInfo!!
       AlertDialog(
           onDismissRequest = {},
@@ -226,7 +250,7 @@ fun App() {
     val mainAppVisible =
         uiState.isLoggedIn && uiState.userData != null && isSplashFinished && !showOfflineSchedule
     if (!mainAppVisible) {
-      val useDarkIcons = !isSystemInDarkTheme()
+      val useDarkIcons = MaterialTheme.colorScheme.background.luminance() > 0.5f
       SystemBarsAppearance(
           darkStatusBarIcons = useDarkIcons,
           darkNavigationBarIcons = useDarkIcons,

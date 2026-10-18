@@ -30,7 +30,7 @@ class LibraryBorrowApiTest {
     LocalCookieStore.settings = MapSettings()
     val engine = MockEngine { request ->
       when (request.url.encodedPath) {
-        "/login" ->
+        "/meta-local/opac/cas/rosetta" ->
             respond(
                 content = ByteReadChannel("ok"),
                 status = HttpStatusCode.OK,

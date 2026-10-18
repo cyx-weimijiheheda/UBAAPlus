@@ -23,10 +23,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.storage.ThemePalette
-import cn.edu.ubaa.plus.ui.theme.brandColor
+import cn.edu.ubaa.plus.ui.theme.swatchColor
 
 /** 主题色选择器：5 套固定配色 + 跟随壁纸。 */
 @Composable
@@ -52,11 +54,12 @@ fun ThemePalettePicker(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+          val swatch = palette.swatchColor()
           Box(
               modifier =
                   Modifier.size(40.dp)
                       .clip(CircleShape)
-                      .background(palette.brandColor())
+                      .background(swatch)
                       .border(
                           BorderStroke(
                               width = if (!followWallpaper && palette == selected) 2.dp else 0.dp,
@@ -70,7 +73,7 @@ fun ThemePalettePicker(
               Icon(
                   imageVector = Icons.Default.Check,
                   contentDescription = null,
-                  tint = MaterialTheme.colorScheme.surface,
+                  tint = if (swatch.luminance() > 0.5f) Color(0xFF111318) else Color.White,
                   modifier = Modifier.size(20.dp),
               )
             }
