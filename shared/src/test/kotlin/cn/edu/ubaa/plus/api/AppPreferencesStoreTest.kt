@@ -68,6 +68,15 @@ class AppPreferencesStoreTest {
   }
 
   @Test
+  fun `旧版北林绿偏好迁移为北理绿`() {
+    val settings = MapSettings()
+    settings.putString("app_theme_palette", "BJFU_GREEN")
+    AppPreferencesStore.settings = settings
+
+    assertEquals(ThemePalette.BIT_GREEN, AppPreferencesStore.state.value.themePalette)
+  }
+
+  @Test
   fun `隐藏功能与寝室默认值`() {
     AppPreferencesStore.setHiddenFeatures(setOf("judge", "judge", ""))
     AppPreferencesStore.setDormDefaults(" 学院路校区 ", " 3号楼 ", " 101 ")

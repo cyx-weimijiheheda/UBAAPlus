@@ -44,7 +44,7 @@ fun ThemePalette.brandColor(): Color =
       ThemePalette.BUAA_BLUE -> UbaaBrandBlue
       ThemePalette.PKU_RED -> Color(0xFF7B0A0A)
       ThemePalette.THU_PURPLE -> Color(0xFF660874)
-      ThemePalette.BJFU_GREEN -> Color(0xFF006B3C)
+      ThemePalette.BIT_GREEN -> Color(0xFF006B3C)
       ThemePalette.ROOMMATE_PINK -> Color(0xFFC56E8B)
     }
 

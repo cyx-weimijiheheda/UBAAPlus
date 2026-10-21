@@ -64,6 +64,32 @@ class LocalWebVpnSupportTest {
   }
 
   @Test
+  fun `UC login redirect downgraded to http is upgraded back to https`() {
+    assertEquals(
+        "https://sso.buaa.edu.cn/login?service=https%3A%2F%2Fuc.buaa.edu.cn%2Fapi%2Flogin",
+        LocalWebVpnSupport.normalizeRedirectUrl(
+            "http://sso.buaa.edu.cn/login?service=https%3A%2F%2Fuc.buaa.edu.cn%2Fapi%2Flogin"
+        ),
+    )
+  }
+
+  @Test
+  fun `webvpn http tunnel redirect is upgraded to https tunnel`() {
+    ConnectionModeStore.save(ConnectionMode.WEBVPN)
+    ConnectionRuntime.resolveSelectedMode()
+
+    val wrapped = LocalWebVpnSupport.toWebVpnUrl("http://sso.buaa.edu.cn/login?service=x")
+    assertTrue(wrapped.startsWith("https://d.buaa.edu.cn/http/"))
+    assertTrue(
+        LocalWebVpnSupport.normalizeRedirectUrl(wrapped).startsWith("https://d.buaa.edu.cn/https/")
+    )
+    assertTrue(
+        LocalWebVpnSupport.normalizeRedirectUrl("https://sso.buaa.edu.cn/login")
+            .startsWith("https://d.buaa.edu.cn/https/")
+    )
+  }
+
+  @Test
   fun `upstream url helper wraps direct upstream when current mode is webvpn`() {
     ConnectionModeStore.save(ConnectionMode.WEBVPN)
     ConnectionRuntime.resolveSelectedMode()

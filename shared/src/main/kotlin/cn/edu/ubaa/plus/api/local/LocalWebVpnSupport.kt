@@ -61,6 +61,29 @@ internal object LocalWebVpnSupport {
     return fromWebVpnUrl(url).contains("sso.buaa.edu.cn", ignoreCase = true)
   }
 
+  /**
+   * 修正上游 302 中的协议降级。
+   *
+   * `uc.buaa.edu.cn/api/login` 现在会 302 到 `http://sso.buaa.edu.cn/login?service=...`。 CAS 的 CASTGC 是
+   * Secure cookie，HTTP 请求不会携带，CAS 会再次返回登录页， 导致 UC 会话始终建立不起来、登录后的会话校验失败。这里统一升级为 HTTPS； WEBVPN
+   * 模式下还要把网关的 `/http/` 隧道改回 `/https/`，否则同样拿不到 SSO 会话。
+   */
+  fun normalizeRedirectUrl(url: String): String {
+    val upgraded =
+        if (url.startsWith("http://sso.buaa.edu.cn", ignoreCase = true)) {
+          "https://" + url.substring("http://".length)
+        } else {
+          url
+        }
+    if (ConnectionRuntime.currentMode() != ConnectionMode.WEBVPN) return upgraded
+    return when {
+      upgraded.startsWith("https://$gatewayHost/http/", ignoreCase = true) ->
+          upgraded.replaceFirst("/http/", "/https/")
+      upgraded.startsWith("https://sso.buaa.edu.cn", ignoreCase = true) -> toWebVpnUrl(upgraded)
+      else -> upgraded
+    }
+  }
+
   // 片段中的 ?type=...&token=... 不属于请求查询，不能在转换时复制到 # 之前。
   private fun queryPart(url: String): String =
       url.substringBefore('#')

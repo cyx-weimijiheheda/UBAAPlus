@@ -433,6 +433,85 @@ class LocalAuthServiceBackendTest {
     assertNull(LocalAuthSessionStore.get())
   }
 
+  @Test
+  fun `login upgrades uc http redirect to https before following`() = runTest {
+    val upgradedService =
+        "https://sso.buaa.edu.cn/login?service=https%3A%2F%2Fuc.buaa.edu.cn%2Fapi%2Flogin"
+    val engine = MockEngine { request ->
+      when (request.url.toString()) {
+        "https://sso.buaa.edu.cn/login" ->
+            when (request.method.value) {
+              "GET" ->
+                  respond(
+                      content =
+                          ByteReadChannel(
+                              """
+                              <html><body><form id="fm1">
+                                <input type="hidden" name="execution" value="e1s1" />
+                              </form></body></html>
+                              """
+                                  .trimIndent()
+                          ),
+                      status = HttpStatusCode.OK,
+                      headers = headersOf(HttpHeaders.ContentType, "text/html"),
+                  )
+              "POST" ->
+                  respond(
+                      content = ByteReadChannel.Empty,
+                      status = HttpStatusCode.Found,
+                      headers = headersOf(HttpHeaders.Location, "https://uc.buaa.edu.cn/landing"),
+                  )
+              else -> error("Unexpected method: ${request.method}")
+            }
+        "https://uc.buaa.edu.cn/landing" ->
+            respond(content = ByteReadChannel.Empty, status = HttpStatusCode.OK)
+        "https://uc.buaa.edu.cn/api/login?target=https%3A%2F%2Fuc.buaa.edu.cn%2F%23%2Fuser%2Flogin" ->
+            respond(
+                content = ByteReadChannel.Empty,
+                status = HttpStatusCode.Found,
+                headers =
+                    headersOf(
+                        HttpHeaders.Location,
+                        "http://sso.buaa.edu.cn/login?service=https%3A%2F%2Fuc.buaa.edu.cn%2Fapi%2Flogin",
+                    ),
+            )
+        upgradedService ->
+            respond(
+                content = ByteReadChannel.Empty,
+                status = HttpStatusCode.Found,
+                headers =
+                    headersOf(
+                        HttpHeaders.Location,
+                        "https://uc.buaa.edu.cn/api/login?target=x&ticket=ST-1",
+                    ),
+            )
+        "https://uc.buaa.edu.cn/api/login?target=x&ticket=ST-1" ->
+            respond(
+                content = ByteReadChannel.Empty,
+                status = HttpStatusCode.Found,
+                headers = headersOf(HttpHeaders.Location, "https://uc.buaa.edu.cn/landing"),
+            )
+        "https://uc.buaa.edu.cn/api/uc/status" ->
+            respond(
+                content =
+                    ByteReadChannel(
+                        """{"code":0,"data":{"name":"Direct User","schoolid":"22376666","username":"22376666"}}"""
+                    ),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        else -> error("Unexpected url: ${request.url}")
+      }
+    }
+    useMockUpstream(engine)
+
+    val result =
+        LocalAuthServiceBackend().login("22376666", "secret", captcha = null, execution = null)
+
+    assertTrue(result.isSuccess)
+    assertEquals("22376666", result.getOrNull()?.user?.schoolid)
+  }
+
   private fun useMockUpstream(engine: MockEngine) {
     LocalUpstreamClientProvider.clientFactory = { followRedirects ->
       HttpClient(engine) {

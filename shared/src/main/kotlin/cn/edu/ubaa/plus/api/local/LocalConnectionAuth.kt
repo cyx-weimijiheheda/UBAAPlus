@@ -54,6 +54,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+/** 登录链路里手动跟随重定向的上限，避免异常重定向导致死循环。 */
+private const val MAX_REDIRECT_HOPS = 8
+
 @Serializable
 data class LocalAuthSession(
     val username: String,
@@ -620,8 +623,29 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
     }
   }
 
+  /**
+   * 建立 UC 会话。
+   *
+   * 不能直接让客户端自动跟随重定向：`/api/login` 会 302 到 `http://sso.buaa.edu.cn/...`， CAS 的 CASTGC 是 Secure
+   * cookie，HTTP 请求会丢失会话并重新拿到登录页。这里手动跟随， 每次把协议升级为 HTTPS（WEBVPN 下同时修正 `/http/` 隧道前缀）。
+   */
   private suspend fun activateUcLogin() {
-    LocalUpstreamClientProvider.shared().get(localUcActivateUrl())
+    val client = LocalUpstreamClientProvider.newNoRedirectClient()
+    try {
+      var response = client.get(localUcActivateUrl())
+      var hops = 0
+      while (response.status.value in 300..399 && hops < MAX_REDIRECT_HOPS) {
+        val location = response.headers[HttpHeaders.Location] ?: break
+        val target =
+            LocalWebVpnSupport.normalizeRedirectUrl(
+                resolveRedirectUrl(response.call.request.url, location)
+            )
+        response = client.get(target)
+        hops++
+      }
+    } finally {
+      client.close()
+    }
   }
 
   @OptIn(ExperimentalEncodingApi::class)
@@ -644,7 +668,11 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
       while (currentResponse.status.value in 300..399) {
         val location = currentResponse.headers[HttpHeaders.Location] ?: break
         currentResponse =
-            noRedirectClient.get(resolveRedirectUrl(currentResponse.call.request.url, location))
+            noRedirectClient.get(
+                LocalWebVpnSupport.normalizeRedirectUrl(
+                    resolveRedirectUrl(currentResponse.call.request.url, location)
+                )
+            )
       }
 
       val bodyText = runCatching { currentResponse.bodyAsText() }.getOrNull().orEmpty()

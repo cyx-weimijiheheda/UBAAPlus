@@ -11,9 +11,9 @@ import kotlinx.serialization.json.Json
 /** 应用可选的颜色主题。 */
 enum class ThemePalette(val displayName: String) {
   BUAA_BLUE("北航蓝"),
+  BIT_GREEN("北理绿"),
   PKU_RED("北大红"),
   THU_PURPLE("清华紫"),
-  BJFU_GREEN("北林绿"),
   ROOMMATE_PINK("室友粉"),
 }
 
@@ -137,8 +137,11 @@ object AppPreferencesStore {
 
   private fun load(): AppPreferences {
     val palette =
-        runCatching { ThemePalette.valueOf(settings.getString(KEY_THEME_PALETTE, "")) }
-            .getOrDefault(ThemePalette.BUAA_BLUE)
+        when (val stored = settings.getString(KEY_THEME_PALETTE, "")) {
+          // 兼容旧版本保存的枚举名。
+          "BJFU_GREEN" -> ThemePalette.BIT_GREEN
+          else -> runCatching { ThemePalette.valueOf(stored) }.getOrDefault(ThemePalette.BUAA_BLUE)
+        }
     val mode =
         runCatching { ThemeMode.valueOf(settings.getString(KEY_THEME_MODE, "")) }
             .getOrDefault(ThemeMode.SYSTEM)
