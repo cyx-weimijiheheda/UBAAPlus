@@ -13,6 +13,7 @@ import cn.edu.ubaa.plus.api.local.LocalWebVpnSupport
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentDetailKeyDto
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
 import cn.edu.ubaa.plus.model.dto.UserData
+import cn.edu.ubaa.plus.testing.TestSettings
 import com.russhwolf.settings.MapSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -35,6 +36,7 @@ import kotlinx.datetime.LocalDateTime
 class LocalJudgeApiBackendTest {
   @BeforeTest
   fun setup() {
+    TestSettings.installInMemorySettings()
     runTest { localConnectionTestMutex.lock() }
     ConnectionModeStore.settings = MapSettings()
     LocalAuthSessionStore.settings = MapSettings()
@@ -108,7 +110,7 @@ class LocalJudgeApiBackendTest {
     }
     useMockUpstream(engine)
 
-    val result = JudgeApi().getAssignments()
+    val result = testJudgeApi().getAssignments()
 
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
     val assignment = result.getOrNull()?.assignments?.single()
@@ -243,7 +245,7 @@ class LocalJudgeApiBackendTest {
     }
     useMockUpstream(engine)
 
-    val result = JudgeApi().getAssignments(includeExpired = true)
+    val result = testJudgeApi().getAssignments(includeExpired = true)
 
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
     assertEquals(listOf("101"), result.getOrNull()?.assignments?.map { it.assignmentId })
@@ -385,7 +387,7 @@ class LocalJudgeApiBackendTest {
     }
     useMockUpstream(engine, followRedirectsOverride = false)
 
-    val result = JudgeApi().getAssignments()
+    val result = testJudgeApi().getAssignments()
 
     assertTrue(
         result.isSuccess,
@@ -443,7 +445,7 @@ class LocalJudgeApiBackendTest {
       }
     }
     useMockUpstream(engine)
-    val api = JudgeApi()
+    val api = testJudgeApi()
 
     val first = api.getAssignments()
     val second = api.getAssignments()
@@ -507,7 +509,7 @@ class LocalJudgeApiBackendTest {
     }
     useMockUpstream(engine)
 
-    val result = JudgeApi().getAssignments()
+    val result = testJudgeApi().getAssignments()
 
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
     assertEquals("设计作业", result.getOrNull()?.assignments?.single()?.title)
@@ -568,7 +570,7 @@ class LocalJudgeApiBackendTest {
     }
     useMockUpstream(engine)
 
-    val result = JudgeApi().getAssignments()
+    val result = testJudgeApi().getAssignments()
 
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
     assertEquals("设计作业", result.getOrNull()?.assignments?.single()?.title)
@@ -615,7 +617,7 @@ class LocalJudgeApiBackendTest {
     }
     useMockUpstream(engine)
 
-    val result = JudgeApi().getAssignmentDetail("1", "101")
+    val result = testJudgeApi().getAssignmentDetail("1", "101")
 
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
     val detail = result.getOrNull()
@@ -665,6 +667,8 @@ class LocalJudgeApiBackendTest {
       }
     }
     useMockUpstream(engine)
+    // 这里特意用默认 JudgeApi：resetSession 会清理工厂缓存的 backend，
+    // 若固定 backend 实例会复用已关闭的 HttpClient。
     val api = JudgeApi()
     val keys = listOf(JudgeAssignmentDetailKeyDto("1", "101"))
 
@@ -743,7 +747,8 @@ class LocalJudgeApiBackendTest {
     }
     useMockUpstream(engine, storageMode = ConnectionMode.WEBVPN)
 
-    val result = JudgeApi().getAssignmentDetails(listOf(JudgeAssignmentDetailKeyDto("1", "101")))
+    val result =
+        testJudgeApi().getAssignmentDetails(listOf(JudgeAssignmentDetailKeyDto("1", "101")))
 
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
     assertEquals("101", result.getOrNull()?.details?.single()?.assignmentId)
@@ -776,3 +781,7 @@ private fun MockRequestHandleScope.respondHtml(body: String) =
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, ContentType.Text.Html.toString()),
     )
+
+/** 固定“当前时间”，避免用例中的 2026 年 4 月数据随时间推移跨过六个月截止线。 */
+private fun testJudgeApi(now: String = "2026-05-01T12:00:00"): JudgeApi =
+    JudgeApi(LocalJudgeApiBackend(nowProvider = { LocalDateTime.parse(now) }))
