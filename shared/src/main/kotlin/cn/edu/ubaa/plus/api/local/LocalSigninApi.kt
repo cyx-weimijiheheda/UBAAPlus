@@ -130,7 +130,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
         LocalAuthSessionStore.get() ?: return Result.failure(localUnauthenticatedApiException())
     val signinSession = runCatching { currentSession(authSession.studentId()) }.getOrNull()
     if (signinSession == null) {
-      val error = loginLastError ?: "iclass 登录失败，请以校园网登录查看"
+      val error = loginLastError ?: "iclass 登录失败" + localSigninNetworkHint()
       loginLastError = null
       return Result.success(SigninActionResponse(code = 400, success = false, message = error))
     }
@@ -193,7 +193,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
           .getOrNull()
 
   override suspend fun getAttendanceTerms(): Result<List<IclassAttendanceTermDto>> =
-      withSigninSession("考勤学期加载失败，请以校园网登录查看") { _, session ->
+      withSigninSession("考勤学期加载失败" + localSigninNetworkHint()) { _, session ->
         val terms = fetchTerms(session).ifEmpty { listOf(inferredTerm()) }
         terms.map { term ->
           IclassAttendanceTermDto(
@@ -207,7 +207,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
   override suspend fun getAttendanceCourses(
       termCode: String
   ): Result<List<IclassAttendanceCourseDto>> =
-      withSigninSession("课程列表加载失败，请以校园网登录查看") { _, session ->
+      withSigninSession("课程列表加载失败" + localSigninNetworkHint()) { _, session ->
         fetchCoursesCached(session, termCode).map { course ->
           IclassAttendanceCourseDto(
               courseId = course.id,
@@ -221,7 +221,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
       termCode: String,
       courseId: String,
   ): Result<SigninAttendanceResponse> =
-      withSigninSession("考勤查询失败，请以校园网登录查看") { _, session ->
+      withSigninSession("考勤查询失败" + localSigninNetworkHint()) { _, session ->
         val term =
             runCatching { fetchTerms(session) }
                 .getOrDefault(emptyList())
@@ -255,7 +255,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     val studentId = authSession.studentId()
     val session = runCatching { currentSession(studentId) }.getOrNull()
     if (session == null) {
-      val error = loginLastError ?: "iclass 登录失败，请以校园网登录查看"
+      val error = loginLastError ?: "iclass 登录失败" + localSigninNetworkHint()
       loginLastError = null
       return Result.failure(ApiCallException(error, code = "signin_error"))
     }
@@ -269,7 +269,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
       } else {
         Result.failure(
             ApiCallException(
-                message = "iclass 登录状态已失效，请以校园网登录查看",
+                message = "iclass 登录状态已失效" + localSigninNetworkHint(),
                 code = "signin_error",
                 cause = e,
             )
@@ -557,6 +557,13 @@ private data class LocalSigninCourse(
 internal class LocalSigninAuthenticationException(message: String) : RuntimeException(message)
 
 // 8347 的签到提交入口没有 /eschool 前缀，端口和路径需要一起选择。
+private fun localSigninNetworkHint(): String =
+    if (ConnectionRuntime.currentMode() == ConnectionMode.WEBVPN) {
+      "，请稍后重试"
+    } else {
+      "，请连接校园网后重试"
+    }
+
 private fun localSigninCheckinUrl(directPath: String, webVpnPath: String = directPath): String {
   val upstreamUrl =
       when (ConnectionRuntime.currentMode()) {

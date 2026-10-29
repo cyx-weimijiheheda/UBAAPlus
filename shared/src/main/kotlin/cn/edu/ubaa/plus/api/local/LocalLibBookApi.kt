@@ -10,8 +10,11 @@ import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingsResponse
 import cn.edu.ubaa.plus.model.dto.LibBookCancelResponse
 import cn.edu.ubaa.plus.model.dto.LibBookLibraryDto
+import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
 import cn.edu.ubaa.plus.model.dto.LibBookReserveRequest
 import cn.edu.ubaa.plus.model.dto.LibBookReserveResponse
+import cn.edu.ubaa.plus.model.dto.LibBookSeatActionRequest
+import cn.edu.ubaa.plus.model.dto.LibBookSeatActionResponse
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.LibBookStoreyDto
 import cn.edu.ubaa.plus.model.dto.LibBookTimeSlotDto
@@ -27,13 +30,17 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Url
 import io.ktor.http.contentType
+import kotlin.time.Clock
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -43,7 +50,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
-internal class LocalLibBookApiBackend : LibBookApiBackend {
+internal class LocalLibBookApiBackend(
+    /** 座位动作的 AES key 取“当前日期”，与官方 H5 一致；测试可注入固定日期。 */
+    private val todayProvider: () -> String = ::currentLibBookDay,
+) : LibBookApiBackend {
   private val clientMutex = Mutex()
   private val clientCache = mutableMapOf<String, LocalLibBookClient>()
 
@@ -134,14 +144,63 @@ internal class LocalLibBookApiBackend : LibBookApiBackend {
         val response = client.cancelBooking(bookingId)
         val message =
             response.string("message").ifBlank { response.string("msg").ifBlank { "取消成功" } }
-        if (!response.isBusinessSuccess()) {
+        if (!response.isCancelSuccess()) {
           val errorCode = response.messageToLibBookErrorCode()
           throw LocalLibBookApiException(message, errorCode, errorCode.toLibBookHttpStatus())
         }
         LibBookCancelResponse(
-            success = response.isBusinessSuccess(),
+            success = true,
             message = message,
         )
+      }
+
+  override suspend fun qrScan(params: Map<String, String>): Result<LibBookQrScanResultDto> =
+      execute("座位二维码识别失败，请稍后重试") { client ->
+        val raw = client.qrScan(params, todayProvider())
+        val data = raw["data"]?.jsonObjectOrNull() ?: raw
+        LibBookQrScanResultDto(
+            query = data.string("query"),
+            bookId = data.string("book_id").ifBlank { data.string("bookId") },
+            seatId = data.string("seat_id").ifBlank { data.string("seatId") },
+            seatNo = data.string("no").ifBlank { data.string("seat_no") },
+            areaName = data.string("name").ifBlank { data.string("area_name") },
+            day = data.string("day").ifBlank { data.string("date") },
+            beginTime = data.string("begin_time").ifBlank { data.string("beginTime") },
+            endTime = data.string("end_time").ifBlank { data.string("endTime") },
+            status = data.string("status"),
+            statusName = data.string("status_name"),
+        )
+      }
+
+  override suspend fun signIn(
+      request: LibBookSeatActionRequest
+  ): Result<LibBookSeatActionResponse> = seatAction("signin", request, "签到成功")
+
+  override suspend fun leave(request: LibBookSeatActionRequest): Result<LibBookSeatActionResponse> =
+      seatAction("leave", request, "已临时离开")
+
+  override suspend fun checkout(
+      request: LibBookSeatActionRequest
+  ): Result<LibBookSeatActionResponse> = seatAction("checkout", request, "已完全离开")
+
+  private suspend fun seatAction(
+      path: String,
+      request: LibBookSeatActionRequest,
+      defaultMessage: String,
+  ): Result<LibBookSeatActionResponse> =
+      execute("${defaultMessage}失败，请稍后重试") { client ->
+        val response = client.seatAction(path, request, todayProvider())
+        val message =
+            response.string("message").ifBlank { response.string("msg").ifBlank { defaultMessage } }
+        val code = response["code"]?.jsonPrimitive?.intOrNull
+        if (code != null && code != 0) {
+          throw LocalLibBookApiException(
+              message,
+              "libbook_action_failed",
+              HttpStatusCode.BadRequest,
+          )
+        }
+        LibBookSeatActionResponse(success = true, message = message)
       }
 
   private suspend fun currentClient(username: String): LocalLibBookClient =
@@ -170,7 +229,9 @@ internal class LocalLibBookApiBackend : LibBookApiBackend {
               resolveLocalBusinessAuthenticationFailure("libbook_auth_failed")
             } else {
               ApiCallException(
-                  message = userFacingMessageForCode(error.code, error.status),
+                  message =
+                      error.message?.takeIf { it.isNotBlank() }
+                          ?: userFacingMessageForCode(error.code, error.status),
                   status = error.status,
                   code = error.code,
               )
@@ -179,6 +240,9 @@ internal class LocalLibBookApiBackend : LibBookApiBackend {
         else -> error.toUserFacingApiException(defaultMessage)
       }
 }
+
+private fun currentLibBookDay(): String =
+    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
 
 private class LocalLibBookClient(
     private val httpClient: HttpClient = LocalUpstreamClientProvider.libBookShared(),
@@ -258,7 +322,54 @@ private class LocalLibBookClient(
           .raw
 
   suspend fun cancelBooking(bookingId: String): JsonObject =
-      requestJson("cancel_booking", "space/cancel", buildJsonObject { put("id", bookingId) }).raw
+      requestJson(
+              operation = "cancel_booking",
+              path = "space/cancel",
+              body = buildJsonObject { put("id", bookingId) },
+              successCodes = setOf(0, 1, CANCEL_SUCCESS_CODE),
+          )
+          .raw
+
+  suspend fun qrScan(params: Map<String, String>, day: String): JsonObject =
+      requestJsonEncrypted(
+              operation = "qr_scan",
+              path = "space/qr_scan",
+              body = buildJsonObject { params.forEach { (key, value) -> put(key, value) } },
+              day = day,
+          )
+          .raw
+
+  suspend fun seatAction(
+      action: String,
+      request: LibBookSeatActionRequest,
+      day: String,
+  ): JsonObject =
+      requestJsonEncrypted(
+              operation = "seat_$action",
+              path = "space/$action",
+              body =
+                  buildJsonObject {
+                    put("query", request.query)
+                    put("id", request.id)
+                  },
+              day = day,
+          )
+          .raw
+
+  private suspend fun requestJsonEncrypted(
+      operation: String,
+      path: String,
+      body: JsonObject,
+      day: String,
+  ): LocalLibBookEnvelope =
+      requestJson(
+          operation = operation,
+          path = path,
+          body =
+              buildJsonObject {
+                put("aesjson", LocalLibBookCrypto.encryptJson(body.toString(), day))
+              },
+      )
 
   private suspend fun requestJson(
       operation: String,
@@ -266,6 +377,7 @@ private class LocalLibBookClient(
       body: JsonObject,
       includeAuthorization: Boolean = true,
       allowRetry: Boolean = true,
+      successCodes: Set<Int> = setOf(0, 1),
   ): LocalLibBookEnvelope {
     if (includeAuthorization) ensureLogin()
     val response =
@@ -288,10 +400,17 @@ private class LocalLibBookClient(
         )
       }
       ensureLogin(forceRefresh = true)
-      return requestJson(operation, path, body, includeAuthorization, allowRetry = false)
+      return requestJson(
+          operation,
+          path,
+          body,
+          includeAuthorization,
+          allowRetry = false,
+          successCodes = successCodes,
+      )
     }
     val code = raw["code"]?.jsonPrimitive?.intOrNull
-    if (code != null && code !in setOf(0, 1)) {
+    if (code != null && code !in successCodes) {
       val errorCode = raw.messageToLibBookErrorCode()
       throw LocalLibBookApiException(
           raw.string("message").ifBlank { raw.string("msg").ifBlank { "图书馆接口请求失败" } },
@@ -519,8 +638,26 @@ private fun mapBooking(element: JsonElement): LibBookBookingDto {
       endTime = raw.string("endTime").ifBlank { raw.string("end_time") },
       status = raw.string("status"),
       statusName = raw.string("status_name"),
+      query = raw.string("query"),
+      seatId = raw.string("seat_id").ifBlank { raw.string("seatId") },
+      areaId = raw.string("area_id").ifBlank { raw.string("areaId") },
+      signStatus = raw.string("sign_status").ifBlank { raw.string("signStatus") },
+      createTime =
+          raw.string("create_time").ifBlank {
+            raw.string("createTime").ifBlank { raw.string("created_at") }
+          },
   )
 }
+
+private fun JsonObject.isCancelSuccess(): Boolean {
+  val code = this["code"]?.jsonPrimitive?.intOrNull
+  if (code != null) return code in setOf(0, 1, CANCEL_SUCCESS_CODE)
+  val success = this["success"]?.jsonPrimitive?.booleanOrNull
+  if (success != null) return success
+  return isBusinessSuccess()
+}
+
+private const val CANCEL_SUCCESS_CODE = 287
 
 private fun JsonObject.isBusinessSuccess(): Boolean {
   val code = this["code"]?.jsonPrimitive?.intOrNull

@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +21,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -32,7 +32,9 @@ import cn.edu.ubaa.plus.api.venue.VenueSpace
 import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
 import cn.edu.ubaa.plus.api.venue.VenueSpaceSlot
 import cn.edu.ubaa.plus.api.venue.VenueTimeSlot
-import cn.edu.ubaa.plus.api.venue.venueLabel
+import cn.edu.ubaa.plus.api.venue.venueOptionLabel
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
 
@@ -46,7 +48,6 @@ fun VenueScreen(
   val grabState by viewModel.grabState.collectAsState()
   val orderHistoryState by viewModel.orderHistoryState.collectAsState()
   val foreground by cn.edu.ubaa.plus.AppForegroundMonitor.foreground.collectAsState()
-  val snackbarHostState = remember { SnackbarHostState() }
   var showBuddyDialog by remember { mutableStateOf(false) }
   var showOrderHistoryDialog by remember { mutableStateOf(false) }
 
@@ -57,7 +58,7 @@ fun VenueScreen(
 
   LaunchedEffect(state.message) {
     state.message?.let {
-      snackbarHostState.showSnackbar(it)
+      UbaaToast.show(it)
       viewModel.clearMessage()
     }
   }
@@ -77,10 +78,7 @@ fun VenueScreen(
     }
   }
 
-  Scaffold(
-      snackbarHost = { SnackbarHost(snackbarHostState) },
-      contentWindowInsets = WindowInsets(0, 0, 0, 0),
-  ) { padding ->
+  Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
     when (state.authPhase) {
       VenueAuthPhase.CHECKING ->
           Box(
@@ -127,63 +125,68 @@ fun VenueScreen(
             }
           }
       VenueAuthPhase.READY ->
-          LazyColumn(
-              modifier = Modifier.fillMaxSize().padding(padding),
-              contentPadding = PaddingValues(16.dp),
-              verticalArrangement = Arrangement.spacedBy(16.dp),
+          UbaaPullToRefresh(
+              refreshing = state.isLoadingDayInfo,
+              onRefresh = viewModel::refreshDayInfo,
+              modifier = Modifier.padding(padding),
           ) {
-            item {
-              VenueOrderHistoryCard(
-                  onClick = {
-                    viewModel.loadOrderHistory()
-                    showOrderHistoryDialog = true
-                  }
-              )
-            }
-            item {
-              VenueSiteDateCard(
-                  state = state,
-                  onCampusSelected = viewModel::selectCampus,
-                  onSportSelected = viewModel::selectSport,
-                  onVenueSelected = viewModel::selectVenue,
-                  onDateSelected = viewModel::selectDate,
-                  onRefresh = viewModel::refreshDayInfo,
-              )
-            }
-            item {
-              VenueAvailabilityCard(
-                  state = state,
-                  onCellClick = viewModel::selectCell,
-                  onTemplateSlotClick = viewModel::selectTemplateSlot,
-              )
-            }
-            item {
-              VenueTargetOptionsCard(
-                  state = state,
-                  onDurationChange = viewModel::setDurationHours,
-                  onSpaceModeChange = viewModel::setSpaceMode,
-                  onRandomChange = viewModel::setRandomSpace,
-                  onFallbackChange = viewModel::setFallbackAnySpace,
-              )
-            }
-            item {
-              VenueBuddiesCard(
-                  state = state,
-                  onToggleBuddy = viewModel::toggleBuddy,
-                  onManageClick = { showBuddyDialog = true },
-              )
-            }
-            item {
-              VenueGrabPanel(
-                  state = state,
-                  grabState = grabState,
-                  onUseScheduleChange = viewModel::setUseSchedule,
-                  onGrabAtChange = viewModel::updateGrabAt,
-                  onPollIntervalChange = viewModel::updatePollInterval,
-                  onStart = viewModel::startGrab,
-                  onStop = viewModel::stopGrab,
-                  onOpenUrl = onOpenUrl,
-              )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+              item {
+                VenueOrderHistoryCard(
+                    onClick = {
+                      viewModel.loadOrderHistory()
+                      showOrderHistoryDialog = true
+                    }
+                )
+              }
+              item {
+                VenueSiteDateCard(
+                    state = state,
+                    onCampusSelected = viewModel::selectCampus,
+                    onSportSelected = viewModel::selectSport,
+                    onVenueSelected = viewModel::selectVenue,
+                    onDateSelected = viewModel::selectDate,
+                )
+              }
+              item {
+                VenueAvailabilityCard(
+                    state = state,
+                    onCellClick = viewModel::selectCell,
+                    onTemplateSlotClick = viewModel::selectTemplateSlot,
+                )
+              }
+              item {
+                VenueTargetOptionsCard(
+                    state = state,
+                    onDurationChange = viewModel::setDurationHours,
+                    onSpaceModeChange = viewModel::setSpaceMode,
+                    onRandomChange = viewModel::setRandomSpace,
+                    onFallbackChange = viewModel::setFallbackAnySpace,
+                )
+              }
+              item {
+                VenueBuddiesCard(
+                    state = state,
+                    onToggleBuddy = viewModel::toggleBuddy,
+                    onManageClick = { showBuddyDialog = true },
+                )
+              }
+              item {
+                VenueGrabPanel(
+                    state = state,
+                    grabState = grabState,
+                    onUseScheduleChange = viewModel::setUseSchedule,
+                    onGrabAtChange = viewModel::updateGrabAt,
+                    onPollIntervalChange = viewModel::updatePollInterval,
+                    onStart = viewModel::startGrab,
+                    onStop = viewModel::stopGrab,
+                    onOpenUrl = onOpenUrl,
+                )
+              }
             }
           }
     }
@@ -311,7 +314,6 @@ private fun VenueSiteDateCard(
     onSportSelected: (String) -> Unit,
     onVenueSelected: (Int) -> Unit,
     onDateSelected: (LocalDate) -> Unit,
-    onRefresh: () -> Unit,
 ) {
   Card(modifier = Modifier.fillMaxWidth()) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -322,7 +324,6 @@ private fun VenueSiteDateCard(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "刷新") }
       }
 
       VenueFilterDropdown(
@@ -344,10 +345,7 @@ private fun VenueSiteDateCard(
       VenueFilterDropdown(
           label = "场馆类型",
           selectedText = state.selectedVenueLabel.ifBlank { "选择场馆类型" },
-          options =
-              state.venueOptions.map { site ->
-                site.id to "${site.venueLabel()} · ${site.siteName}${site.openRange}"
-              },
+          options = state.venueOptions.map { site -> site.id to site.venueOptionLabel() },
           enabled = state.venueOptions.isNotEmpty(),
           onSelected = onVenueSelected,
       )
@@ -435,9 +433,6 @@ private fun VenueOrderHistoryDialog(
               fontWeight = FontWeight.Bold,
               modifier = Modifier.weight(1f),
           )
-          IconButton(onClick = onRefresh, enabled = !state.isLoading) {
-            Icon(Icons.Default.Refresh, contentDescription = "刷新")
-          }
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -601,14 +596,25 @@ private fun <T> VenueFilterDropdown(
       Text(
           text = "$label：$selectedText",
           maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
           modifier = Modifier.weight(1f),
       )
       Icon(Icons.Default.ArrowDropDown, contentDescription = null)
     }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { expanded = false },
+        modifier = Modifier.heightIn(max = 320.dp),
+    ) {
       options.forEach { (value, text) ->
         DropdownMenuItem(
-            text = { Text(text) },
+            text = {
+              Text(
+                  text = text,
+                  maxLines = 2,
+                  overflow = TextOverflow.Ellipsis,
+              )
+            },
             onClick = {
               expanded = false
               onSelected(value)
@@ -699,6 +705,10 @@ private fun VenueSlotDropdown(
   }
 }
 
+private val VenueTimeColumnWidth = 80.dp
+private val VenueCourtColumnWidth = 72.dp
+private val VenueCellHorizontalPadding = 2.dp
+
 @Composable
 private fun AvailabilityTable(
     day: VenueDayInfo,
@@ -707,7 +717,7 @@ private fun AvailabilityTable(
 ) {
   Column(modifier = Modifier.horizontalScroll(rememberScrollState())) {
     Row(modifier = Modifier.padding(vertical = 4.dp)) {
-      Box(modifier = Modifier.width(80.dp)) {
+      Box(modifier = Modifier.width(VenueTimeColumnWidth)) {
         Text(
             text = "时段",
             style = MaterialTheme.typography.labelMedium,
@@ -715,12 +725,17 @@ private fun AvailabilityTable(
         )
       }
       day.spaces.forEach { space ->
-        Box(modifier = Modifier.width(72.dp), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.width(VenueCourtColumnWidth),
+            contentAlignment = Alignment.Center,
+        ) {
           Text(
               text = space.spaceName.ifBlank { "${space.spaceId}号" },
               style = MaterialTheme.typography.labelMedium,
               fontWeight = FontWeight.Bold,
               maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+              textAlign = TextAlign.Center,
           )
         }
       }
@@ -731,7 +746,7 @@ private fun AvailabilityTable(
           modifier = Modifier.padding(vertical = 2.dp),
           verticalAlignment = Alignment.CenterVertically,
       ) {
-        Box(modifier = Modifier.width(80.dp)) {
+        Box(modifier = Modifier.width(VenueTimeColumnWidth)) {
           Text(text = slot.label, style = MaterialTheme.typography.labelMedium)
         }
         day.spaces.forEach { space ->
@@ -784,12 +799,23 @@ private fun VenueSlotCell(
   Surface(
       onClick = onClick,
       enabled = isFree,
-      modifier = Modifier.width(68.dp).height(40.dp).padding(horizontal = 2.dp),
+      modifier =
+          Modifier.width(VenueCourtColumnWidth)
+              .height(40.dp)
+              .padding(horizontal = VenueCellHorizontalPadding),
       shape = RoundedCornerShape(6.dp),
       color = container,
       contentColor = content,
   ) {
-    Box(contentAlignment = Alignment.Center) { Text(text = label, fontSize = 11.sp) }
+    Box(contentAlignment = Alignment.Center) {
+      Text(
+          text = label,
+          fontSize = 11.sp,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          textAlign = TextAlign.Center,
+      )
+    }
   }
 }
 

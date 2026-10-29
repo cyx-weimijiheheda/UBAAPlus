@@ -5,19 +5,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.feature.CampusNetworkInfoDto
 import cn.edu.ubaa.plus.api.feature.CampusTrafficDto
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import java.util.Locale
 
 @Composable
@@ -43,75 +45,76 @@ fun CampusNetworkScreen(
   val state by viewModel.uiState.collectAsState()
   LaunchedEffect(Unit) { viewModel.ensureLoaded() }
 
-  Scaffold { padding ->
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(padding),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+  UbaaToastEffect(state.error) {}
+
+  Scaffold(
+      contentWindowInsets =
+          WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+  ) { padding ->
+    UbaaPullToRefresh(
+        refreshing = state.isLoading,
+        onRefresh = viewModel::refresh,
+        modifier = Modifier.padding(padding),
     ) {
-      item {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(
-              text = "校园网络",
-              style = MaterialTheme.typography.titleLarge,
-              fontWeight = FontWeight.Bold,
-              modifier = Modifier.weight(1f),
+      LazyColumn(
+          modifier = Modifier.fillMaxSize(),
+          contentPadding = PaddingValues(16.dp),
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        item {
+          CampusOnlyNotice(
+              text = "流量与在线账号信息按当前校园网 IP 查询，需要连接北航 WiFi 或有线网；WebVPN 不能替代校园网。套餐与充值可打开自助服务网页。"
           )
-          IconButton(onClick = viewModel::refresh, enabled = !state.isLoading) {
-            Icon(Icons.Default.Refresh, contentDescription = "刷新")
-          }
         }
-      }
 
-      item {
-        CampusOnlyNotice(
-            text = "流量与在线账号信息按当前校园网 IP 查询，需要连接北航 WiFi 或有线网。校外访问时可能无法显示数据；套餐与充值可打开自助服务网页。"
-        )
-      }
-
-      if (state.isLoading && state.info == null && state.traffic == null && state.netFee == null) {
-        item {
-          Box(
-              modifier = Modifier.fillMaxWidth().height(140.dp),
-              contentAlignment = Alignment.Center,
-          ) {
-            CircularProgressIndicator()
-          }
-        }
-      }
-
-      state.error?.let { error ->
-        item {
-          Card(
-              colors =
-                  CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-          ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-              Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
-              OutlinedButton(onClick = viewModel::refresh) { Text("重试") }
+        if (
+            state.isLoading && state.info == null && state.traffic == null && state.netFee == null
+        ) {
+          item {
+            Box(
+                modifier = Modifier.fillMaxWidth().height(140.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+              CircularProgressIndicator()
             }
           }
         }
-      }
 
-      state.info?.let { info -> item { SrunInfoCard(info) } }
-      state.traffic?.let { traffic -> item { TrafficCard(traffic) } }
-      state.netFee?.let { fee -> item { StatCard(title = "网费余额", value = fee, unit = "元") } }
-
-      item {
-        Button(
-            onClick = { onOpenUrl("https://zfw.buaa.edu.cn") },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-          Text("套餐 / 充值（校园网自助服务）")
+        state.error?.let { error ->
+          item {
+            Card(
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+            ) {
+              Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
+                OutlinedButton(onClick = viewModel::refresh) { Text("重试") }
+              }
+            }
+          }
         }
-      }
-      item {
-        Text(
-            text = "校园网流量按当前在线 IP 查询；离开校园网时可能无法显示。套餐与充值在深澜自助服务中完成。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+
+        state.info?.let { info -> item { SrunInfoCard(info) } }
+        state.traffic?.let { traffic -> item { TrafficCard(traffic) } }
+        state.netFee?.let { fee -> item { StatCard(title = "网费余额", value = fee, unit = "元") } }
+
+        item {
+          Button(
+              onClick = { onOpenUrl("https://zfw.buaa.edu.cn") },
+              modifier = Modifier.fillMaxWidth(),
+          ) {
+            Text("套餐 / 充值（校园网自助服务）")
+          }
+        }
+        item {
+          Text(
+              text = "校园网流量按当前在线 IP 查询；离开校园网时可能无法显示。套餐与充值在深澜自助服务中完成。",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
       }
     }
   }

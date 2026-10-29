@@ -6,17 +6,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -25,7 +28,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -51,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.DormMeterInfoDto
 import cn.edu.ubaa.plus.model.dto.DormTopUpDto
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 @Composable
 fun DormElectricityScreen(
@@ -86,71 +90,86 @@ fun DormElectricityScreen(
     )
   }
 
-  Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(padding),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+  UbaaToastEffect(state.roomsError) {}
+  UbaaToastEffect(state.queryError) {}
+
+  Scaffold(
+      contentWindowInsets =
+          WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+      snackbarHost = { SnackbarHost(snackbarHostState) },
+  ) { padding ->
+    UbaaPullToRefresh(
+        refreshing = state.roomsLoading || state.isQuerying,
+        onRefresh = viewModel::refresh,
+        modifier = Modifier.padding(padding),
     ) {
-      item {
-        CampusOnlyNotice(
-            text = "寝室用电查询与购电需要连接校园网（北航 WiFi 或有线网）。校外访问时服务通常返回 302 跳转，查询会失败；请连接校园网后重试。"
-        )
-      }
-
-      item {
-        DormQueryCard(
-            state = state,
-            onCampusSelected = viewModel::selectCampus,
-            onBuildingSelected = viewModel::selectBuilding,
-            onRoomSelected = viewModel::selectRoom,
-            onMeterSelected = viewModel::selectMeter,
-            onRefresh = { viewModel.loadRooms() },
-            onQuery = viewModel::query,
-        )
-      }
-
-      if (state.isQuerying) {
-        item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
-      }
-
-      state.queryError?.let { error ->
+      LazyColumn(
+          modifier = Modifier.fillMaxSize(),
+          contentPadding = PaddingValues(16.dp),
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
         item {
-          Card(
-              colors =
-                  CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-          ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-              Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
-              TextButton(onClick = viewModel::query) { Text("重试") }
+          CampusOnlyNotice(
+              text = "寝室用电查询与购电需要连接校园网（北航 WiFi 或有线网）。校外访问时服务通常返回 302 跳转，查询会失败；请连接校园网后重试。"
+          )
+        }
+
+        item {
+          DormQueryCard(
+              state = state,
+              onCampusSelected = viewModel::selectCampus,
+              onBuildingSelected = viewModel::selectBuilding,
+              onRoomSelected = viewModel::selectRoom,
+              onMeterSelected = viewModel::selectMeter,
+              onReloadRooms = viewModel::loadRooms,
+              onQuery = viewModel::query,
+          )
+        }
+
+        if (state.isQuerying) {
+          item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+        }
+
+        state.queryError?.let { error ->
+          item {
+            Card(
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+            ) {
+              Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
+                TextButton(onClick = viewModel::query) { Text("重试") }
+              }
             }
           }
         }
-      }
 
-      state.meterInfo?.let { info ->
-        item {
-          DormMeterCard(
-              info = info,
-              onContinuePay = { info.payUrl?.let(onOpenUrl) },
-          )
-        }
-        item {
-          DormRechargeCard(
-              state = state,
-              onPowerChange = viewModel::updateRechargePower,
-              onRechargeClick = { showConfirmDialog = true },
-          )
-        }
-        if (state.topUps.isNotEmpty()) {
+        state.meterInfo?.let { info ->
           item {
-            Text(
-                text = "最近购电记录",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+            DormMeterCard(
+                info = info,
+                onContinuePay = { info.payUrl?.let(onOpenUrl) },
             )
           }
-          items(state.topUps) { topUp -> DormTopUpRow(topUp) }
+          item {
+            DormRechargeCard(
+                state = state,
+                onPowerChange = viewModel::updateRechargePower,
+                onRechargeClick = { showConfirmDialog = true },
+            )
+          }
+          if (state.topUps.isNotEmpty()) {
+            item {
+              Text(
+                  text = "最近购电记录",
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+              )
+            }
+            items(state.topUps) { topUp -> DormTopUpRow(topUp) }
+          }
         }
       }
     }
@@ -164,7 +183,7 @@ private fun DormQueryCard(
     onBuildingSelected: (String) -> Unit,
     onRoomSelected: (String) -> Unit,
     onMeterSelected: (Int) -> Unit,
-    onRefresh: () -> Unit,
+    onReloadRooms: () -> Unit,
     onQuery: () -> Unit,
 ) {
   Card(modifier = Modifier.fillMaxWidth()) {
@@ -179,9 +198,6 @@ private fun DormQueryCard(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onRefresh, enabled = !state.roomsLoading) {
-          Icon(Icons.Default.Refresh, contentDescription = "刷新宿舍列表")
-        }
       }
       if (state.roomsLoading && state.rooms.isEmpty()) {
         Box(modifier = Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
@@ -193,7 +209,7 @@ private fun DormQueryCard(
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodySmall,
         )
-        OutlinedButton(onClick = onRefresh) { Text("重新加载") }
+        OutlinedButton(onClick = onReloadRooms) { Text("重新加载") }
       } else {
         DormDropdown(
             label = "校区",

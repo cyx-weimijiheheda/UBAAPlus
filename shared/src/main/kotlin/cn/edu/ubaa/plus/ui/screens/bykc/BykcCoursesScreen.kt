@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
@@ -57,6 +58,7 @@ fun BykcCoursesScreen(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+  UbaaToastEffect(error) {}
   val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
   val now by
       produceState(

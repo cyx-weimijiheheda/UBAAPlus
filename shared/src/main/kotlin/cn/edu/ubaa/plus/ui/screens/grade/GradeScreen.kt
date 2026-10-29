@@ -36,11 +36,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.Grade
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun GradeScreen(viewModel: GradeViewModel) {
   val uiState by viewModel.uiState.collectAsState()
+  UbaaToastEffect(uiState.error) {}
   val pullRefreshState =
       rememberPullRefreshState(
           refreshing = uiState.isRefreshing,

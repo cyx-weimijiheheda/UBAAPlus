@@ -6,9 +6,12 @@ import cn.edu.ubaa.plus.api.local.LocalAuthSession
 import cn.edu.ubaa.plus.api.local.LocalAuthSessionStore
 import cn.edu.ubaa.plus.api.local.LocalCookieStore
 import cn.edu.ubaa.plus.api.local.LocalLibBookApiBackend
+import cn.edu.ubaa.plus.api.local.LocalLibBookCrypto
 import cn.edu.ubaa.plus.api.local.LocalUpstreamClientProvider
 import cn.edu.ubaa.plus.model.dto.LibBookReserveRequest
+import cn.edu.ubaa.plus.model.dto.LibBookSeatActionRequest
 import cn.edu.ubaa.plus.model.dto.UserData
+import cn.edu.ubaa.plus.testing.TestSettings
 import com.russhwolf.settings.MapSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -35,6 +38,7 @@ import kotlinx.coroutines.test.runTest
 class LocalLibBookApiBackendTest {
   @BeforeTest
   fun setup() {
+    TestSettings.installInMemorySettings()
     runTest { localConnectionTestMutex.lock() }
     ConnectionModeStore.settings = MapSettings()
     LocalAuthSessionStore.settings = MapSettings()
@@ -237,6 +241,103 @@ class LocalLibBookApiBackendTest {
     assertEquals(1, bookings.bookings.size)
     assertTrue(cancel.success)
     assertContains(cancelBody, "\"id\":\"b1\"")
+  }
+
+  @Test
+  fun `libbook backend accepts cancel success code 287 and sends encrypted seat actions`() =
+      runTest {
+        val actionBodies = mutableListOf<String>()
+        val engine = MockEngine { request ->
+          when (request.url.encodedPath) {
+            "/login" ->
+                respond(
+                    content = ByteReadChannel.Empty,
+                    status = HttpStatusCode.Found,
+                    headers =
+                        headersOf(
+                            HttpHeaders.Location,
+                            "https://booking.lib.buaa.edu.cn/v4/login/cas?cas=cas-1",
+                        ),
+                )
+            "/v4/login/user" ->
+                respondJson("""{"code":0,"data":{"member":{"token":"jwt-1","name":"测试用户"}}}""")
+            "/v4/space/cancel" -> respondJson("""{"code":287,"message":"取消成功"}""")
+            "/v4/space/qr_scan" ->
+                respondJson(
+                    """
+                    {"code":0,"data":{
+                      "query":"q1","book_id":"b1","seat_id":"101",
+                      "no":"101","name":"一层","day":"2026-05-08",
+                      "begin_time":"08:00","end_time":"23:00",
+                      "status":"3","status_name":"使用中"}}
+                    """
+                        .trimIndent()
+                )
+            "/v4/space/signin",
+            "/v4/space/leave",
+            "/v4/space/checkout" -> {
+              actionBodies += request.bodyText()
+              respondJson(
+                  when (request.url.encodedPath) {
+                    "/v4/space/signin" -> """{"code":0,"message":"签到成功"}"""
+                    "/v4/space/leave" -> """{"code":0,"message":"临时离开成功"}"""
+                    else -> """{"code":0,"message":"已完全离开"}"""
+                  }
+              )
+            }
+            else -> error("Unexpected request: ${request.url}")
+          }
+        }
+        installMockClient(engine)
+        val backend = LocalLibBookApiBackend(todayProvider = { "2026-05-08" })
+
+        val cancel = backend.cancelBooking("b1").getOrThrow()
+        val scan = backend.qrScan(mapOf("seat_id" to "101")).getOrThrow()
+        val request = LibBookSeatActionRequest(query = "q1", id = "b1", day = "2026-05-08")
+        val signIn = backend.signIn(request).getOrThrow()
+        val leave = backend.leave(request).getOrThrow()
+        val checkout = backend.checkout(request).getOrThrow()
+
+        assertTrue(cancel.success)
+        assertEquals("取消成功", cancel.message)
+        assertEquals("q1", scan.query)
+        assertEquals("b1", scan.bookId)
+        assertEquals("使用中", scan.statusName)
+        assertTrue(scan.canTemporaryLeave)
+        assertEquals("签到成功", signIn.message)
+        assertEquals("临时离开成功", leave.message)
+        assertEquals("已完全离开", checkout.message)
+        assertEquals(3, actionBodies.size)
+        val expectedEncrypted =
+            LocalLibBookCrypto.encryptJson("""{"query":"q1","id":"b1"}""", "2026-05-08")
+        actionBodies.forEach { body -> assertContains(body, expectedEncrypted) }
+      }
+
+  @Test
+  fun `libbook cancel keeps upstream failure message`() = runTest {
+    val engine = MockEngine { request ->
+      when (request.url.encodedPath) {
+        "/login" ->
+            respond(
+                content = ByteReadChannel.Empty,
+                status = HttpStatusCode.Found,
+                headers =
+                    headersOf(
+                        HttpHeaders.Location,
+                        "https://booking.lib.buaa.edu.cn/v4/login/cas?cas=cas-1",
+                    ),
+            )
+        "/v4/login/user" -> respondJson("""{"code":0,"data":{"member":{"token":"jwt-1"}}}""")
+        "/v4/space/cancel" -> respondJson("""{"code":2,"message":"今日已取消 1 次，请明天再试"}""")
+        else -> error("Unexpected request: ${request.url}")
+      }
+    }
+    installMockClient(engine)
+
+    val result = LocalLibBookApiBackend().cancelBooking("b1")
+
+    assertTrue(result.isFailure)
+    assertEquals("今日已取消 1 次，请明天再试", result.exceptionOrNull()?.message)
   }
 
   @Test

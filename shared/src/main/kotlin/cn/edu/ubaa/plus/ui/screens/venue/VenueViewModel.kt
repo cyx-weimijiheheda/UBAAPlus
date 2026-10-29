@@ -22,7 +22,7 @@ import cn.edu.ubaa.plus.api.venue.VenueTimeSlot
 import cn.edu.ubaa.plus.api.venue.campusLabel
 import cn.edu.ubaa.plus.api.venue.sportCategoryLabel
 import cn.edu.ubaa.plus.api.venue.venueCampusOptions
-import cn.edu.ubaa.plus.api.venue.venueLabel
+import cn.edu.ubaa.plus.api.venue.venueOptionLabel
 import cn.edu.ubaa.plus.api.venue.venueSiteOptions
 import cn.edu.ubaa.plus.api.venue.venueSportOptions
 import kotlin.time.Clock
@@ -122,7 +122,7 @@ data class VenueUiState(
     get() = venueSiteOptions(sites, selectedCampus, selectedSport)
 
   val selectedVenueLabel: String
-    get() = selectedSite?.let { "${it.venueLabel()} · ${it.siteName}" } ?: ""
+    get() = selectedSite?.venueOptionLabel().orEmpty()
 
   val availableDates: List<LocalDate>
     get() {

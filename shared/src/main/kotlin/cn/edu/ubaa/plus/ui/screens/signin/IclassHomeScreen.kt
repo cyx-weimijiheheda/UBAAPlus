@@ -22,24 +22,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,164 +44,164 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.IclassAttendanceRecordDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** 智慧教室：今日课程一键签到 + 本学期考勤查询。扫码入口在标题栏。 */
 @Composable
-fun IclassHomeScreen(viewModel: SigninViewModel) {
+fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode) {
   val uiState by viewModel.uiState.collectAsState()
-  val snackbarHostState = remember { SnackbarHostState() }
 
-  LaunchedEffect(uiState.signinResult) {
-    uiState.signinResult?.let {
-      snackbarHostState.showSnackbar(it)
-      viewModel.clearSigninResult()
-    }
-  }
+  UbaaToastEffect(uiState.signinResult) { viewModel.clearSigninResult() }
 
   Scaffold(
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-      snackbarHost = { SnackbarHost(snackbarHostState) },
-      floatingActionButton = {
-        FloatingActionButton(
-            onClick = {
-              viewModel.loadTodayClasses()
-              viewModel.reloadAttendanceIndex(preserveSelection = true)
-            }
-        ) {
-          Icon(Icons.Default.Refresh, contentDescription = "刷新")
-        }
-      },
   ) { padding ->
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(padding),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    UbaaPullToRefresh(
+        refreshing = uiState.isLoading,
+        onRefresh = {
+          viewModel.loadTodayClasses()
+          viewModel.reloadAttendanceIndex(preserveSelection = true)
+        },
+        modifier = Modifier.padding(padding),
     ) {
-      item {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors =
-                CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                ),
-        ) {
-          Text(
-              text = "智慧教室需连接校园网后使用，请以校园网登录查看。",
-              modifier = Modifier.fillMaxWidth().padding(12.dp),
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSecondaryContainer,
-          )
-        }
-      }
-
-      item { SectionTitle("今日课程") }
-
-      when {
-        uiState.isLoading ->
-            item {
-              Box(
-                  modifier = Modifier.fillMaxWidth().height(80.dp),
-                  contentAlignment = Alignment.Center,
-              ) {
-                CircularProgressIndicator()
-              }
-            }
-        uiState.error != null ->
-            item {
-              RetryRow(message = uiState.error.orEmpty(), onRetry = viewModel::loadTodayClasses)
-            }
-        uiState.classes.isEmpty() -> item { EmptyHint("今日无课程安排") }
-        else ->
-            items(uiState.classes) { clazz ->
-              SigninClassCard(
-                  clazz = clazz,
-                  onSigninClick = { viewModel.performSignin(clazz.courseId) },
-                  isSigningIn = uiState.signingInCourseId == clazz.courseId,
-              )
-            }
-      }
-
-      item {
-        Spacer(modifier = Modifier.height(4.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(4.dp))
-      }
-
-      item {
-        SectionTitle(
-            text = "考勤查询",
-            subtitle = uiState.attendanceTermName,
-        )
-      }
-
-      item {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          AttendanceDropdown(
-              label = "学年学期",
-              selectedText = uiState.selectedAttendanceTerm?.name ?: "选择学年学期",
-              options = uiState.attendanceTerms.map { it.code to it.name },
-              enabled = uiState.attendanceTerms.isNotEmpty() && !uiState.attendanceTermsLoading,
-              onSelected = viewModel::selectAttendanceTerm,
-          )
-          AttendanceDropdown(
-              label = "课程",
-              selectedText =
-                  uiState.selectedAttendanceCourse?.let { course ->
-                    course.courseName +
-                        course.teacherName.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
-                  } ?: "选择课程",
-              options =
-                  uiState.attendanceCourses.map { course ->
-                    course.courseId to
-                        course.courseName +
-                            course.teacherName
-                                .takeIf { it.isNotBlank() }
-                                ?.let { " · $it" }
-                                .orEmpty()
-                  },
-              enabled = uiState.attendanceCourses.isNotEmpty() && !uiState.attendanceCoursesLoading,
-              onSelected = viewModel::selectAttendanceCourse,
-          )
-        }
-      }
-
-      when {
-        uiState.attendanceTermsLoading ||
-            uiState.attendanceCoursesLoading ||
-            (uiState.attendanceLoading && uiState.attendanceRecords.isEmpty()) ->
-            item {
-              Box(
-                  modifier = Modifier.fillMaxWidth().height(80.dp),
-                  contentAlignment = Alignment.Center,
-              ) {
-                CircularProgressIndicator()
-              }
-            }
-        uiState.attendanceError != null ->
-            item {
-              RetryRow(
-                  message = uiState.attendanceError.orEmpty(),
-                  onRetry = viewModel::retryAttendance,
-              )
-            }
-        uiState.attendanceCourses.isEmpty() -> item { EmptyHint("该学期暂无课程") }
-        uiState.attendanceSelectedCourseId == null -> item { EmptyHint("请选择课程") }
-        uiState.attendanceRecords.isEmpty() -> item { EmptyHint("该课程暂无考勤记录") }
-        else -> {
-          val groups =
-              uiState.attendanceRecords.groupBy { record -> recordDate(record).ifBlank { "未知日期" } }
-          groups.forEach { (date, records) ->
-            item(key = "attendance-date-$date") {
+      LazyColumn(
+          modifier = Modifier.fillMaxSize(),
+          contentPadding = PaddingValues(16.dp),
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        if (connectionMode != ConnectionMode.WEBVPN) {
+          item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ),
+            ) {
               Text(
-                  text = date,
-                  style = MaterialTheme.typography.labelLarge,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary,
+                  text = "直连模式下智慧教室需要校园网；校外请切换到 WebVPN 后使用。",
+                  modifier = Modifier.fillMaxWidth().padding(12.dp),
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSecondaryContainer,
               )
             }
-            items(records) { record -> AttendanceRecordCard(record) }
+          }
+        }
+
+        item { SectionTitle("今日课程") }
+
+        when {
+          uiState.isLoading ->
+              item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                  CircularProgressIndicator()
+                }
+              }
+          uiState.error != null ->
+              item {
+                RetryRow(message = uiState.error.orEmpty(), onRetry = viewModel::loadTodayClasses)
+              }
+          uiState.classes.isEmpty() -> item { EmptyHint("今日无课程安排") }
+          else ->
+              items(uiState.classes) { clazz ->
+                SigninClassCard(
+                    clazz = clazz,
+                    onSigninClick = { viewModel.performSignin(clazz.courseId) },
+                    isSigningIn = uiState.signingInCourseId == clazz.courseId,
+                )
+              }
+        }
+
+        item {
+          Spacer(modifier = Modifier.height(4.dp))
+          HorizontalDivider()
+          Spacer(modifier = Modifier.height(4.dp))
+        }
+
+        item {
+          SectionTitle(
+              text = "考勤查询",
+              subtitle = uiState.attendanceTermName,
+          )
+        }
+
+        item {
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AttendanceDropdown(
+                label = "学年学期",
+                selectedText = uiState.selectedAttendanceTerm?.name ?: "选择学年学期",
+                options = uiState.attendanceTerms.map { it.code to it.name },
+                enabled = uiState.attendanceTerms.isNotEmpty() && !uiState.attendanceTermsLoading,
+                onSelected = viewModel::selectAttendanceTerm,
+            )
+            AttendanceDropdown(
+                label = "课程",
+                selectedText =
+                    uiState.selectedAttendanceCourse?.let { course ->
+                      course.courseName +
+                          course.teacherName.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
+                    } ?: "选择课程",
+                options =
+                    uiState.attendanceCourses.map { course ->
+                      course.courseId to
+                          course.courseName +
+                              course.teacherName
+                                  .takeIf { it.isNotBlank() }
+                                  ?.let { " · $it" }
+                                  .orEmpty()
+                    },
+                enabled =
+                    uiState.attendanceCourses.isNotEmpty() && !uiState.attendanceCoursesLoading,
+                onSelected = viewModel::selectAttendanceCourse,
+            )
+          }
+        }
+
+        when {
+          uiState.attendanceTermsLoading ||
+              uiState.attendanceCoursesLoading ||
+              (uiState.attendanceLoading && uiState.attendanceRecords.isEmpty()) ->
+              item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                  CircularProgressIndicator()
+                }
+              }
+          uiState.attendanceError != null ->
+              item {
+                RetryRow(
+                    message = uiState.attendanceError.orEmpty(),
+                    onRetry = viewModel::retryAttendance,
+                )
+              }
+          uiState.attendanceCourses.isEmpty() -> item { EmptyHint("该学期暂无课程") }
+          uiState.attendanceSelectedCourseId == null -> item { EmptyHint("请选择课程") }
+          uiState.attendanceRecords.isEmpty() -> item { EmptyHint("该课程暂无考勤记录") }
+          else -> {
+            val groups =
+                uiState.attendanceRecords.groupBy { record ->
+                  recordDate(record).ifBlank { "未知日期" }
+                }
+            groups.forEach { (date, records) ->
+              item(key = "attendance-date-$date") {
+                Text(
+                    text = date,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+              }
+              items(records) { record -> AttendanceRecordCard(record) }
+            }
           }
         }
       }

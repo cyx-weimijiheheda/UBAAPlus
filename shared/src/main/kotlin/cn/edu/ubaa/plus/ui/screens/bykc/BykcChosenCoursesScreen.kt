@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -33,6 +34,7 @@ fun BykcChosenCoursesScreen(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+  UbaaToastEffect(error) {}
   val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
 
   Box(modifier = modifier.fillMaxSize().pullRefresh(pullRefreshState)) {

@@ -6,6 +6,7 @@ import cn.edu.ubaa.plus.model.dto.BykcCourseDetailDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
 import kotlin.time.Clock
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -192,7 +193,20 @@ private fun formatBykcDate(dateTime: LocalDateTime): String = buildString {
   append((dateTime.month.ordinal + 1).toString().padStart(2, '0'))
   append('-')
   append(dateTime.day.toString().padStart(2, '0'))
+  append(' ')
+  append(bykcWeekdayLabel(dateTime.dayOfWeek))
 }
+
+private fun bykcWeekdayLabel(dayOfWeek: DayOfWeek): String =
+    when (dayOfWeek) {
+      DayOfWeek.MONDAY -> "星期一"
+      DayOfWeek.TUESDAY -> "星期二"
+      DayOfWeek.WEDNESDAY -> "星期三"
+      DayOfWeek.THURSDAY -> "星期四"
+      DayOfWeek.FRIDAY -> "星期五"
+      DayOfWeek.SATURDAY -> "星期六"
+      DayOfWeek.SUNDAY -> "星期日"
+    }
 
 private fun formatBykcTime(dateTime: LocalDateTime): String =
     "${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}"

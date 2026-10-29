@@ -102,6 +102,14 @@ class DormElectricityViewModel(
     loadRooms()
   }
 
+  /** 下拉刷新：重新加载宿舍列表，已有查询结果时顺带重查。 */
+  fun refresh() {
+    loadRooms()
+    if (_uiState.value.selectedRoom.isNotBlank()) {
+      query()
+    }
+  }
+
   fun loadRooms() {
     loadedOnce = true
     viewModelScope.launch {

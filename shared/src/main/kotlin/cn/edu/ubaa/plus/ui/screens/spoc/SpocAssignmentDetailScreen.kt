@@ -12,16 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** SPOC 作业详情页。 */
 @Composable
@@ -39,91 +38,94 @@ fun SpocAssignmentDetailScreen(
   val uiState by viewModel.uiState.collectAsState()
   val detail = uiState.assignmentDetail
 
+  UbaaToastEffect(uiState.detailError) {}
+
   Scaffold(
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-      floatingActionButton = {
-        FloatingActionButton(onClick = onRetry) {
-          Icon(Icons.Default.Refresh, contentDescription = "刷新")
-        }
-      },
   ) { padding ->
-    when {
-      uiState.isDetailLoading ->
-          Box(
-              modifier = Modifier.fillMaxSize().padding(padding),
-              contentAlignment = Alignment.Center,
-          ) {
-            CircularProgressIndicator()
-          }
-      uiState.detailError != null ->
-          Box(
-              modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-              contentAlignment = Alignment.Center,
-          ) {
-            Text(text = uiState.detailError!!, color = MaterialTheme.colorScheme.error)
-          }
-      detail == null ->
-          Box(
-              modifier = Modifier.fillMaxSize().padding(padding),
-              contentAlignment = Alignment.Center,
-          ) {
-            Text("暂无作业详情")
-          }
-      else ->
-          Column(
-              modifier =
-                  Modifier.fillMaxSize()
-                      .padding(padding)
-                      .verticalScroll(rememberScrollState())
-                      .padding(16.dp),
-              verticalArrangement = Arrangement.spacedBy(12.dp),
-          ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
+    UbaaPullToRefresh(
+        refreshing = uiState.isDetailLoading,
+        onRefresh = onRetry,
+        modifier = Modifier.padding(padding),
+    ) {
+      when {
+        uiState.isDetailLoading ->
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+              CircularProgressIndicator()
+            }
+        uiState.detailError != null ->
+            Box(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                contentAlignment = Alignment.Center,
             ) {
-              Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Text(
-                    text = detail.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = detail.courseName,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                if (!detail.teacherName.isNullOrBlank()) {
-                  Text(
-                      text = "教师：${detail.teacherName}",
-                      style = MaterialTheme.typography.bodyMedium,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  )
-                }
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = uiState.detailError!!, color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = onRetry) { Text("重试") }
               }
             }
+        detail == null ->
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+              Text("暂无作业详情")
+            }
+        else ->
+            Column(
+                modifier =
+                    Modifier.fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+              Card(
+                  modifier = Modifier.fillMaxWidth(),
+                  colors =
+                      CardDefaults.cardColors(
+                          containerColor = MaterialTheme.colorScheme.surfaceVariant
+                      ),
+              ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                  Text(
+                      text = detail.title,
+                      style = MaterialTheme.typography.headlineSmall,
+                      fontWeight = FontWeight.Bold,
+                  )
+                  Text(
+                      text = detail.courseName,
+                      style = MaterialTheme.typography.titleMedium,
+                      color = MaterialTheme.colorScheme.primary,
+                  )
+                  if (!detail.teacherName.isNullOrBlank()) {
+                    Text(
+                        text = "教师：${detail.teacherName}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                  }
+                }
+              }
 
-            DetailInfoCard(
-                title = "提交信息",
-                lines =
-                    buildList {
-                      add("状态：${detail.submissionStatusText}")
-                      add("开始时间：${detail.startTime ?: "未知"}")
-                      add("截止时间：${detail.dueTime ?: "未知"}")
-                      detail.score?.takeIf { it.isNotBlank() }?.let { add("分值：$it") }
-                      detail.submittedAt?.takeIf { it.isNotBlank() }?.let { add("提交时间：$it") }
-                    },
-            )
+              DetailInfoCard(
+                  title = "提交信息",
+                  lines =
+                      buildList {
+                        add("状态：${detail.submissionStatusText}")
+                        add("开始时间：${detail.startTime ?: "未知"}")
+                        add("截止时间：${detail.dueTime ?: "未知"}")
+                        detail.score?.takeIf { it.isNotBlank() }?.let { add("分值：$it") }
+                        detail.submittedAt?.takeIf { it.isNotBlank() }?.let { add("提交时间：$it") }
+                      },
+              )
 
-            DetailInfoCard(
-                title = "作业内容",
-                lines = listOf(detail.contentPlainText ?: "暂无作业说明"),
-            )
-          }
+              DetailInfoCard(
+                  title = "作业内容",
+                  lines = listOf(detail.contentPlainText ?: "暂无作业说明"),
+              )
+            }
+      }
     }
   }
 }

@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus
 import android.app.Application
 import cn.edu.ubaa.plus.api.storage.LegacyCredentialMigration
 import cn.edu.ubaa.plus.api.storage.SecureSettings
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 
 /**
  * 应用入口。
@@ -13,6 +14,7 @@ class UbaaApplication : Application() {
   override fun onCreate() {
     super.onCreate()
     SecureSettings.initialize(this)
+    UbaaToast.initialize(this)
     LegacyCredentialMigration.migrate(this)
     AppForegroundMonitor.start()
   }

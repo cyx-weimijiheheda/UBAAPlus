@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** 希冀作业列表页。 */
 @OptIn(ExperimentalMaterialApi::class)
@@ -56,6 +57,7 @@ fun JudgeAssignmentsScreen(
     onAssignmentClick: (JudgeAssignmentSummaryDto) -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
+  UbaaToastEffect(uiState.error) {}
   val groupedAssignments = uiState.visibleAssignments.groupBy { it.courseName }
   val pullRefreshState =
       rememberPullRefreshState(

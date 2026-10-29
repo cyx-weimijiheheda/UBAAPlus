@@ -17,6 +17,9 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcCourseDetailDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
@@ -42,24 +45,27 @@ fun BykcCourseDetailScreen(
         { _, _ ->
         },
     onGrabStop: () -> Unit = {},
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-  val snackbarHostState = remember { SnackbarHostState() }
-
   LaunchedEffect(operationMessage) {
     operationMessage?.let { message ->
-      snackbarHostState.showSnackbar(message)
+      UbaaToast.show(message)
       onClearMessage()
     }
   }
+  UbaaToastEffect(error) {}
 
   Scaffold(
       modifier = modifier.fillMaxSize(),
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-      snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
   ) { paddingValues ->
-    Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+    UbaaPullToRefresh(
+        refreshing = isLoading,
+        onRefresh = onRefresh,
+        modifier = Modifier.padding(paddingValues),
+    ) {
       when {
         isLoading -> {
           Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

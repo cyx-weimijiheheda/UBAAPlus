@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.model.dto.*
 import cn.edu.ubaa.plus.repository.ScheduleStore
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
@@ -167,6 +169,8 @@ fun ScheduleScreen(
   var showTermSelector by remember { mutableStateOf(false) }
   val currentWeekIndex = weeks.indexOf(selectedWeek)
 
+  UbaaToastEffect(error) {}
+
   Scaffold(
       topBar = {
         ScheduleTopAppBar(
@@ -221,8 +225,6 @@ fun ScheduleScreen(
             }
           }
         }
-        if (onRefresh != null)
-            TextButton(onClick = onRefresh, enabled = !isUpdating && !isLoading) { Text("刷新") }
         if (onUpdate != null)
             TextButton(onClick = onUpdate, enabled = !isUpdating && !isLoading) {
               Text(if (isUpdating) "正在本地化…" else "课表本地化")
@@ -265,7 +267,11 @@ fun ScheduleScreen(
             modifier = Modifier.padding(horizontal = 12.dp),
         )
       }
-      Box(modifier = Modifier.weight(1f)) {
+      UbaaPullToRefresh(
+          refreshing = isLoading || isUpdating,
+          onRefresh = { onRefresh?.invoke() },
+          modifier = Modifier.fillMaxWidth().weight(1f),
+      ) {
         when {
           isLoading && weeks.isEmpty() -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

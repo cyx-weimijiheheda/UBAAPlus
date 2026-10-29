@@ -30,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -44,8 +43,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,6 +66,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.shared.R
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 
 @Composable
 fun LibBookReserveScreen(
@@ -77,17 +76,15 @@ fun LibBookReserveScreen(
     onSubmitSuccess: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
-  val snackbarHostState = remember { SnackbarHostState() }
   var showMapDialog by remember { mutableStateOf(false) }
   val selectedMapResource = libBookAreaMapResource(uiState.selectedAreaId)
 
   LaunchedEffect(Unit) { viewModel.ensureInitialLoaded() }
   LaunchedEffect(uiState.actionMessage) {
-    uiState.actionMessage?.let { message ->
-      snackbarHostState.showSnackbar(message)
-      viewModel.clearActionMessage()
-      if (message.contains("成功")) onSubmitSuccess()
-    }
+    val message = uiState.actionMessage ?: return@LaunchedEffect
+    UbaaToast.show(message)
+    viewModel.clearActionMessage()
+    if (message.contains("成功")) onSubmitSuccess()
   }
 
   if (showMapDialog && selectedMapResource != null) {
@@ -101,7 +98,6 @@ fun LibBookReserveScreen(
   Scaffold(
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-      snackbarHost = { SnackbarHost(snackbarHostState) },
   ) { paddingValues ->
     Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
       Row(
@@ -115,7 +111,11 @@ fun LibBookReserveScreen(
         )
       }
 
-      Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+      UbaaPullToRefresh(
+          refreshing = uiState.isInitialLoading,
+          onRefresh = viewModel::refreshReserveData,
+          modifier = Modifier.fillMaxSize().weight(1f),
+      ) {
         when {
           uiState.isInitialLoading && uiState.libraries.isEmpty() -> LoadingBox("正在加载图书馆楼馆...")
           uiState.initialError != null && uiState.libraries.isEmpty() ->
@@ -131,14 +131,7 @@ fun LibBookReserveScreen(
                   verticalArrangement = Arrangement.spacedBy(10.dp),
               ) {
                 item {
-                  SectionTitle(
-                      title = "楼馆",
-                      trailing = {
-                        IconButton(onClick = viewModel::refreshReserveData) {
-                          Icon(Icons.Default.Refresh, contentDescription = "刷新")
-                        }
-                      },
-                  )
+                  SectionTitle(title = "楼馆")
                   LibBookDropdown(
                       label = "楼馆",
                       selectedText =

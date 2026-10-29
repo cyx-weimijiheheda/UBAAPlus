@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.Exam
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.collections.get
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -30,7 +32,12 @@ import kotlinx.datetime.*
 fun ExamScreen(viewModel: ExamViewModel) {
   val uiState by viewModel.uiState.collectAsState()
 
-  Box(modifier = Modifier.fillMaxSize()) {
+  UbaaToastEffect(uiState.error) {}
+
+  UbaaPullToRefresh(
+      refreshing = uiState.isLoading,
+      onRefresh = { viewModel.ensureLoaded(forceRefresh = true) },
+  ) {
     when {
       uiState.isLoading -> {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

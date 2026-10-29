@@ -18,6 +18,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.ClassroomInfo
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
@@ -44,6 +46,8 @@ fun ClassroomQueryScreen(
   val availableBuildings by viewModel.availableBuildings.collectAsState()
   val filteredData by viewModel.filteredData.collectAsState()
   var showDatePicker by remember { mutableStateOf(false) }
+
+  UbaaToastEffect((uiState as? ClassroomUiState.Error)?.message) {}
 
   LaunchedEffect(Unit) { if (uiState is ClassroomUiState.Idle) viewModel.query() }
 
@@ -148,28 +152,33 @@ fun ClassroomQueryScreen(
       Text(" 空闲", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelSmall)
     }
 
-    when (val state = uiState) {
-      is ClassroomUiState.Loading ->
-          Box(Modifier.fillMaxSize(), Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-              CircularProgressIndicator()
-              Spacer(Modifier.height(8.dp))
-              Text("正在查询...")
+    UbaaPullToRefresh(
+        refreshing = uiState is ClassroomUiState.Loading,
+        onRefresh = viewModel::query,
+    ) {
+      when (val state = uiState) {
+        is ClassroomUiState.Loading ->
+            Box(Modifier.fillMaxSize(), Alignment.Center) {
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator()
+                Spacer(Modifier.height(8.dp))
+                Text("正在查询...")
+              }
             }
-          }
-      is ClassroomUiState.Success ->
-          if (filteredData.isEmpty())
-              Box(Modifier.fillMaxSize(), Alignment.Center) { Text("未找到匹配教室") }
-          else ClassroomTable(filteredData)
-      is ClassroomUiState.Error ->
-          Box(Modifier.fillMaxSize().padding(16.dp), Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-              Text(text = "查询失败: ${state.message}", color = MaterialTheme.colorScheme.error)
-              Spacer(Modifier.height(16.dp))
-              Button(onClick = { viewModel.query() }) { Text("重试") }
+        is ClassroomUiState.Success ->
+            if (filteredData.isEmpty())
+                Box(Modifier.fillMaxSize(), Alignment.Center) { Text("未找到匹配教室") }
+            else ClassroomTable(filteredData)
+        is ClassroomUiState.Error ->
+            Box(Modifier.fillMaxSize().padding(16.dp), Alignment.Center) {
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "查询失败: ${state.message}", color = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { viewModel.query() }) { Text("重试") }
+              }
             }
-          }
-      else -> {}
+        else -> {}
+      }
     }
   }
 }

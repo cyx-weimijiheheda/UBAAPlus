@@ -52,6 +52,7 @@ class LocalAuthServiceBackendTest {
     LocalUpstreamClientProvider.reset()
     reportedLogins.clear()
     LoginStatsReporter.reporter = { request -> reportedLogins += request }
+    LoginStatsReporter.reportSynchronously = true
   }
 
   @AfterTest

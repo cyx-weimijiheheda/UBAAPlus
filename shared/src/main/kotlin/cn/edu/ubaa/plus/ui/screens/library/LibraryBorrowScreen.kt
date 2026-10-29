@@ -4,19 +4,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.feature.LibraryLoanDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 @Composable
 fun LibraryBorrowScreen(
@@ -47,23 +49,13 @@ fun LibraryBorrowScreen(
         LibraryBorrowTab.HISTORY -> state.history
       }
 
-  Scaffold { padding ->
-    Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-      Row(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-          verticalAlignment = Alignment.CenterVertically,
-      ) {
-        Text(
-            text = "图书借阅",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
-        )
-        IconButton(onClick = viewModel::refresh, enabled = !state.isLoading) {
-          Icon(Icons.Default.Refresh, contentDescription = "刷新")
-        }
-      }
+  UbaaToastEffect(state.error) {}
 
+  Scaffold(
+      contentWindowInsets =
+          WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+  ) { padding ->
+    Column(modifier = Modifier.fillMaxSize().padding(padding)) {
       TabRow(selectedTabIndex = state.selectedTab.ordinal) {
         LibraryBorrowTab.entries.forEach { tab ->
           Tab(
@@ -74,60 +66,70 @@ fun LibraryBorrowScreen(
         }
       }
 
-      when {
-        state.isLoading && loans.isEmpty() ->
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              CircularProgressIndicator()
-            }
-        state.error != null && loans.isEmpty() ->
-            Column(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-              Card(
-                  colors =
-                      CardDefaults.cardColors(
-                          containerColor = MaterialTheme.colorScheme.errorContainer
-                      )
-              ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+      UbaaPullToRefresh(
+          refreshing = state.isLoading,
+          onRefresh = viewModel::refresh,
+          modifier = Modifier.fillMaxSize(),
+      ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          when {
+            state.isLoading && loans.isEmpty() ->
+                item {
+                  Box(
+                      modifier = Modifier.fillMaxWidth().height(200.dp),
+                      contentAlignment = Alignment.Center,
+                  ) {
+                    CircularProgressIndicator()
+                  }
+                }
+            state.error != null && loans.isEmpty() ->
+                item {
+                  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Card(
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                    ) {
+                      Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                        Text(
+                            text = state.error.orEmpty(),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        OutlinedButton(onClick = viewModel::refresh) { Text("重试") }
+                      }
+                    }
+                    OutlinedButton(
+                        onClick = { onOpenUrl("https://space.lib.buaa.edu.cn/space/") },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                      Text("打开图书馆网站登录")
+                    }
+                  }
+                }
+            loans.isEmpty() ->
+                item {
                   Text(
-                      text = state.error.orEmpty(),
-                      color = MaterialTheme.colorScheme.onErrorContainer,
+                      text =
+                          if (state.selectedTab == LibraryBorrowTab.CURRENT) "暂无当前借阅" else "暂无借阅历史",
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
                   )
-                  OutlinedButton(onClick = viewModel::refresh) { Text("重试") }
                 }
-              }
-              OutlinedButton(
-                  onClick = { onOpenUrl("https://space.lib.buaa.edu.cn/space/") },
-                  modifier = Modifier.fillMaxWidth(),
-              ) {
-                Text("打开图书馆网站登录")
-              }
-            }
-        loans.isEmpty() ->
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              Text(
-                  text = if (state.selectedTab == LibraryBorrowTab.CURRENT) "暂无当前借阅" else "暂无借阅历史",
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-            }
-        else ->
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            else -> items(loans) { loan -> LibraryLoanCard(loan) }
+          }
+          item {
+            OutlinedButton(
+                onClick = { onOpenUrl("https://space.lib.buaa.edu.cn/space/") },
+                modifier = Modifier.fillMaxWidth(),
             ) {
-              items(loans) { loan -> LibraryLoanCard(loan) }
-              item {
-                OutlinedButton(
-                    onClick = { onOpenUrl("https://space.lib.buaa.edu.cn/space/") },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                  Text("打开图书馆网站")
-                }
-              }
+              Text("打开图书馆网站")
             }
+          }
+        }
       }
     }
   }

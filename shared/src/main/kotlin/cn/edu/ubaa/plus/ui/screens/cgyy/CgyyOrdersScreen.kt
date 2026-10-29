@@ -25,8 +25,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,13 +41,14 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
 import cn.edu.ubaa.plus.model.dto.displayReservationDateText
 import cn.edu.ubaa.plus.model.dto.displayStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CgyyOrdersScreen(viewModel: CgyyViewModel) {
   val uiState by viewModel.uiState.collectAsState()
   var selectedOrder by remember { mutableStateOf<CgyyOrderDto?>(null) }
-  val snackbarHostState = remember { SnackbarHostState() }
   val pullRefreshState =
       rememberPullRefreshState(
           refreshing = uiState.isOrdersLoading,
@@ -59,10 +58,11 @@ fun CgyyOrdersScreen(viewModel: CgyyViewModel) {
   LaunchedEffect(Unit) { viewModel.ensureOrdersLoaded() }
   LaunchedEffect(uiState.actionMessage) {
     uiState.actionMessage?.let { message ->
-      snackbarHostState.showSnackbar(message)
+      UbaaToast.show(message)
       viewModel.clearActionMessage()
     }
   }
+  UbaaToastEffect(uiState.ordersError) {}
 
   selectedOrder?.let { order ->
     CgyyOrderDetailDialog(
@@ -78,7 +78,6 @@ fun CgyyOrdersScreen(viewModel: CgyyViewModel) {
   Scaffold(
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-      snackbarHost = { SnackbarHost(snackbarHostState) },
   ) { paddingValues ->
     Box(modifier = Modifier.fillMaxSize().padding(paddingValues).pullRefresh(pullRefreshState)) {
       when {

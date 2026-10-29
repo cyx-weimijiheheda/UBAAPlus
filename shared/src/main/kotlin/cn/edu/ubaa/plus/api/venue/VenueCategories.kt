@@ -51,6 +51,23 @@ fun VenueSite.venueLabel(): String =
     venueName.trim().ifBlank { siteName.trim() }.ifBlank { "未标注场馆" }
 
 /**
+ * 场馆下拉的统一文案。
+ *
+ * 选中按钮和菜单项必须使用同一段文字，否则选中后开放时间/收费信息会“消失”。 场馆名与项目名相同时不重复显示。
+ */
+fun VenueSite.venueOptionLabel(): String = buildString {
+  val venue = venueLabel()
+  append(venue)
+  val name = siteName.trim()
+  if (name.isNotEmpty() && name != venue) {
+    append(" · ")
+    append(name)
+  }
+  append(openRange)
+  append(if (isFee) " · 收费" else " · 免费")
+}
+
+/**
  * 运动分类。
  *
  * 优先只看 `sportName`；只有它为空时才回退到场馆/项目名。艺术类、党课等非运动场地归入「其他」， 避免把「学生活动中心」这类正常场馆名误判。

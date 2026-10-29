@@ -241,7 +241,8 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
         AppScreen.GRADE -> gradeViewModel?.let { GradeScreen(viewModel = it) }
         AppScreen.COURSE_DETAIL -> selectedCourse?.let { CourseDetailScreen(course = it) }
         AppScreen.BYKC_STATISTICS -> BykcStatisticsScreen(viewModel = bykcViewModel)
-        AppScreen.ICLASS_HOME -> IclassHomeScreen(viewModel = signinViewModel)
+        AppScreen.ICLASS_HOME ->
+            IclassHomeScreen(viewModel = signinViewModel, connectionMode = connectionMode)
         AppScreen.BYKC_COURSES ->
             BykcCoursesScreen(
                 courses = bykcCoursesState.courses,
@@ -308,6 +309,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                   }
                 },
                 onGrabStop = { bykcViewModel.stopGrab() },
+                onRefresh = { selectedBykcCourseId?.let { bykcViewModel.loadCourseDetail(it) } },
             )
         AppScreen.BYKC_CHOSEN ->
             BykcChosenCoursesScreen(

@@ -379,6 +379,6 @@ class SigninViewModel(
   }
 
   private companion object {
-    const val DEFAULT_ATTENDANCE_ERROR = "考勤查询失败，请以校园网登录查看"
+    const val DEFAULT_ATTENDANCE_ERROR = "考勤查询失败，请稍后重试"
   }
 }

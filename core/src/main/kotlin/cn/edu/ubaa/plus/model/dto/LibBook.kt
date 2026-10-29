@@ -99,9 +99,31 @@ data class LibBookBookingDto(
     val endTime: String = "",
     val status: String = "",
     val statusName: String = "",
+    /** 座位二维码/操作接口需要的一次性 query，部分列表响应会返回。 */
+    val query: String = "",
+    val seatId: String = "",
+    val areaId: String = "",
+    val signStatus: String = "",
+    /** 预约创建时间，用于计算 30 分钟签到截止；部分接口返回。 */
+    val createTime: String = "",
 )
 
 fun LibBookBookingDto.canCancelBooking(): Boolean = cancelBlockedMessage() == null
+
+/** 已结束/已取消等终态，任何座位操作都不应再显示。 */
+fun LibBookBookingDto.isTerminalBooking(): Boolean =
+    status.trim() in nonCancelableLibBookBookingStatusCodes ||
+        nonCancelableLibBookBookingStatusKeywords.any { statusName.contains(it) }
+
+/** 已签到、正在使用或临时离开中。 */
+fun LibBookBookingDto.isInUseBooking(): Boolean =
+    !isTerminalBooking() &&
+        (status.trim() in inUseLibBookBookingStatusCodes ||
+            listOf("使用中", "临时离开", "暂离", "已签到").any { statusName.contains(it) })
+
+fun LibBookBookingDto.canTemporaryLeave(): Boolean = isInUseBooking() && !isTerminalBooking()
+
+fun LibBookBookingDto.canCheckout(): Boolean = isInUseBooking() && !isTerminalBooking()
 
 fun LibBookBookingDto.cancelBlockedMessage(): String? {
   if (id.isBlank()) return "预约记录不存在或已失效，请刷新后重试"
@@ -116,7 +138,53 @@ fun LibBookBookingDto.cancelBlockedMessage(): String? {
 
 private val nonCancelableLibBookBookingStatusCodes = setOf("6", "8")
 
+private val inUseLibBookBookingStatusCodes = setOf("3", "11", "33")
+
 private val nonCancelableLibBookBookingStatusKeywords = listOf("取消", "结束", "已完成", "过期", "失效")
+
+/** 座位签到/离座动作。 */
+enum class LibBookSeatAction {
+  SIGN_IN,
+  LEAVE,
+  CHECKOUT,
+}
+
+@Serializable
+data class LibBookSeatActionRequest(
+    val query: String,
+    val id: String,
+    val day: String,
+)
+
+@Serializable
+data class LibBookSeatActionResponse(
+    val success: Boolean,
+    val message: String,
+)
+
+/** 扫描座位二维码后由 /v4/space/qr_scan 返回的状态。 */
+@Serializable
+data class LibBookQrScanResultDto(
+    val query: String = "",
+    val bookId: String = "",
+    val seatId: String = "",
+    val seatNo: String = "",
+    val areaName: String = "",
+    val day: String = "",
+    val beginTime: String = "",
+    val endTime: String = "",
+    val status: String = "",
+    val statusName: String = "",
+) {
+  val canSignIn: Boolean
+    get() = status.trim() in setOf("4", "6", "7") || statusName.contains("未签到")
+
+  val canTemporaryLeave: Boolean
+    get() = status.trim() in inUseLibBookBookingStatusCodes || statusName.contains("使用中")
+
+  val canCheckout: Boolean
+    get() = canTemporaryLeave
+}
 
 @Serializable
 data class LibBookEncryptedReserveBody(

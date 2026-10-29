@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import cn.edu.ubaa.plus.api.feature.LibBookApi
 import cn.edu.ubaa.plus.model.dto.LibBookAreaDetailDto
 import cn.edu.ubaa.plus.model.dto.LibBookAreaDto
+import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingsResponse
 import cn.edu.ubaa.plus.model.dto.LibBookLibraryDto
+import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
 import cn.edu.ubaa.plus.model.dto.LibBookReserveRequest
+import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
+import cn.edu.ubaa.plus.model.dto.LibBookSeatActionRequest
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.LibBookTimeSlotDto
 import cn.edu.ubaa.plus.model.dto.cancelBlockedMessage
@@ -43,6 +47,9 @@ data class LibBookUiState(
     val bookingsError: String? = null,
     val actionMessage: String? = null,
     val cancelingBookingId: String? = null,
+    val seatActionContext: LibBookQrScanResultDto? = null,
+    val pendingSeatAction: LibBookSeatAction? = null,
+    val isSeatActionSubmitting: Boolean = false,
 )
 
 @OptIn(ExperimentalTime::class)
@@ -282,6 +289,117 @@ class LibBookViewModel(
                 _uiState.value.copy(
                     cancelingBookingId = null,
                     actionMessage = it.message ?: "取消预约失败",
+                )
+          }
+    }
+  }
+
+  /** 扫描座位二维码后识别座位与可用操作。 */
+  fun handleSeatQrScan(rawContent: String) {
+    val params = parseLibBookQrParams(rawContent)
+    if (params.isEmpty()) {
+      setActionMessage("无法识别座位二维码")
+      return
+    }
+    _uiState.value =
+        _uiState.value.copy(
+            isSeatActionSubmitting = true,
+            seatActionContext = null,
+            pendingSeatAction = null,
+        )
+    viewModelScope.launch {
+      libBookApi
+          .qrScan(params)
+          .onSuccess { context ->
+            _uiState.value =
+                _uiState.value.copy(
+                    isSeatActionSubmitting = false,
+                    seatActionContext = context,
+                )
+          }
+          .onFailure {
+            _uiState.value =
+                _uiState.value.copy(
+                    isSeatActionSubmitting = false,
+                    actionMessage = it.message ?: "座位二维码识别失败",
+                )
+          }
+    }
+  }
+
+  /** 从预约列表直接发起操作；没有 query 时提示改用扫码。 */
+  fun requestSeatActionForBooking(booking: LibBookBookingDto, action: LibBookSeatAction) {
+    if (booking.query.isBlank()) {
+      setActionMessage("请扫描桌面二维码后操作")
+      return
+    }
+    _uiState.value =
+        _uiState.value.copy(
+            seatActionContext =
+                LibBookQrScanResultDto(
+                    query = booking.query,
+                    bookId = booking.id,
+                    seatId = booking.seatId,
+                    seatNo = booking.seatNo,
+                    areaName = booking.areaName,
+                    day = booking.day,
+                    beginTime = booking.beginTime,
+                    endTime = booking.endTime,
+                    status = booking.status,
+                    statusName = booking.statusName,
+                ),
+            pendingSeatAction = action,
+        )
+  }
+
+  fun requestSeatAction(action: LibBookSeatAction) {
+    val context = _uiState.value.seatActionContext ?: return
+    if (context.query.isBlank() && context.bookId.isBlank() && context.seatId.isBlank()) {
+      setActionMessage("请重新扫描座位二维码")
+      return
+    }
+    _uiState.value = _uiState.value.copy(pendingSeatAction = action)
+  }
+
+  fun dismissSeatAction() {
+    _uiState.value = _uiState.value.copy(pendingSeatAction = null, seatActionContext = null)
+  }
+
+  fun confirmSeatAction() {
+    val state = _uiState.value
+    val action = state.pendingSeatAction ?: return
+    val context = state.seatActionContext ?: return
+    if (state.isSeatActionSubmitting) return
+    val request =
+        LibBookSeatActionRequest(
+            query = context.query,
+            id = context.bookId.ifBlank { context.seatId },
+            day = context.day.ifBlank { currentDateProvider() },
+        )
+    _uiState.value = state.copy(isSeatActionSubmitting = true, actionMessage = null)
+    viewModelScope.launch {
+      val result =
+          when (action) {
+            LibBookSeatAction.SIGN_IN -> libBookApi.signIn(request)
+            LibBookSeatAction.LEAVE -> libBookApi.leave(request)
+            LibBookSeatAction.CHECKOUT -> libBookApi.checkout(request)
+          }
+      result
+          .onSuccess {
+            _uiState.value =
+                _uiState.value.copy(
+                    isSeatActionSubmitting = false,
+                    pendingSeatAction = null,
+                    seatActionContext = null,
+                    actionMessage = it.message,
+                )
+            loadBookings(_uiState.value.bookings.page, _uiState.value.bookings.limit)
+          }
+          .onFailure {
+            _uiState.value =
+                _uiState.value.copy(
+                    isSeatActionSubmitting = false,
+                    actionMessage = it.message ?: "座位操作失败",
                 )
           }
     }

@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** SPOC 作业列表页。 */
 @OptIn(ExperimentalMaterialApi::class)
@@ -55,6 +56,7 @@ fun SpocAssignmentsScreen(
     onAssignmentClick: (SpocAssignmentSummaryDto) -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
+  UbaaToastEffect(uiState.error) {}
   val groupedAssignments = uiState.visibleAssignments.groupBy { it.courseName }
   val pullRefreshState =
       rememberPullRefreshState(

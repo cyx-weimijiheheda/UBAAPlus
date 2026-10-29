@@ -16,97 +16,114 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcCategoryStatisticsDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 @Composable
 fun BykcStatisticsScreen(viewModel: BykcViewModel) {
   val uiState by viewModel.statisticsState.collectAsState()
 
-  if (uiState.isLoading) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      CircularProgressIndicator()
-    }
-    return
-  }
+  UbaaToastEffect(uiState.error) {}
 
-  if (uiState.error != null) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      Text("加载失败: ${uiState.error}", color = MaterialTheme.colorScheme.error)
-    }
-    return
-  }
-
-  val stats = uiState.statistics ?: return
-
-  LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-    // 累计有效计数卡片
-    item {
-      Card(
-          modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-          colors =
-              CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-      ) {
-        Column(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-          Text(
-              text = "总体净有效次数",
-              style = MaterialTheme.typography.titleMedium,
-              color = MaterialTheme.colorScheme.onPrimaryContainer,
-          )
-          Text(
-              text = "${stats.totalValidCount}",
-              style = MaterialTheme.typography.displayLarge,
-              color = MaterialTheme.colorScheme.onPrimaryContainer,
-              fontWeight = FontWeight.Bold,
-          )
+  UbaaPullToRefresh(
+      refreshing = uiState.isLoading,
+      onRefresh = { viewModel.ensureStatisticsLoaded(forceRefresh = true) },
+  ) {
+    when {
+      uiState.isLoading -> {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+          CircularProgressIndicator()
         }
       }
-    }
-
-    // 统计报表
-    item {
-      Card(
-          modifier = Modifier.fillMaxWidth(),
-          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-      ) {
-        Column {
-          // 表头
-          Row(
-              modifier =
-                  Modifier.fillMaxWidth()
-                      .background(MaterialTheme.colorScheme.surfaceVariant)
-                      .padding(12.dp),
-              horizontalArrangement = Arrangement.SpaceBetween,
-          ) {
-            Text(
-                text = "课程小类",
-                modifier = Modifier.weight(1.5f),
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "通过/指标",
-                modifier = Modifier.weight(1f),
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "达标情况",
-                modifier = Modifier.weight(1f),
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.End,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+      uiState.error != null -> {
+        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+          Text("加载失败: ${uiState.error}", color = MaterialTheme.colorScheme.error)
+        }
+      }
+      uiState.statistics == null -> {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+          Text("暂无统计数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+      }
+      else -> {
+        val stats = uiState.statistics!!
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+          // 累计有效计数卡片
+          item {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+            ) {
+              Column(
+                  modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                  horizontalAlignment = Alignment.CenterHorizontally,
+              ) {
+                Text(
+                    text = "总体净有效次数",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "${stats.totalValidCount}",
+                    style = MaterialTheme.typography.displayLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold,
+                )
+              }
+            }
           }
 
-          HorizontalDivider()
+          // 统计报表
+          item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            ) {
+              Column {
+                // 表头
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                  Text(
+                      text = "课程小类",
+                      modifier = Modifier.weight(1.5f),
+                      fontWeight = FontWeight.Bold,
+                      style = MaterialTheme.typography.bodyMedium,
+                  )
+                  Text(
+                      text = "通过/指标",
+                      modifier = Modifier.weight(1f),
+                      fontWeight = FontWeight.Bold,
+                      textAlign = TextAlign.Center,
+                      style = MaterialTheme.typography.bodyMedium,
+                  )
+                  Text(
+                      text = "达标情况",
+                      modifier = Modifier.weight(1f),
+                      fontWeight = FontWeight.Bold,
+                      textAlign = TextAlign.End,
+                      style = MaterialTheme.typography.bodyMedium,
+                  )
+                }
 
-          Column {
-            stats.categories.forEach { category ->
-              BykcStatRow(category)
-              HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                HorizontalDivider()
+
+                Column {
+                  stats.categories.forEach { category ->
+                    BykcStatRow(category)
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                  }
+                }
+              }
             }
           }
         }

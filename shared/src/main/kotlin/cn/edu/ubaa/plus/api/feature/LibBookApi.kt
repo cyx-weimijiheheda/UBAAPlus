@@ -6,8 +6,11 @@ import cn.edu.ubaa.plus.model.dto.LibBookAreaDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingsResponse
 import cn.edu.ubaa.plus.model.dto.LibBookCancelResponse
 import cn.edu.ubaa.plus.model.dto.LibBookLibraryDto
+import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
 import cn.edu.ubaa.plus.model.dto.LibBookReserveRequest
 import cn.edu.ubaa.plus.model.dto.LibBookReserveResponse
+import cn.edu.ubaa.plus.model.dto.LibBookSeatActionRequest
+import cn.edu.ubaa.plus.model.dto.LibBookSeatActionResponse
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 
 interface LibBookApiBackend {
@@ -33,6 +36,14 @@ interface LibBookApiBackend {
   suspend fun getBookings(page: Int = 1, limit: Int = 20): Result<LibBookBookingsResponse>
 
   suspend fun cancelBooking(bookingId: String): Result<LibBookCancelResponse>
+
+  suspend fun qrScan(params: Map<String, String>): Result<LibBookQrScanResultDto>
+
+  suspend fun signIn(request: LibBookSeatActionRequest): Result<LibBookSeatActionResponse>
+
+  suspend fun leave(request: LibBookSeatActionRequest): Result<LibBookSeatActionResponse>
+
+  suspend fun checkout(request: LibBookSeatActionRequest): Result<LibBookSeatActionResponse>
 }
 
 open class LibBookApi(
@@ -71,4 +82,16 @@ open class LibBookApi(
 
   open suspend fun cancelBooking(bookingId: String): Result<LibBookCancelResponse> =
       currentBackend().cancelBooking(bookingId)
+
+  open suspend fun qrScan(params: Map<String, String>): Result<LibBookQrScanResultDto> =
+      currentBackend().qrScan(params)
+
+  open suspend fun signIn(request: LibBookSeatActionRequest): Result<LibBookSeatActionResponse> =
+      currentBackend().signIn(request)
+
+  open suspend fun leave(request: LibBookSeatActionRequest): Result<LibBookSeatActionResponse> =
+      currentBackend().leave(request)
+
+  open suspend fun checkout(request: LibBookSeatActionRequest): Result<LibBookSeatActionResponse> =
+      currentBackend().checkout(request)
 }

@@ -29,19 +29,19 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.YgdkOverviewResponse
 import cn.edu.ubaa.plus.model.dto.YgdkRecordDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
+import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 @Composable
 fun YgdkHomeScreen(
@@ -52,90 +52,90 @@ fun YgdkHomeScreen(
     onHomeReminderEnabledChange: (Boolean) -> Unit,
     onMessageConsumed: () -> Unit,
 ) {
-  val snackbarHostState = remember { SnackbarHostState() }
-
   LaunchedEffect(uiState.submitMessage) {
     val message = uiState.submitMessage ?: return@LaunchedEffect
-    snackbarHostState.showSnackbar(message)
+    UbaaToast.show(message)
     onMessageConsumed()
   }
+  UbaaToastEffect(uiState.loadError) {}
 
   Scaffold(
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-      snackbarHost = { SnackbarHost(snackbarHostState) },
       floatingActionButton = {
         FloatingActionButton(onClick = onAddClick) {
           Icon(Icons.Default.Add, contentDescription = "新增打卡")
         }
       },
   ) { padding ->
-    when {
-      uiState.isLoading && uiState.overview == null ->
-          Box(
-              modifier = Modifier.fillMaxSize().padding(padding),
-              contentAlignment = Alignment.Center,
-          ) {
-            CircularProgressIndicator()
-          }
-      uiState.loadError != null && uiState.records.isEmpty() ->
-          YgdkFullPageMessage(
-              message = uiState.loadError,
-              actionLabel = "重试",
-              onAction = onRefresh,
-              modifier = Modifier.fillMaxSize().padding(padding),
-          )
-      else ->
-          LazyColumn(
-              modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-              contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
-              verticalArrangement = Arrangement.spacedBy(12.dp),
-          ) {
-            item {
-              YgdkSummaryCard(
-                  summaryText = uiState.overview.summaryText(),
-                  secondaryText = uiState.overview.weeklySummaryText(),
-              )
+    UbaaPullToRefresh(
+        refreshing = uiState.isLoading,
+        onRefresh = onRefresh,
+        modifier = Modifier.padding(padding),
+    ) {
+      when {
+        uiState.isLoading && uiState.overview == null ->
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+              CircularProgressIndicator()
             }
-            item {
-              YgdkHomeReminderCard(
-                  enabled = uiState.homeReminderEnabled,
-                  onEnabledChange = onHomeReminderEnabledChange,
-              )
-            }
-            item {
-              Row(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.SpaceBetween,
-                  verticalAlignment = Alignment.CenterVertically,
-              ) {
-                Text(
-                    text = "打卡记录",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Button(onClick = onRefresh) { Text("刷新") }
-              }
-            }
-            if (uiState.records.isEmpty()) {
-              item { YgdkInlineMessage("暂时还没有打卡记录") }
-            } else {
-              items(uiState.records, key = { it.recordId }) { record ->
-                YgdkRecordCard(record = record)
-              }
-            }
-            if (uiState.hasMore) {
+        uiState.loadError != null && uiState.records.isEmpty() ->
+            YgdkFullPageMessage(
+                message = uiState.loadError,
+                actionLabel = "重试",
+                onAction = onRefresh,
+                modifier = Modifier.fillMaxSize(),
+            )
+        else ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
               item {
-                Button(
-                    onClick = onLoadMore,
-                    enabled = !uiState.isLoadingMore,
+                YgdkSummaryCard(
+                    summaryText = uiState.overview.summaryText(),
+                    secondaryText = uiState.overview.weeklySummaryText(),
+                )
+              }
+              item {
+                YgdkHomeReminderCard(
+                    enabled = uiState.homeReminderEnabled,
+                    onEnabledChange = onHomeReminderEnabledChange,
+                )
+              }
+              item {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                  Text(if (uiState.isLoadingMore) "加载中..." else "加载更多")
+                  Text(
+                      text = "打卡记录",
+                      style = MaterialTheme.typography.titleMedium,
+                      fontWeight = FontWeight.Bold,
+                  )
+                }
+              }
+              if (uiState.records.isEmpty()) {
+                item { YgdkInlineMessage("暂时还没有打卡记录") }
+              } else {
+                items(uiState.records, key = { it.recordId }) { record ->
+                  YgdkRecordCard(record = record)
+                }
+              }
+              if (uiState.hasMore) {
+                item {
+                  Button(
+                      onClick = onLoadMore,
+                      enabled = !uiState.isLoadingMore,
+                      modifier = Modifier.fillMaxWidth(),
+                  ) {
+                    Text(if (uiState.isLoadingMore) "加载中..." else "加载更多")
+                  }
                 }
               }
             }
-          }
+      }
     }
   }
 }
