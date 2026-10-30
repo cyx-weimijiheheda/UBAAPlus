@@ -45,6 +45,6 @@ private fun parseWeekBoundaryDate(raw: String?): LocalDate? {
   return runCatching { LocalDate(yearText.toInt(), monthText.toInt(), dayText.toInt()) }.getOrNull()
 }
 
-private fun LocalDate.toShortMonthDayLabel(): String = "${month.ordinal + 1}-${day}"
+private fun LocalDate.toShortMonthDayLabel(): String = "${month.ordinal + 1}月${day}日"
 
 private val FLEXIBLE_DATE_PATTERN = Regex("""(\d{4})\D+(\d{1,2})\D+(\d{1,2})""")

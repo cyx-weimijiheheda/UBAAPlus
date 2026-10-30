@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
 
 @Composable
 fun CgyyReserveFormScreen(
@@ -105,7 +106,7 @@ fun CgyyReserveFormScreen(
       CgyySectionCard(title = "已选时段") {
         Text(summary.siteLabel, fontWeight = FontWeight.Bold)
         Text(
-            "${summary.reservationDate} / ${summary.spaceName}",
+            "${formatUbaaDate(summary.reservationDate)} / ${summary.spaceName}",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(

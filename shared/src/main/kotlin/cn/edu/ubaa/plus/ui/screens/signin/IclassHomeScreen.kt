@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.IclassAttendanceRecordDto
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
@@ -194,7 +195,7 @@ fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode)
             groups.forEach { (date, records) ->
               item(key = "attendance-date-$date") {
                 Text(
-                    text = date,
+                    text = if (date == "未知日期") date else formatUbaaDate(date),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,

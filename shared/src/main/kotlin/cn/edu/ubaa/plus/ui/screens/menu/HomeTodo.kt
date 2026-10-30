@@ -9,6 +9,7 @@ import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.SpocSubmissionStatus
 import cn.edu.ubaa.plus.model.dto.Week
 import cn.edu.ubaa.plus.model.dto.YgdkOverviewResponse
+import cn.edu.ubaa.plus.model.format.formatUbaaCompactDateTime
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
@@ -114,9 +115,7 @@ internal fun parseHomeDateTime(value: String?, today: LocalDate? = null): LocalD
 }
 
 internal fun formatHomeDateTime(value: LocalDateTime?): String =
-    value?.let {
-      "${it.month.ordinal + 1}月${it.day}日 ${it.hour.toPaddedString()}:${it.minute.toPaddedString()}"
-    } ?: "时间待定"
+    value?.let { formatUbaaCompactDateTime(it) } ?: "时间待定"
 
 private fun buildBykcTodoItems(
     courses: List<BykcChosenCourseDto>,

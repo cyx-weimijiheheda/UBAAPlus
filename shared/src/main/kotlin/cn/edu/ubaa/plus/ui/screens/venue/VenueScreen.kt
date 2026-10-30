@@ -33,6 +33,9 @@ import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
 import cn.edu.ubaa.plus.api.venue.VenueSpaceSlot
 import cn.edu.ubaa.plus.api.venue.VenueTimeSlot
 import cn.edu.ubaa.plus.api.venue.venueOptionLabel
+import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.model.format.formatUbaaFlexibleRange
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import kotlinx.coroutines.delay
@@ -361,7 +364,7 @@ private fun VenueSiteDateCard(
           FilterChip(
               selected = selected,
               onClick = { onDateSelected(date) },
-              label = { Text(date.toString().substring(5)) },
+              label = { Text(formatUbaaCompactDate(date.toString())) },
           )
         }
       }
@@ -519,9 +522,11 @@ private fun VenueOrderRecordCard(record: VenueOrderRecord) {
       )
       Text(
           text =
-              record.reservationDateDetail?.ifBlank { null }
-                  ?: record.reservationDate?.ifBlank { null }
-                  ?: "时间未知",
+              formatUbaaFlexibleRange(
+                      record.reservationDateDetail?.ifBlank { null }
+                          ?: record.reservationDate?.ifBlank { null }
+                  )
+                  .ifBlank { "时间未知" },
           style = MaterialTheme.typography.bodyMedium,
       )
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -549,7 +554,7 @@ private fun VenueOrderRecordCard(record: VenueOrderRecord) {
           ?.takeIf { it.isNotBlank() }
           ?.let {
             Text(
-                text = "创建于 $it",
+                text = "创建于 ${formatUbaaDateTime(it)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

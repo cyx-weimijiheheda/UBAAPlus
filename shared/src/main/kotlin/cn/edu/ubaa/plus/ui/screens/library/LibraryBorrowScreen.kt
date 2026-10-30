@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.feature.LibraryLoanDto
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
@@ -165,11 +166,11 @@ private fun LibraryLoanCard(loan: LibraryLoanDto) {
         Text("索书号：${loan.callNo}", style = MaterialTheme.typography.bodySmall)
       }
       if (loan.loanDate.isNotBlank()) {
-        Text("借阅日期：${loan.loanDate}", style = MaterialTheme.typography.bodySmall)
+        Text("借阅日期：${formatUbaaDate(loan.loanDate)}", style = MaterialTheme.typography.bodySmall)
       }
       if (loan.dueDate.isNotBlank()) {
         Text(
-            text = "应还日期：${loan.dueDate}",
+            text = "应还日期：${formatUbaaDate(loan.dueDate)}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
         )

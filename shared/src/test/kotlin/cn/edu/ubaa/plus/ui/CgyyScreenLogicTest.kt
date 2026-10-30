@@ -38,7 +38,7 @@ class CgyyScreenLogicTest {
             reservationEndDate = "2026-04-01 15:35",
         )
 
-    assertEquals("2026-04-01 14:00 - 15:35", order.displayReservationDateText())
+    assertEquals("2026年4月1日 星期三 14:00-15:35", order.displayReservationDateText())
   }
 
   @Test

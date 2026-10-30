@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.YgdkOverviewResponse
 import cn.edu.ubaa.plus.model.dto.YgdkRecordDto
+import cn.edu.ubaa.plus.model.format.formatUbaaDateRange
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
@@ -219,7 +221,7 @@ private fun YgdkRecordCard(record: YgdkRecordDto) {
       Text(
           text =
               buildString {
-                append(record.createdAtLabel ?: "提交时间未知")
+                append(record.createdAtLabel?.let { formatUbaaDateTime(it) } ?: "提交时间未知")
                 if (record.images.isNotEmpty()) append(" · ${record.images.size} 张图片")
                 append(if (record.isOpen) " · 已分享" else " · 未分享")
               },
@@ -273,8 +275,8 @@ private fun YgdkRecordDto.displayTimeText(): String {
   val start = startTime
   val end = endTime
   return when {
-    !start.isNullOrBlank() && !end.isNullOrBlank() -> "$start - ${end.substringAfter(' ', end)}"
-    !start.isNullOrBlank() -> start
+    !start.isNullOrBlank() && !end.isNullOrBlank() -> formatUbaaDateRange(start, end)
+    !start.isNullOrBlank() -> formatUbaaDateTime(start)
     else -> "时间待定"
   }
 }

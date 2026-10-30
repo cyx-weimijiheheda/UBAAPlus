@@ -8,6 +8,7 @@ import cn.edu.ubaa.plus.api.local.LocalCookieStore
 import cn.edu.ubaa.plus.api.local.LocalLibBookApiBackend
 import cn.edu.ubaa.plus.api.local.LocalLibBookCrypto
 import cn.edu.ubaa.plus.api.local.LocalUpstreamClientProvider
+import cn.edu.ubaa.plus.model.dto.LibBookGeoPoint
 import cn.edu.ubaa.plus.model.dto.LibBookReserveRequest
 import cn.edu.ubaa.plus.model.dto.LibBookSeatActionRequest
 import cn.edu.ubaa.plus.model.dto.UserData
@@ -247,6 +248,7 @@ class LocalLibBookApiBackendTest {
   fun `libbook backend accepts cancel success code 287 and sends encrypted seat actions`() =
       runTest {
         val actionBodies = mutableListOf<String>()
+        var scanBody = ""
         val engine = MockEngine { request ->
           when (request.url.encodedPath) {
             "/login" ->
@@ -262,17 +264,19 @@ class LocalLibBookApiBackendTest {
             "/v4/login/user" ->
                 respondJson("""{"code":0,"data":{"member":{"token":"jwt-1","name":"测试用户"}}}""")
             "/v4/space/cancel" -> respondJson("""{"code":287,"message":"取消成功"}""")
-            "/v4/space/qr_scan" ->
-                respondJson(
-                    """
-                    {"code":0,"data":{
-                      "query":"q1","book_id":"b1","seat_id":"101",
-                      "no":"101","name":"一层","day":"2026-05-08",
-                      "begin_time":"08:00","end_time":"23:00",
-                      "status":"3","status_name":"使用中"}}
-                    """
-                        .trimIndent()
-                )
+            "/v4/space/qr_scan" -> {
+              scanBody = request.bodyText()
+              respondJson(
+                  """
+                  {"code":0,"data":{
+                    "query":"q1","book_id":"b1","seat_id":"101",
+                    "no":"101","name":"一层","day":"2026-05-08",
+                    "begin_time":"08:00","end_time":"23:00",
+                    "status":"3","status_name":"使用中"}}
+                  """
+                      .trimIndent()
+              )
+            }
             "/v4/space/signin",
             "/v4/space/leave",
             "/v4/space/checkout" -> {
@@ -291,12 +295,16 @@ class LocalLibBookApiBackendTest {
         installMockClient(engine)
         val backend = LocalLibBookApiBackend(todayProvider = { "2026-05-08" })
 
+        val point = LibBookGeoPoint(lat = 39.98, lng = 116.34, time = 1234567890L)
         val cancel = backend.cancelBooking("b1").getOrThrow()
-        val scan = backend.qrScan(mapOf("seat_id" to "101")).getOrThrow()
-        val request = LibBookSeatActionRequest(query = "q1", id = "b1", day = "2026-05-08")
-        val signIn = backend.signIn(request).getOrThrow()
-        val leave = backend.leave(request).getOrThrow()
-        val checkout = backend.checkout(request).getOrThrow()
+        val scan = backend.qrScan(mapOf("seat_id" to "101"), point).getOrThrow()
+        val signIn =
+            backend
+                .signIn(LibBookSeatActionRequest(id = "b1", query = "q1", points = point))
+                .getOrThrow()
+        val leave = backend.leave(LibBookSeatActionRequest(id = "b1", points = point)).getOrThrow()
+        val checkout =
+            backend.checkout(LibBookSeatActionRequest(id = "b1", points = point)).getOrThrow()
 
         assertTrue(cancel.success)
         assertEquals("取消成功", cancel.message)
@@ -308,9 +316,31 @@ class LocalLibBookApiBackendTest {
         assertEquals("临时离开成功", leave.message)
         assertEquals("已完全离开", checkout.message)
         assertEquals(3, actionBodies.size)
-        val expectedEncrypted =
-            LocalLibBookCrypto.encryptJson("""{"query":"q1","id":"b1"}""", "2026-05-08")
-        actionBodies.forEach { body -> assertContains(body, expectedEncrypted) }
+
+        val pointsJson = """{"lat":39.98,"lng":116.34,"time":1234567890}"""
+        assertContains(
+            scanBody,
+            LocalLibBookCrypto.encryptJson(
+                """{"seat_id":"101","points":$pointsJson}""",
+                "2026-05-08",
+            ),
+        )
+        assertContains(
+            actionBodies[0],
+            LocalLibBookCrypto.encryptJson(
+                """{"id":"b1","query":"q1","points":$pointsJson}""",
+                "2026-05-08",
+            ),
+        )
+        actionBodies.drop(1).forEach { body ->
+          assertContains(
+              body,
+              LocalLibBookCrypto.encryptJson(
+                  """{"id":"b1","points":$pointsJson}""",
+                  "2026-05-08",
+              ),
+          )
+        }
       }
 
   @Test

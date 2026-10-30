@@ -14,7 +14,7 @@ class CgyyOrderDateDisplayTest {
             reservationEndDate = "2026-04-01 15:35",
         )
 
-    assertEquals("2026-04-01 14:00-15:35", order.displayReservationDateText())
+    assertEquals("2026年4月1日 星期三 14:00-15:35", order.displayReservationDateText())
   }
 
   @Test
@@ -27,7 +27,7 @@ class CgyyOrderDateDisplayTest {
             venueSpaceName = "主206",
         )
 
-    assertEquals("2026-04-01 09:50-12:15,12:30-13:30", order.displayReservationDateText())
+    assertEquals("2026年4月1日 星期三 09:50-12:15,12:30-13:30", order.displayReservationDateText())
   }
 
   @Test
@@ -39,7 +39,7 @@ class CgyyOrderDateDisplayTest {
             reservationEndDate = "2026-04-01 15:35",
         )
 
-    assertEquals("2026-04-01 14:00 - 15:35", order.displayReservationDateText())
+    assertEquals("2026年4月1日 星期三 14:00-15:35", order.displayReservationDateText())
   }
 
   @Test
@@ -51,21 +51,21 @@ class CgyyOrderDateDisplayTest {
             reservationEndDate = "2026-04-02 00:30",
         )
 
-    assertEquals("2026-04-01 23:00 - 2026-04-02 00:30", order.displayReservationDateText())
+    assertEquals("2026年4月1日 星期三 23:00 - 2026年4月2日 星期四 00:30", order.displayReservationDateText())
   }
 
   @Test
   fun `single start date falls back to start datetime`() {
     val order = CgyyOrderDto(id = 1, reservationStartDate = "2026-04-01 14:00")
 
-    assertEquals("2026-04-01 14:00", order.displayReservationDateText())
+    assertEquals("2026年4月1日 星期三 14:00", order.displayReservationDateText())
   }
 
   @Test
   fun `plain reservation date is used when detailed fields are absent`() {
     val order = CgyyOrderDto(id = 1, reservationDate = "2026-04-01")
 
-    assertEquals("2026-04-01", order.displayReservationDateText())
+    assertEquals("2026年4月1日 星期三", order.displayReservationDateText())
   }
 
   @Test

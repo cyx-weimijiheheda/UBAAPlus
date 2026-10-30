@@ -9,6 +9,7 @@ import cn.edu.ubaa.plus.model.dto.LibBookAreaDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingsResponse
 import cn.edu.ubaa.plus.model.dto.LibBookCancelResponse
+import cn.edu.ubaa.plus.model.dto.LibBookGeoPoint
 import cn.edu.ubaa.plus.model.dto.LibBookLibraryDto
 import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
 import cn.edu.ubaa.plus.model.dto.LibBookReserveRequest
@@ -39,6 +40,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
@@ -49,6 +51,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 
 internal class LocalLibBookApiBackend(
     /** 座位动作的 AES key 取“当前日期”，与官方 H5 一致；测试可注入固定日期。 */
@@ -154,9 +157,12 @@ internal class LocalLibBookApiBackend(
         )
       }
 
-  override suspend fun qrScan(params: Map<String, String>): Result<LibBookQrScanResultDto> =
+  override suspend fun qrScan(
+      params: Map<String, String>,
+      points: LibBookGeoPoint?,
+  ): Result<LibBookQrScanResultDto> =
       execute("座位二维码识别失败，请稍后重试") { client ->
-        val raw = client.qrScan(params, todayProvider())
+        val raw = client.qrScan(params, points, todayProvider())
         val data = raw["data"]?.jsonObjectOrNull() ?: raw
         LibBookQrScanResultDto(
             query = data.string("query"),
@@ -330,11 +336,19 @@ private class LocalLibBookClient(
           )
           .raw
 
-  suspend fun qrScan(params: Map<String, String>, day: String): JsonObject =
+  suspend fun qrScan(
+      params: Map<String, String>,
+      points: LibBookGeoPoint?,
+      day: String,
+  ): JsonObject =
       requestJsonEncrypted(
               operation = "qr_scan",
               path = "space/qr_scan",
-              body = buildJsonObject { params.forEach { (key, value) -> put(key, value) } },
+              body =
+                  buildJsonObject {
+                    params.forEach { (key, value) -> put(key, value) }
+                    putLibBookPoints(points)
+                  },
               day = day,
           )
           .raw
@@ -349,12 +363,23 @@ private class LocalLibBookClient(
               path = "space/$action",
               body =
                   buildJsonObject {
-                    put("query", request.query)
                     put("id", request.id)
+                    if (request.query.isNotBlank()) put("query", request.query)
+                    putLibBookPoints(request.points)
                   },
               day = day,
           )
           .raw
+
+  private fun JsonObjectBuilder.putLibBookPoints(points: LibBookGeoPoint?) {
+    putJsonObject("points") {
+      points?.let {
+        put("lat", it.lat)
+        put("lng", it.lng)
+        put("time", it.time)
+      }
+    }
+  }
 
   private suspend fun requestJsonEncrypted(
       operation: String,
@@ -642,6 +667,11 @@ private fun mapBooking(element: JsonElement): LibBookBookingDto {
       seatId = raw.string("seat_id").ifBlank { raw.string("seatId") },
       areaId = raw.string("area_id").ifBlank { raw.string("areaId") },
       signStatus = raw.string("sign_status").ifBlank { raw.string("signStatus") },
+      type = raw.string("type"),
+      flagIn = raw.string("flag_in").ifBlank { raw.string("flagIn") },
+      flagOut = raw.string("flag_out").ifBlank { raw.string("flagOut") },
+      flagLeave = raw.string("flag_leave").ifBlank { raw.string("flagLeave") },
+      oksign = raw.string("oksign"),
       createTime =
           raw.string("create_time").ifBlank {
             raw.string("createTime").ifBlank { raw.string("created_at") }

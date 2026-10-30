@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentDetailDto
 import cn.edu.ubaa.plus.model.dto.JudgeProblemDto
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
@@ -125,8 +126,8 @@ internal fun JudgeAssignmentDetailDto.judgeDetailInfoSections(): List<JudgeDetai
             lines =
                 buildList {
                   add("状态：$submissionStatusText")
-                  add("开始时间：${startTime ?: "未知"}")
-                  add("截止时间：${dueTime ?: "未知"}")
+                  add("开始时间：${formatUbaaDateTime(startTime).ifBlank { "未知" }}")
+                  add("截止时间：${formatUbaaDateTime(dueTime).ifBlank { "未知" }}")
                   if (totalProblems > 0) {
                     add("进度：$submittedCount/$totalProblems")
                   }

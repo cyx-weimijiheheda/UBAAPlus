@@ -104,6 +104,13 @@ data class LibBookBookingDto(
     val seatId: String = "",
     val areaId: String = "",
     val signStatus: String = "",
+    /** 预约类型：1=图书馆座位，3/4=研修间。 */
+    val type: String = "",
+    /** 官方列表返回的操作标志，缺失时回退到 status 判断。 */
+    val flagIn: String = "",
+    val flagOut: String = "",
+    val flagLeave: String = "",
+    val oksign: String = "",
     /** 预约创建时间，用于计算 30 分钟签到截止；部分接口返回。 */
     val createTime: String = "",
 )
@@ -121,9 +128,15 @@ fun LibBookBookingDto.isInUseBooking(): Boolean =
         (status.trim() in inUseLibBookBookingStatusCodes ||
             listOf("使用中", "临时离开", "暂离", "已签到").any { statusName.contains(it) })
 
-fun LibBookBookingDto.canTemporaryLeave(): Boolean = isInUseBooking() && !isTerminalBooking()
+fun LibBookBookingDto.canSignIn(): Boolean =
+    !isTerminalBooking() && (flagIn == "1" || (flagIn.isBlank() && !isInUseBooking()))
 
-fun LibBookBookingDto.canCheckout(): Boolean = isInUseBooking() && !isTerminalBooking()
+fun LibBookBookingDto.canTemporaryLeave(): Boolean =
+    !isTerminalBooking() && (flagOut == "1" || (flagOut.isBlank() && isInUseBooking()))
+
+fun LibBookBookingDto.canCheckout(): Boolean =
+    !isTerminalBooking() &&
+        (flagLeave == "1" || flagOut == "1" || (flagLeave.isBlank() && isInUseBooking()))
 
 fun LibBookBookingDto.cancelBlockedMessage(): String? {
   if (id.isBlank()) return "预约记录不存在或已失效，请刷新后重试"
@@ -150,10 +163,18 @@ enum class LibBookSeatAction {
 }
 
 @Serializable
+data class LibBookGeoPoint(
+    val lat: Double,
+    val lng: Double,
+    val time: Long,
+)
+
+@Serializable
 data class LibBookSeatActionRequest(
-    val query: String,
     val id: String,
-    val day: String,
+    /** 仅扫码签到流程使用；列表发起的离开/签退不需要。 */
+    val query: String = "",
+    val points: LibBookGeoPoint? = null,
 )
 
 @Serializable

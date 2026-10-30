@@ -27,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -86,7 +88,7 @@ fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
                 )
                 parsedLockCode.dueDate?.let {
                   Text(
-                      text = "有效期至 $it",
+                      text = "有效期至 ${formatUbaaDateTime(it)}",
                       style = MaterialTheme.typography.bodySmall,
                       color = MaterialTheme.colorScheme.onPrimaryContainer,
                   )
@@ -135,10 +137,10 @@ fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
           CgyyInfoLine("场地", parsedLockCode.venueText)
           CgyyInfoLine("教室", parsedLockCode.spaceName)
           CgyyInfoLine("预约人", parsedLockCode.orderName)
-          CgyyInfoLine("预约日期", parsedLockCode.reservationDate)
+          CgyyInfoLine("预约日期", formatUbaaDate(parsedLockCode.reservationDate))
           CgyyInfoLine("时段", parsedLockCode.timeRangeText)
-          CgyyInfoLine("开始时间", parsedLockCode.reservationStartDate)
-          CgyyInfoLine("结束时间", parsedLockCode.reservationEndDate)
+          CgyyInfoLine("开始时间", formatUbaaDateTime(parsedLockCode.reservationStartDate))
+          CgyyInfoLine("结束时间", formatUbaaDateTime(parsedLockCode.reservationEndDate))
         }
       }
 

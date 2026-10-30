@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.DormMeterInfoDto
 import cn.edu.ubaa.plus.model.dto.DormTopUpDto
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
@@ -271,7 +272,7 @@ private fun DormMeterCard(info: DormMeterInfoDto, onContinuePay: () -> Unit) {
           fontWeight = FontWeight.Bold,
       )
       Text("电价：${formatNumber(info.price)} 元/度")
-      Text("抄表时间：${info.readingTime.ifBlank { "未知" }}")
+      Text("抄表时间：${formatUbaaDateTime(info.readingTime).ifBlank { "未知" }}")
       Text("加电状态：${payStatusText(info.payStatus)}")
       if (!info.payUrl.isNullOrBlank()) {
         Spacer(modifier = Modifier.height(4.dp))
@@ -364,7 +365,10 @@ private fun DormTopUpRow(topUp: DormTopUpDto) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
       Column(modifier = Modifier.weight(1f)) {
-        Text(topUp.date.ifBlank { "未知时间" }, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            formatUbaaDateTime(topUp.date).ifBlank { "未知时间" },
+            style = MaterialTheme.typography.bodyMedium,
+        )
         Text(
             text = "电量 ${topUp.power} 度 · ${topUp.operator}",
             style = MaterialTheme.typography.bodySmall,

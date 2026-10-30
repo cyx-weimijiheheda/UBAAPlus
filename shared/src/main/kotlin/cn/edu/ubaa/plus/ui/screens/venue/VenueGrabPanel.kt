@@ -39,6 +39,8 @@ import cn.edu.ubaa.plus.api.venue.VenueGrabPhase
 import cn.edu.ubaa.plus.api.venue.VenueGrabState
 import cn.edu.ubaa.plus.api.venue.VenueGrabStopReason
 import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.GrabConfirmDialog
 
 /** 运动场地抢单面板：定时、轮询间隔、开始/停止、日志与结果。 */
@@ -175,8 +177,12 @@ fun VenueGrabPanel(
                 color = MaterialTheme.colorScheme.primary,
             )
             order.tradeNo?.let { Text("订单号：$it", style = MaterialTheme.typography.bodySmall) }
-            order.startAt?.let { Text("开始：$it", style = MaterialTheme.typography.bodySmall) }
-            order.endAt?.let { Text("结束：$it", style = MaterialTheme.typography.bodySmall) }
+            order.startAt?.let {
+              Text("开始：${formatUbaaDateTime(it)}", style = MaterialTheme.typography.bodySmall)
+            }
+            order.endAt?.let {
+              Text("结束：${formatUbaaDateTime(it)}", style = MaterialTheme.typography.bodySmall)
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
               grabState.payUrl?.let { url -> Button(onClick = { onOpenUrl(url) }) { Text("去支付") } }
@@ -253,7 +259,7 @@ fun VenueGrabPanel(
 private fun venueTargetLines(state: VenueUiState, alreadyReleased: Boolean): List<String> =
     buildList {
       state.selectedSite?.let { add("场地：${it.displayName}") }
-      add("日期：${state.selectedDate}")
+      add("日期：${formatUbaaDate(state.selectedDate)}")
       state.selectedStartBegin?.let { add("时段：$it 起 ${state.durationHours} 小时") }
       add("场地模式：${if (state.spaceMode == VenueSpaceMode.FIXED) "指定场地" else "自动选场地"}")
       if (state.selectedBuddyIds.isNotEmpty()) {

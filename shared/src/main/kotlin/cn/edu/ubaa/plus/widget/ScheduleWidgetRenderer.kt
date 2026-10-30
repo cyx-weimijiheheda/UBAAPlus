@@ -12,6 +12,8 @@ import android.text.TextUtils
 import cn.edu.ubaa.plus.model.dto.Week
 import cn.edu.ubaa.plus.model.dto.WeeklySchedule
 import cn.edu.ubaa.plus.model.dto.scheduleSectionTimes
+import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
+import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
 import cn.edu.ubaa.plus.repository.SavedAgendaItem
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -52,7 +54,12 @@ internal fun renderScheduleWidget(
     val center = left + column * (index + 0.5f)
     text.textAlign = Paint.Align.CENTER
     canvas.drawText("周$day", center, 11f, text)
-    canvas.drawText(start.plus(index, DateTimeUnit.DAY).toString().substring(5), center, 25f, text)
+    canvas.drawText(
+        formatUbaaMonthDay(start.plus(index, DateTimeUnit.DAY).toString()),
+        center,
+        25f,
+        text,
+    )
   }
   paint.color = Color.rgb(214, 227, 255)
   for (i in 0..periods) canvas.drawLine(left, top + i * row, width.toFloat(), top + i * row, paint)
@@ -176,7 +183,7 @@ private fun renderCompactWeek(
   for (day in 1..7) {
     val classes =
         schedule?.arrangedList.orEmpty().filter { it.dayOfWeek == day }.sortedBy { it.beginTime }
-    val date = start.plus(day - 1, DateTimeUnit.DAY).toString().substring(5)
+    val date = formatUbaaMonthDay(start.plus(day - 1, DateTimeUnit.DAY).toString())
     val label =
         "周${"一二三四五六日"[day - 1]} $date · ${classes.size}门\n" +
             classes
@@ -216,7 +223,7 @@ internal fun renderAgendaWidget(items: List<SavedAgendaItem>, width: Int, height
     val course = item.course
     drawWidgetText(
         canvas,
-        "${item.date.toString().substring(5)} ${course.beginTime.orEmpty()}–${course.endTime.orEmpty()}\n${course.courseName}  ${course.placeName.orEmpty()}",
+        "${formatUbaaCompactDate(item.date.toString())} ${course.beginTime.orEmpty()}–${course.endTime.orEmpty()}\n${course.courseName}  ${course.placeName.orEmpty()}",
         4f,
         (index * 44).toFloat(),
         width - 8,

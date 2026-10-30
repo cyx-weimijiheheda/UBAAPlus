@@ -9,6 +9,9 @@ import cn.edu.ubaa.plus.model.dto.LibBookCancelResponse
 import cn.edu.ubaa.plus.model.dto.LibBookLibraryDto
 import cn.edu.ubaa.plus.model.dto.LibBookReserveRequest
 import cn.edu.ubaa.plus.model.dto.LibBookReserveResponse
+import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
+import cn.edu.ubaa.plus.model.dto.LibBookSeatActionRequest
+import cn.edu.ubaa.plus.model.dto.LibBookSeatActionResponse
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.LibBookStoreyDto
 import cn.edu.ubaa.plus.model.dto.LibBookTimeSlotDto
@@ -114,6 +117,28 @@ class LibBookViewModelTest {
     assertEquals("该预约已结束或已取消，无需取消", viewModel.uiState.value.actionMessage)
   }
 
+  @Test
+  fun `leave submits booking id without query`() = runTest {
+    setMainDispatcher(testScheduler)
+    val api = FakeLibBookApi()
+    val viewModel = LibBookViewModel(api, currentDateProvider = { "2026-05-08" })
+
+    viewModel.loadBookings()
+    advanceUntilIdle()
+    val booking = viewModel.uiState.value.bookings.bookings.first()
+    viewModel.requestSeatActionForBooking(booking, LibBookSeatAction.LEAVE)
+    assertEquals(LibBookSeatAction.LEAVE, viewModel.uiState.value.pendingSeatAction)
+
+    viewModel.submitSeatAction(LibBookSeatAction.LEAVE)
+    advanceUntilIdle()
+
+    assertEquals(1, api.actionRequests.size)
+    assertEquals("b1", api.actionRequests.single().id)
+    assertEquals("", api.actionRequests.single().query)
+    assertEquals(null, viewModel.uiState.value.pendingSeatAction)
+    assertEquals("临时离开成功", viewModel.uiState.value.actionMessage)
+  }
+
   private fun setMainDispatcher(scheduler: TestCoroutineScheduler) {
     Dispatchers.setMain(StandardTestDispatcher(scheduler))
   }
@@ -129,6 +154,7 @@ private class FakeLibBookApi(
   var reserveCalls = 0
   var bookingsCalls = 0
   var cancelCalls = 0
+  val actionRequests = mutableListOf<LibBookSeatActionRequest>()
 
   override suspend fun getLibraries(day: String): Result<List<LibBookLibraryDto>> {
     librariesCalls++
@@ -209,5 +235,24 @@ private class FakeLibBookApi(
   override suspend fun cancelBooking(bookingId: String): Result<LibBookCancelResponse> {
     cancelCalls++
     return Result.success(LibBookCancelResponse(success = true, message = "取消成功"))
+  }
+
+  override suspend fun signIn(
+      request: LibBookSeatActionRequest
+  ): Result<LibBookSeatActionResponse> {
+    actionRequests += request
+    return Result.success(LibBookSeatActionResponse(success = true, message = "签到成功"))
+  }
+
+  override suspend fun leave(request: LibBookSeatActionRequest): Result<LibBookSeatActionResponse> {
+    actionRequests += request
+    return Result.success(LibBookSeatActionResponse(success = true, message = "临时离开成功"))
+  }
+
+  override suspend fun checkout(
+      request: LibBookSeatActionRequest
+  ): Result<LibBookSeatActionResponse> {
+    actionRequests += request
+    return Result.success(LibBookSeatActionResponse(success = true, message = "已完全离开"))
   }
 }

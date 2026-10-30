@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.TodayClass
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.screens.grade.GradeScoreUpdateNotice
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -101,7 +102,7 @@ internal fun HomeScreen(
           }
           Spacer(modifier = Modifier.height(4.dp))
           Text(
-              text = "${today.month.ordinal + 1}月${today.day}日",
+              text = formatUbaaDate(today),
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )

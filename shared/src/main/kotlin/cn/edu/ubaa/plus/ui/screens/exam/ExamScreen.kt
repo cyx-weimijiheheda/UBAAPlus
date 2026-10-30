@@ -20,7 +20,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.Exam
+import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.collections.get
@@ -201,21 +203,13 @@ fun ExamTimelineItem(
     // 左侧：日期与时间线
     Column(modifier = Modifier.width(60.dp), horizontalAlignment = Alignment.CenterHorizontally) {
       if (dateString != null && dateString != "待定") {
-        // 解析日期为月-日
-        val shortDate =
-            try {
-              val parts = dateString.split("-")
-              if (parts.size >= 3) "${parts[1]}-${parts[2]}" else dateString
-            } catch (e: Exception) {
-              dateString
-            }
-
         Text(
-            text = shortDate,
-            style = MaterialTheme.typography.labelMedium,
+            text = formatUbaaCompactDate(dateString),
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = timelineColor,
             textAlign = TextAlign.Center,
+            lineHeight = 12.sp,
         )
       }
 

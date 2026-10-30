@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.shared.R
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
@@ -306,7 +307,11 @@ private fun ReserveSummary(uiState: LibBookUiState) {
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
       Text("预约信息", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-      Text("日期：${uiState.selectedDay.ifBlank { "-" }}")
+      Text(
+          "日期：${
+            formatUbaaDate(uiState.selectedDay).ifBlank { "-" }
+          }"
+      )
       Text("分区：${uiState.selectedArea?.name ?: "-"}")
       Text("座位：${uiState.selectedSeat?.no ?: uiState.selectedSeat?.name ?: "-"}")
     }

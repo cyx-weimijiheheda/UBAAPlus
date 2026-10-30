@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.model.dto.*
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
@@ -231,7 +232,9 @@ fun ScheduleScreen(
             }
       }
       Text(
-          text = updatedAt?.let { "已本地化 · 更新于 $it" } ?: "在线课表，点击“课表本地化”可保存整个学期供离线查看",
+          text =
+              updatedAt?.let { "已本地化 · 更新于 ${formatUbaaDateTime(it)}" }
+                  ?: "在线课表，点击“课表本地化”可保存整个学期供离线查看",
           style = MaterialTheme.typography.labelSmall,
           modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
       )

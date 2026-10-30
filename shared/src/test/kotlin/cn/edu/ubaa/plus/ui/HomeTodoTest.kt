@@ -273,7 +273,7 @@ class HomeTodoTest {
     assertEquals("本周阳光打卡未达标", item.title)
     assertEquals("本周已打卡 3 / 4 次", item.subtitle)
     assertEquals("待打卡", item.statusLabel)
-    assertEquals("截止 3月29日 23:59", item.timeLabel)
+    assertEquals("截止 3月29日 周日 23:59", item.timeLabel)
     assertEquals(LocalDateTime.parse("2026-03-29T23:59:59"), item.sortTime)
     assertIs<HomeTodoAction.OpenYgdkHome>(item.action)
   }

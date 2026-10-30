@@ -15,7 +15,7 @@ class BykcTimeFormattersTest {
   @Test
   fun `formatDateTimeDisplay trims seconds`() {
     assertEquals(
-        "2025-03-15 星期六 14:00",
+        "2025年3月15日 星期六 14:00",
         formatDateTimeDisplay(LocalDateTime.parse("2025-03-15T14:00:00")),
     )
   }
@@ -23,7 +23,7 @@ class BykcTimeFormattersTest {
   @Test
   fun `formatDateRange keeps same-day end time compact`() {
     assertEquals(
-        "2025-03-15 星期六 14:00 - 16:30",
+        "2025年3月15日 星期六 14:00-16:30",
         formatDateRange(
             LocalDateTime.parse("2025-03-15T14:00:00"),
             LocalDateTime.parse("2025-03-15T16:30:00"),
@@ -34,7 +34,7 @@ class BykcTimeFormattersTest {
   @Test
   fun `formatDateRange shows full cross-day timestamps`() {
     assertEquals(
-        "2025-03-15 星期六 23:30 - 2025-03-16 星期日 08:15",
+        "2025年3月15日 星期六 23:30 - 2025年3月16日 星期日 08:15",
         formatDateRange(
             LocalDateTime.parse("2025-03-15T23:30:00"),
             LocalDateTime.parse("2025-03-16T08:15:00"),
@@ -45,7 +45,7 @@ class BykcTimeFormattersTest {
   @Test
   fun `formatDateRangeOrStart falls back to start time when end is missing`() {
     assertEquals(
-        "2025-03-15 星期六 14:00",
+        "2025年3月15日 星期六 14:00",
         formatDateRangeOrStart(LocalDateTime.parse("2025-03-15T14:00:00"), null),
     )
   }
@@ -60,7 +60,7 @@ class BykcTimeFormattersTest {
         )
 
     assertEquals("开始选课", display?.label)
-    assertEquals("2025-03-16 星期日 08:00", display?.value)
+    assertEquals("2025年3月16日 星期日 08:00", display?.value)
   }
 
   @Test
@@ -73,7 +73,7 @@ class BykcTimeFormattersTest {
         )
 
     assertEquals("截止选课", display?.label)
-    assertEquals("2025-03-16 星期日 18:00", display?.value)
+    assertEquals("2025年3月16日 星期日 18:00", display?.value)
   }
 
   @Test
@@ -86,7 +86,7 @@ class BykcTimeFormattersTest {
         )
 
     assertEquals("截止选课", display?.label)
-    assertEquals("2025-03-16 星期日 18:00", display?.value)
+    assertEquals("2025年3月16日 星期日 18:00", display?.value)
   }
 
   @Test

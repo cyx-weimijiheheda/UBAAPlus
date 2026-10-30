@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
@@ -113,10 +114,12 @@ fun SpocAssignmentDetailScreen(
                   lines =
                       buildList {
                         add("状态：${detail.submissionStatusText}")
-                        add("开始时间：${detail.startTime ?: "未知"}")
-                        add("截止时间：${detail.dueTime ?: "未知"}")
+                        add("开始时间：${formatUbaaDateTime(detail.startTime).ifBlank { "未知" }}")
+                        add("截止时间：${formatUbaaDateTime(detail.dueTime).ifBlank { "未知" }}")
                         detail.score?.takeIf { it.isNotBlank() }?.let { add("分值：$it") }
-                        detail.submittedAt?.takeIf { it.isNotBlank() }?.let { add("提交时间：$it") }
+                        detail.submittedAt
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { add("提交时间：${formatUbaaDateTime(it)}") }
                       },
               )
 

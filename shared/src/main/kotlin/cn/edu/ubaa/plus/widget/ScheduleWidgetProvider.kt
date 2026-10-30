@@ -9,6 +9,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
+import cn.edu.ubaa.plus.model.format.formatUbaaCompactDateTime
+import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.repository.selectSavedScheduleWeek
 import cn.edu.ubaa.plus.shared.R
@@ -186,11 +189,14 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
         if (agendaDays == 0 && width < 220) views.setViewVisibility(R.id.widget_current, View.GONE)
         views.setTextViewText(
             R.id.widget_title,
-            if (agendaDays == 1) "今日课程 · ${today.toString().substring(5)}"
+            if (agendaDays == 1) "今日课程 · ${formatUbaaCompactDate(today.toString())}"
             else if (agendaDays == 3) "近日课程 · 今天起三天"
-            else "${week.name} · ${week.startDate.substring(5)}",
+            else "${week.name} · ${formatUbaaMonthDay(week.startDate)}",
         )
-        views.setTextViewText(R.id.widget_footer, "本地课表 · 更新于 ${selected.semester.updatedAt}")
+        views.setTextViewText(
+            R.id.widget_footer,
+            "本地课表 · 更新于 ${formatUbaaCompactDateTime(selected.semester.updatedAt)}",
+        )
         views.setViewVisibility(R.id.widget_message, View.GONE)
         views.setViewVisibility(R.id.widget_grid, View.VISIBLE)
         views.setImageViewBitmap(

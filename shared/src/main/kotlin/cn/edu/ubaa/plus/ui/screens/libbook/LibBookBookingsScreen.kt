@@ -1,6 +1,8 @@
 package cn.edu.ubaa.plus.ui.screens.libbook
 
+import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,27 +39,36 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.api.platform.currentLocationPoint
+import cn.edu.ubaa.plus.api.platform.hasLocationPermission
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
+import cn.edu.ubaa.plus.model.dto.LibBookGeoPoint
 import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
 import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.canCancelBooking
 import cn.edu.ubaa.plus.model.dto.canCheckout
+import cn.edu.ubaa.plus.model.dto.canSignIn
 import cn.edu.ubaa.plus.model.dto.canTemporaryLeave
 import cn.edu.ubaa.plus.model.dto.isInUseBooking
 import cn.edu.ubaa.plus.model.dto.isTerminalBooking
+import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -66,10 +77,16 @@ import kotlinx.datetime.toLocalDateTime
 @Composable
 fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
   val uiState by viewModel.uiState.collectAsState()
+  val context = LocalContext.current
+  val coroutineScope = rememberCoroutineScope()
   var selectedTab by remember { mutableIntStateOf(0) }
   var showRules by remember { mutableStateOf(false) }
   var pendingCancel by remember { mutableStateOf<LibBookBookingDto?>(null) }
   var now by remember { mutableStateOf(currentLibBookNow()) }
+  var pendingScanPoint by remember { mutableStateOf<LibBookGeoPoint?>(null) }
+  var actionAwaitingLocation by remember { mutableStateOf<LibBookSeatAction?>(null) }
+  var scanAwaitingLocation by remember { mutableStateOf(false) }
+  var isLocating by remember { mutableStateOf(false) }
   val scanOptions = remember {
     ScanOptions()
         .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
@@ -79,8 +96,74 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
   }
   val scanLauncher =
       rememberLauncherForActivityResult(ScanContract()) { result ->
-        result.contents?.takeIf { it.isNotBlank() }?.let(viewModel::handleSeatQrScan)
+        result.contents
+            ?.takeIf { it.isNotBlank() }
+            ?.let { raw -> viewModel.handleSeatQrScan(raw, pendingScanPoint) }
       }
+
+  fun fetchLocationThen(onPoint: (LibBookGeoPoint?) -> Unit) {
+    if (isLocating) return
+    coroutineScope.launch {
+      isLocating = true
+      val point = currentLocationPoint(context)
+      isLocating = false
+      if (point == null) UbaaToast.show("未获取到定位，操作可能被平台拒绝")
+      onPoint(point)
+    }
+  }
+
+  val locationPermissionLauncher =
+      rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+          grants ->
+        val action = actionAwaitingLocation
+        val wantsScan = scanAwaitingLocation
+        actionAwaitingLocation = null
+        scanAwaitingLocation = false
+        val granted = grants.values.any { it } || hasLocationPermission(context)
+        when {
+          action != null ->
+              if (granted) {
+                fetchLocationThen { point -> viewModel.submitSeatAction(action, point) }
+              } else {
+                UbaaToast.show("未授予定位权限，操作可能被平台拒绝")
+                viewModel.submitSeatAction(action, null)
+              }
+          wantsScan ->
+              if (granted) {
+                fetchLocationThen { point ->
+                  pendingScanPoint = point
+                  scanLauncher.launch(scanOptions)
+                }
+              } else {
+                pendingScanPoint = null
+                scanLauncher.launch(scanOptions)
+              }
+        }
+      }
+
+  fun submitWithLocation(action: LibBookSeatAction) {
+    if (isLocating) return
+    if (hasLocationPermission(context)) {
+      fetchLocationThen { point -> viewModel.submitSeatAction(action, point) }
+    } else {
+      actionAwaitingLocation = action
+      locationPermissionLauncher.launch(LIB_BOOK_LOCATION_PERMISSIONS)
+    }
+  }
+
+  fun launchScan() {
+    if (isLocating) return
+    pendingScanPoint = null
+    if (hasLocationPermission(context)) {
+      fetchLocationThen { point ->
+        pendingScanPoint = point
+        scanLauncher.launch(scanOptions)
+      }
+    } else {
+      scanAwaitingLocation = true
+      locationPermissionLauncher.launch(LIB_BOOK_LOCATION_PERMISSIONS)
+    }
+  }
 
   LaunchedEffect(Unit) { viewModel.ensureBookingsLoaded() }
   LaunchedEffect(Unit) {
@@ -128,10 +211,7 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
               )
               Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = { showRules = true }) { Text("座位规则") }
-                AssistChip(
-                    onClick = { scanLauncher.launch(scanOptions) },
-                    label = { Text("扫码操作") },
-                )
+                AssistChip(onClick = { launchScan() }, label = { Text("扫码操作") })
               }
             }
           }
@@ -171,16 +251,14 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
                   isCanceling = uiState.cancelingBookingId == booking.id,
                   now = now,
                   onCancel = { pendingCancel = booking },
-                  onSignIn = {
-                    viewModel.requestSeatActionForBooking(booking, LibBookSeatAction.SIGN_IN)
-                  },
+                  onSignIn = { launchScan() },
                   onTemporaryLeave = {
                     viewModel.requestSeatActionForBooking(booking, LibBookSeatAction.LEAVE)
                   },
                   onCheckout = {
                     viewModel.requestSeatActionForBooking(booking, LibBookSeatAction.CHECKOUT)
                   },
-                  onScan = { scanLauncher.launch(scanOptions) },
+                  onScan = { launchScan() },
               )
             }
           }
@@ -234,12 +312,18 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
           onDismissRequest = viewModel::dismissSeatAction,
           title = { Text(if (checkout) "完全离开" else "临时离开") },
           text = {
-            Text(if (checkout) "确认结束使用并释放座位？释放后需要重新预约。" else "确认临时离开？离馆时间过长会由系统自动签退并释放座位。")
+            Text(
+                if (checkout) {
+                  "确认结束使用并释放座位？释放后需要重新预约。将获取并提交当前位置用于平台校验。"
+                } else {
+                  "确认临时离开？离馆时间过长会由系统自动签退并释放座位。将获取并提交当前位置用于平台校验。"
+                }
+            )
           },
           confirmButton = {
             TextButton(
-                onClick = viewModel::confirmSeatAction,
-                enabled = !uiState.isSeatActionSubmitting,
+                onClick = { submitWithLocation(pending) },
+                enabled = !uiState.isSeatActionSubmitting && !isLocating,
             ) {
               Text(if (checkout) "确认离开" else "确认暂离")
             }
@@ -249,8 +333,14 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
     } else {
       SeatActionDialog(
           context = context,
-          submitting = uiState.isSeatActionSubmitting,
-          onAction = viewModel::requestSeatAction,
+          submitting = uiState.isSeatActionSubmitting || isLocating,
+          onAction = { action ->
+            if (action == LibBookSeatAction.SIGN_IN) {
+              submitWithLocation(action)
+            } else {
+              viewModel.requestSeatAction(action)
+            }
+          },
           onDismiss = viewModel::dismissSeatAction,
       )
     }
@@ -277,7 +367,13 @@ private fun SeatActionDialog(
               fontWeight = FontWeight.Bold,
           )
           if (context.beginTime.isNotBlank() || context.endTime.isNotBlank()) {
-            Text("${context.day} ${context.beginTime}-${context.endTime}")
+            Text(
+                formatUbaaDateWithTimeRange(
+                    context.day,
+                    context.beginTime,
+                    context.endTime,
+                )
+            )
           }
           Text(
               "状态：${context.statusName.ifBlank { context.status.ifBlank { "未知" } }}",
@@ -357,14 +453,12 @@ private fun LibBookBookingCard(
       }
       Text(
           text =
-              listOf(
+              formatUbaaDateWithTimeRange(
                       booking.day,
-                      listOf(booking.beginTime, booking.endTime)
-                          .filter { it.isNotBlank() }
-                          .joinToString("~"),
+                      booking.beginTime,
+                      booking.endTime,
                   )
-                  .filter { it.isNotBlank() }
-                  .joinToString(" "),
+                  .ifBlank { "时间未知" },
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
       if (booking.seatNo.isNotBlank()) {
@@ -397,17 +491,17 @@ private fun LibBookBookingCard(
                 label = { Text(if (isCanceling) "取消中..." else "取消预约") },
             )
           }
-          if (booking.isInUseBooking()) {
-            if (booking.canTemporaryLeave()) {
-              AssistChip(onClick = onTemporaryLeave, label = { Text("临时离开") })
-            }
-            if (booking.canCheckout()) {
-              AssistChip(onClick = onCheckout, label = { Text("完全离开") })
-            }
-          } else {
-            AssistChip(onClick = onSignIn, label = { Text("签到") })
+          if (booking.canTemporaryLeave()) {
+            AssistChip(onClick = onTemporaryLeave, label = { Text("临时离开") })
           }
-          AssistChip(onClick = onScan, label = { Text("扫码操作") })
+          if (booking.canCheckout()) {
+            AssistChip(onClick = onCheckout, label = { Text("完全离开") })
+          }
+          if (booking.canSignIn()) {
+            AssistChip(onClick = onSignIn, label = { Text("扫码签到") })
+          } else {
+            AssistChip(onClick = onScan, label = { Text("扫码操作") })
+          }
         }
       }
     }
@@ -417,3 +511,9 @@ private fun LibBookBookingCard(
 @OptIn(ExperimentalTime::class)
 private fun currentLibBookNow(): LocalDateTime =
     Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+
+private val LIB_BOOK_LOCATION_PERMISSIONS =
+    arrayOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+    )

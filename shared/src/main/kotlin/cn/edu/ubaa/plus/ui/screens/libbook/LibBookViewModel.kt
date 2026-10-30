@@ -7,6 +7,7 @@ import cn.edu.ubaa.plus.model.dto.LibBookAreaDetailDto
 import cn.edu.ubaa.plus.model.dto.LibBookAreaDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingsResponse
+import cn.edu.ubaa.plus.model.dto.LibBookGeoPoint
 import cn.edu.ubaa.plus.model.dto.LibBookLibraryDto
 import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
 import cn.edu.ubaa.plus.model.dto.LibBookReserveRequest
@@ -294,8 +295,8 @@ class LibBookViewModel(
     }
   }
 
-  /** 扫描座位二维码后识别座位与可用操作。 */
-  fun handleSeatQrScan(rawContent: String) {
+  /** 扫描座位二维码后识别座位与可用操作。签到必须走这条路径。 */
+  fun handleSeatQrScan(rawContent: String, points: LibBookGeoPoint? = null) {
     val params = parseLibBookQrParams(rawContent)
     if (params.isEmpty()) {
       setActionMessage("无法识别座位二维码")
@@ -309,7 +310,7 @@ class LibBookViewModel(
         )
     viewModelScope.launch {
       libBookApi
-          .qrScan(params)
+          .qrScan(params, points)
           .onSuccess { context ->
             _uiState.value =
                 _uiState.value.copy(
@@ -327,10 +328,10 @@ class LibBookViewModel(
     }
   }
 
-  /** 从预约列表直接发起操作；没有 query 时提示改用扫码。 */
+  /** 从预约列表发起临时离开/完全离开；签到请使用扫码入口。 */
   fun requestSeatActionForBooking(booking: LibBookBookingDto, action: LibBookSeatAction) {
-    if (booking.query.isBlank()) {
-      setActionMessage("请扫描桌面二维码后操作")
+    if (booking.id.isBlank()) {
+      setActionMessage("预约记录不存在或已失效，请刷新后重试")
       return
     }
     _uiState.value =
@@ -354,8 +355,8 @@ class LibBookViewModel(
 
   fun requestSeatAction(action: LibBookSeatAction) {
     val context = _uiState.value.seatActionContext ?: return
-    if (context.query.isBlank() && context.bookId.isBlank() && context.seatId.isBlank()) {
-      setActionMessage("请重新扫描座位二维码")
+    if (context.bookId.isBlank() && context.seatId.isBlank()) {
+      setActionMessage("未识别到预约信息，请重新扫码")
       return
     }
     _uiState.value = _uiState.value.copy(pendingSeatAction = action)
@@ -365,16 +366,21 @@ class LibBookViewModel(
     _uiState.value = _uiState.value.copy(pendingSeatAction = null, seatActionContext = null)
   }
 
-  fun confirmSeatAction() {
+  /** 提交座位操作。临时离开/完全离开会带上平台要求的定位 points。 */
+  fun submitSeatAction(action: LibBookSeatAction, points: LibBookGeoPoint? = null) {
     val state = _uiState.value
-    val action = state.pendingSeatAction ?: return
     val context = state.seatActionContext ?: return
     if (state.isSeatActionSubmitting) return
+    val id = context.bookId.ifBlank { context.seatId }
+    if (id.isBlank()) {
+      setActionMessage("未识别到预约信息，请重新扫码")
+      return
+    }
     val request =
         LibBookSeatActionRequest(
+            id = id,
             query = context.query,
-            id = context.bookId.ifBlank { context.seatId },
-            day = context.day.ifBlank { currentDateProvider() },
+            points = points,
         )
     _uiState.value = state.copy(isSeatActionSubmitting = true, actionMessage = null)
     viewModelScope.launch {
@@ -399,6 +405,8 @@ class LibBookViewModel(
             _uiState.value =
                 _uiState.value.copy(
                     isSeatActionSubmitting = false,
+                    pendingSeatAction = null,
+                    seatActionContext = null,
                     actionMessage = it.message ?: "座位操作失败",
                 )
           }

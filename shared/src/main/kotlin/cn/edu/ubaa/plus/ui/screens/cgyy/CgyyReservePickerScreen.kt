@@ -56,10 +56,10 @@ import cn.edu.ubaa.plus.model.dto.CgyyReservationSelectionDto
 import cn.edu.ubaa.plus.model.dto.CgyySpaceAvailabilityDto
 import cn.edu.ubaa.plus.model.dto.CgyyTimeSlotDto
 import cn.edu.ubaa.plus.model.dto.CgyyVenueSiteDto
+import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
+import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import kotlin.time.Clock
-import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -429,21 +429,7 @@ private fun campusSortKey(name: String): Int =
       else -> 99
     }
 
-private fun formatCompactDateLabel(date: String): String =
-    if (date.length >= 10) "${date.takeLast(5)} ${dateWeekdaySuffix(date)}" else date
-
-private fun dateWeekdaySuffix(date: String): String {
-  val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return ""
-  val weekday =
-      when (parsedDate.dayOfWeek) {
-        DayOfWeek.MONDAY -> "周一"
-        DayOfWeek.TUESDAY -> "周二"
-        DayOfWeek.WEDNESDAY -> "周三"
-        DayOfWeek.THURSDAY -> "周四"
-        DayOfWeek.FRIDAY -> "周五"
-        DayOfWeek.SATURDAY -> "周六"
-        DayOfWeek.SUNDAY -> "周日"
-      }
+private fun formatCompactDateLabel(date: String): String {
   val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
-  return if (date == today) "今天" else weekday
+  return if (date == today) "${formatUbaaMonthDay(date)} 今天" else formatUbaaCompactDate(date)
 }

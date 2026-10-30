@@ -397,7 +397,10 @@ private class FakeLibBookApiBackend : LibBookApiBackend {
 
   override suspend fun cancelBooking(bookingId: String) = error("unused")
 
-  override suspend fun qrScan(params: Map<String, String>) = error("unused")
+  override suspend fun qrScan(
+      params: Map<String, String>,
+      points: cn.edu.ubaa.plus.model.dto.LibBookGeoPoint?,
+  ) = error("unused")
 
   override suspend fun signIn(request: cn.edu.ubaa.plus.model.dto.LibBookSeatActionRequest) =
       error("unused")

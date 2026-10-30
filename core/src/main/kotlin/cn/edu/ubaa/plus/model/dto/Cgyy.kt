@@ -1,5 +1,6 @@
 package cn.edu.ubaa.plus.model.dto
 
+import cn.edu.ubaa.plus.model.format.formatUbaaFlexibleRange
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
@@ -187,36 +188,37 @@ private fun checkStatusDetailText(checkStatus: Int?): String? =
 
 fun CgyyOrderDto.displayReservationDateText(): String {
   val dateOnly = reservationDate.normalizedText()
-  reservationDateDetail?.normalizedText()?.let { detail ->
-    if (detail.containsExplicitDate()) return detail
-    val trimmedDetail = detail.withoutLeadingSpaceLabel(venueSpaceName, siteName)
-    if (dateOnly != null && trimmedDetail.isNotBlank()) {
-      return "$dateOnly $trimmedDetail"
-    }
-    if (dateOnly != null) return dateOnly
-    return detail
-  }
-
-  val startDateTime = reservationStartDate.normalizedText()
-  val endDateTime = reservationEndDate.normalizedText()
-  if (startDateTime != null && endDateTime != null) {
-    val startDate = startDateTime.substringBefore(" ")
-    val startTime = startDateTime.substringAfter(" ", missingDelimiterValue = "")
-    val endDate = endDateTime.substringBefore(" ")
-    val endTime = endDateTime.substringAfter(" ", missingDelimiterValue = "")
-    if (startDate == endDate && startTime.isNotBlank() && endTime.isNotBlank()) {
-      return "$startDate $startTime - $endTime"
-    }
-    return "$startDateTime - $endDateTime"
-  }
-
-  startDateTime?.let {
-    return it
-  }
-  dateOnly?.let {
-    return it
-  }
-  return "日期待定"
+  val raw =
+      reservationDateDetail?.normalizedText()?.let { detail ->
+        if (detail.containsExplicitDate()) {
+          detail
+        } else {
+          val trimmedDetail = detail.withoutLeadingSpaceLabel(venueSpaceName, siteName)
+          when {
+            dateOnly != null && trimmedDetail.isNotBlank() -> "$dateOnly $trimmedDetail"
+            dateOnly != null -> dateOnly
+            else -> detail
+          }
+        }
+      }
+          ?: run {
+            val startDateTime = reservationStartDate.normalizedText()
+            val endDateTime = reservationEndDate.normalizedText()
+            if (startDateTime != null && endDateTime != null) {
+              val startDate = startDateTime.substringBefore(" ")
+              val startTime = startDateTime.substringAfter(" ", missingDelimiterValue = "")
+              val endDate = endDateTime.substringBefore(" ")
+              val endTime = endDateTime.substringAfter(" ", missingDelimiterValue = "")
+              if (startDate == endDate && startTime.isNotBlank() && endTime.isNotBlank()) {
+                "$startDate $startTime - $endTime"
+              } else {
+                "$startDateTime - $endDateTime"
+              }
+            } else {
+              startDateTime ?: dateOnly ?: "日期待定"
+            }
+          }
+  return formatUbaaFlexibleRange(raw)
 }
 
 fun CgyyOrderDto.displayStatus(): CgyyOrderDisplayStatus {

@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.AppForegroundMonitor
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import kotlinx.coroutines.delay
 
 /**
@@ -77,7 +78,7 @@ fun VenueMembershipCodeDialog(viewModel: VenueViewModel, onDismiss: () -> Unit) 
               ?.takeIf { it.isNotBlank() }
               ?.let {
                 Text(
-                    text = "有效期至：$it",
+                    text = "有效期至：${formatUbaaDateTime(it)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

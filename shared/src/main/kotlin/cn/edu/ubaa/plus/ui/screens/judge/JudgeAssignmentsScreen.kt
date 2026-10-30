@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** 希冀作业列表页。 */
@@ -244,8 +245,8 @@ internal fun JudgeAssignmentSummaryDto.shouldShowJudgeSummaryStatus(): Boolean =
     submissionStatus != JudgeSubmissionStatus.UNKNOWN && submissionStatusText.isNotBlank()
 
 internal fun JudgeAssignmentSummaryDto.judgeSummaryInfoLines(): List<String> = buildList {
-  startTime?.takeIf { it.isNotBlank() }?.let { add("开始：$it") }
-  dueTime?.takeIf { it.isNotBlank() }?.let { add("截止：$it") }
+  startTime?.takeIf { it.isNotBlank() }?.let { add("开始：${formatUbaaDateTime(it)}") }
+  dueTime?.takeIf { it.isNotBlank() }?.let { add("截止：${formatUbaaDateTime(it)}") }
   if (totalProblems > 0) {
     add("进度：$submittedCount/$totalProblems")
   }

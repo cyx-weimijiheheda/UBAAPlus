@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
+import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** SPOC 作业列表页。 */
@@ -224,12 +225,12 @@ private fun SpocAssignmentCard(
       }
 
       Text(
-          text = "开始：${assignment.startTime ?: "未知"}",
+          text = "开始：${formatUbaaDateTime(assignment.startTime).ifBlank { "未知" }}",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
       Text(
-          text = "截止：${assignment.dueTime ?: "未知"}",
+          text = "截止：${formatUbaaDateTime(assignment.dueTime).ifBlank { "未知" }}",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
