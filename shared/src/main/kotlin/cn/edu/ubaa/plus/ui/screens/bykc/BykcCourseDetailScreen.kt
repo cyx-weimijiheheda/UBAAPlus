@@ -2,7 +2,6 @@ package cn.edu.ubaa.plus.ui.screens.bykc
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -18,6 +17,7 @@ import cn.edu.ubaa.plus.model.dto.BykcCourseDetailDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.time.Clock
@@ -57,6 +57,7 @@ fun BykcCourseDetailScreen(
   UbaaToastEffect(error) {}
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       modifier = modifier.fillMaxSize(),
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
@@ -69,11 +70,7 @@ fun BykcCourseDetailScreen(
       when {
         isLoading -> {
           Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-              CircularProgressIndicator()
-              Spacer(modifier = Modifier.height(8.dp))
-              Text("加载课程详情...")
-            }
+            Text("加载课程详情...", color = MaterialTheme.colorScheme.onSurfaceVariant)
           }
         }
         error != null -> {
@@ -444,18 +441,7 @@ fun DetailCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-  Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-    Column(modifier = Modifier.padding(16.dp)) {
-      Text(
-          text = title,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.primary,
-      )
-      Spacer(modifier = Modifier.height(12.dp))
-      content()
-    }
-  }
+  UbaaSectionCard(title = title, modifier = modifier.fillMaxWidth()) { content() }
 }
 
 @Composable

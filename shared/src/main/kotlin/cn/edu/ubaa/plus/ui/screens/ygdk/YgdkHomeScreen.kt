@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +40,7 @@ import cn.edu.ubaa.plus.model.dto.YgdkOverviewResponse
 import cn.edu.ubaa.plus.model.dto.YgdkRecordDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDateRange
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
@@ -62,6 +62,7 @@ fun YgdkHomeScreen(
   UbaaToastEffect(uiState.loadError) {}
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       floatingActionButton = {
@@ -77,9 +78,11 @@ fun YgdkHomeScreen(
     ) {
       when {
         uiState.isLoading && uiState.overview == null ->
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              CircularProgressIndicator()
-            }
+            UbaaLoadingState(
+                text = "正在加载阳光打卡...",
+                showIndicator = false,
+                modifier = Modifier.fillMaxSize(),
+            )
         uiState.loadError != null && uiState.records.isEmpty() ->
             YgdkFullPageMessage(
                 message = uiState.loadError,

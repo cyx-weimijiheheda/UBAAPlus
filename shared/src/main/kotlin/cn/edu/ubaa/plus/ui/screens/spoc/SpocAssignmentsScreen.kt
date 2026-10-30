@@ -1,7 +1,6 @@
 package cn.edu.ubaa.plus.ui.screens.spoc
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,17 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedAssistChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -47,10 +40,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
+import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** SPOC 作业列表页。 */
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun SpocAssignmentsScreen(
     viewModel: SpocViewModel,
@@ -59,11 +56,6 @@ fun SpocAssignmentsScreen(
   val uiState by viewModel.uiState.collectAsState()
   UbaaToastEffect(uiState.error) {}
   val groupedAssignments = uiState.visibleAssignments.groupBy { it.courseName }
-  val pullRefreshState =
-      rememberPullRefreshState(
-          refreshing = uiState.isRefreshing,
-          onRefresh = { viewModel.loadAssignments(refresh = true) },
-      )
   var showSearchDialog by remember { mutableStateOf(false) }
 
   if (showSearchDialog) {
@@ -82,6 +74,7 @@ fun SpocAssignmentsScreen(
   }
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       floatingActionButton = {
@@ -90,27 +83,22 @@ fun SpocAssignmentsScreen(
         }
       },
   ) { padding ->
-    Box(modifier = Modifier.fillMaxSize().padding(padding).pullRefresh(pullRefreshState)) {
+    UbaaPullToRefresh(
+        refreshing = uiState.isRefreshing,
+        onRefresh = { viewModel.loadAssignments(refresh = true) },
+        modifier = Modifier.fillMaxSize().padding(padding),
+    ) {
       when {
         uiState.isLoading && uiState.assignmentsResponse == null ->
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              CircularProgressIndicator()
-            }
+            UbaaLoadingState(showIndicator = true, modifier = Modifier.fillMaxSize())
         uiState.error != null && uiState.assignmentsResponse == null ->
-            Box(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = uiState.error!!, color = MaterialTheme.colorScheme.error)
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(onClick = { viewModel.loadAssignments() }) { Text("重试") }
-              }
-            }
+            UbaaErrorState(
+                message = uiState.error!!,
+                onRetry = { viewModel.loadAssignments() },
+                modifier = Modifier.fillMaxSize(),
+            )
         groupedAssignments.isEmpty() ->
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              Text("暂无符合条件的 SPOC 作业")
-            }
+            UbaaEmptyState(title = "暂无符合条件的 SPOC 作业", modifier = Modifier.fillMaxSize())
         else ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -118,13 +106,7 @@ fun SpocAssignmentsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
               groupedAssignments.forEach { (courseName, assignments) ->
-                item {
-                  Text(
-                      text = courseName,
-                      style = MaterialTheme.typography.titleMedium,
-                      fontWeight = FontWeight.SemiBold,
-                  )
-                }
+                item { UbaaSectionHeader(title = courseName) }
 
                 items(assignments) { assignment ->
                   SpocAssignmentCard(
@@ -135,15 +117,6 @@ fun SpocAssignmentsScreen(
               }
             }
       }
-
-      PullRefreshIndicator(
-          refreshing = uiState.isRefreshing,
-          state = pullRefreshState,
-          modifier = Modifier.align(Alignment.TopCenter),
-          backgroundColor = MaterialTheme.colorScheme.surface,
-          contentColor = MaterialTheme.colorScheme.primary,
-          scale = true,
-      )
     }
   }
 }

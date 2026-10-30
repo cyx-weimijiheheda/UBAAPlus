@@ -78,6 +78,8 @@ fun App() {
       palette = preferences.themePalette,
       followWallpaper = preferences.followWallpaper,
       darkTheme = darkTheme,
+      customBrandArgb = preferences.customBrandArgb,
+      glassEnabled = preferences.glassEnabled,
   ) {
     val authViewModel: AuthViewModel = viewModel { AuthViewModel() }
     val uiState by authViewModel.uiState.collectAsState()

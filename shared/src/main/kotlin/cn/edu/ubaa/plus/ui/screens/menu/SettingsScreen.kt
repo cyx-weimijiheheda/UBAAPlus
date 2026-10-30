@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
@@ -46,6 +46,7 @@ import cn.edu.ubaa.plus.api.storage.FeatureLayout
 import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.model.dto.DormRoomDto
 import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 
 private sealed interface DormRoomsState {
   data object Loading : DormRoomsState
@@ -91,9 +92,30 @@ fun SettingsScreen(
         ThemePalettePicker(
             selected = preferences.themePalette,
             followWallpaper = preferences.followWallpaper,
+            customBrandArgb = preferences.customBrandArgb,
             onPaletteSelected = AppPreferencesStore::setThemePalette,
+            onCustomColorSelected = AppPreferencesStore::setCustomBrandColor,
             onFollowWallpaperChange = AppPreferencesStore::setFollowWallpaper,
         )
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text("液态玻璃效果", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = "低透明度主题色磨砂表面；关闭后使用纯色卡片",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+          Switch(
+              checked = preferences.glassEnabled,
+              onCheckedChange = AppPreferencesStore::setGlassEnabled,
+          )
+        }
         Spacer(modifier = Modifier.height(12.dp))
         Text("深色模式", style = MaterialTheme.typography.bodyLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -387,15 +409,5 @@ private fun <T> SettingsDropdown(
 
 @Composable
 private fun SettingsSection(title: String, content: @Composable () -> Unit) {
-  Card(modifier = Modifier.fillMaxWidth()) {
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-      Text(
-          text = title,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-          modifier = Modifier.padding(bottom = 10.dp),
-      )
-      content()
-    }
-  }
+  UbaaSectionCard(title = title, modifier = Modifier.fillMaxWidth()) { content() }
 }

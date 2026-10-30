@@ -1,7 +1,6 @@
 package cn.edu.ubaa.plus.ui.screens.cgyy
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,10 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -29,23 +24,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
   val uiState by viewModel.uiState.collectAsState()
   val parsedLockCode = uiState.lockCode?.rawData.toLockCodeDisplayModel()
-
-  val pullRefreshState =
-      rememberPullRefreshState(
-          refreshing = uiState.isLockCodeLoading,
-          onRefresh = viewModel::loadLockCode,
-      )
 
   LaunchedEffect(Unit) {
     while (true) {
@@ -54,7 +43,11 @@ fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
     }
   }
 
-  Box(modifier = Modifier.fillMaxSize().pullRefresh(pullRefreshState)) {
+  UbaaPullToRefresh(
+      refreshing = uiState.isLockCodeLoading,
+      onRefresh = viewModel::loadLockCode,
+      modifier = Modifier.fillMaxSize(),
+  ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -150,11 +143,6 @@ fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
           color = MaterialTheme.colorScheme.primary,
       )
     }
-    PullRefreshIndicator(
-        refreshing = uiState.isLockCodeLoading,
-        state = pullRefreshState,
-        modifier = Modifier.align(Alignment.TopCenter),
-    )
   }
 }
 

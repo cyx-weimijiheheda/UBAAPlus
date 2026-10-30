@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.ClassroomInfo
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
@@ -165,13 +166,11 @@ fun ClassroomQueryScreen(
     ) {
       when (val state = uiState) {
         is ClassroomUiState.Loading ->
-            Box(Modifier.fillMaxSize(), Alignment.Center) {
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator()
-                Spacer(Modifier.height(8.dp))
-                Text("正在查询...")
-              }
-            }
+            UbaaLoadingState(
+                text = "正在查询...",
+                showIndicator = false,
+                modifier = Modifier.fillMaxSize(),
+            )
         is ClassroomUiState.Success ->
             if (filteredData.isEmpty())
                 Box(Modifier.fillMaxSize(), Alignment.Center) { Text("未找到匹配教室") }

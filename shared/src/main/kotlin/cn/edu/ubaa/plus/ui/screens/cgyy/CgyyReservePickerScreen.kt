@@ -24,13 +24,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -58,6 +54,8 @@ import cn.edu.ubaa.plus.model.dto.CgyyTimeSlotDto
 import cn.edu.ubaa.plus.model.dto.CgyyVenueSiteDto
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
@@ -68,7 +66,6 @@ private val timeSlotColumnWidth = 86.dp
 private val tableHeaderHeight = 62.dp
 private val tableRowHeight = 56.dp
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CgyyReservePickerScreen(
     viewModel: CgyyViewModel,
@@ -91,12 +88,6 @@ fun CgyyReservePickerScreen(
   val visibleSites = campusSites
   val availableDates = uiState.dayInfo?.availableDates.orEmpty()
   val visibleSpaces = uiState.dayInfo?.spaces.orEmpty()
-  val pullRefreshState =
-      rememberPullRefreshState(
-          refreshing = uiState.isInitialLoading || uiState.isDayInfoLoading,
-          onRefresh = viewModel::refreshReserveData,
-      )
-
   Scaffold(
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
@@ -118,11 +109,10 @@ fun CgyyReservePickerScreen(
         }
       },
   ) { innerPadding ->
-    Box(
-        modifier =
-            Modifier.fillMaxSize()
-                .padding(bottom = innerPadding.calculateBottomPadding())
-                .pullRefresh(pullRefreshState)
+    UbaaPullToRefresh(
+        refreshing = uiState.isInitialLoading || uiState.isDayInfoLoading,
+        onRefresh = viewModel::refreshReserveData,
+        modifier = Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding()),
     ) {
       Column(modifier = Modifier.fillMaxSize()) {
         CgyySecondaryEntriesRow(
@@ -132,7 +122,11 @@ fun CgyyReservePickerScreen(
 
         when {
           uiState.isInitialLoading && uiState.sites.isEmpty() ->
-              CgyyLoadingState("正在加载场地与可预约信息...", modifier = Modifier.weight(1f))
+              UbaaLoadingState(
+                  text = "正在加载场地与可预约信息...",
+                  showIndicator = false,
+                  modifier = Modifier.weight(1f),
+              )
           uiState.initialError != null && uiState.sites.isEmpty() ->
               CgyyErrorState(
                   uiState.initialError,
@@ -206,7 +200,11 @@ fun CgyyReservePickerScreen(
 
             when {
               uiState.isDayInfoLoading ->
-                  CgyyLoadingState("正在刷新可预约时段...", modifier = Modifier.fillMaxSize())
+                  UbaaLoadingState(
+                      text = "正在刷新可预约时段...",
+                      showIndicator = false,
+                      modifier = Modifier.fillMaxSize(),
+                  )
               uiState.dayInfoError != null ->
                   CgyyErrorState(uiState.dayInfoError, onRetry = viewModel::refreshReserveData)
               uiState.selectedSiteId == null -> CgyyEmptyState("请选择楼栋/层", "先从上方横向列表中选择一个研讨室位置。")
@@ -222,12 +220,6 @@ fun CgyyReservePickerScreen(
           }
         }
       }
-
-      PullRefreshIndicator(
-          refreshing = uiState.isInitialLoading || uiState.isDayInfoLoading,
-          state = pullRefreshState,
-          modifier = Modifier.align(Alignment.TopCenter),
-      )
     }
   }
 }

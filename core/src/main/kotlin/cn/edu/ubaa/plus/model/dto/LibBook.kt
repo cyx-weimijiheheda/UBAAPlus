@@ -129,10 +129,20 @@ fun LibBookBookingDto.isInUseBooking(): Boolean =
             listOf("使用中", "临时离开", "暂离", "已签到").any { statusName.contains(it) })
 
 fun LibBookBookingDto.canSignIn(): Boolean =
-    !isTerminalBooking() && (flagIn == "1" || (flagIn.isBlank() && !isInUseBooking()))
+    !isTerminalBooking() &&
+        flagLeave != "1" &&
+        (flagIn == "1" || (flagIn.isBlank() && !isInUseBooking()))
+
+/** 临时离开后返回签到；官方 H5 的 back-sign 复用 /v4/space/signin。 */
+fun LibBookBookingDto.canReturnSignIn(): Boolean =
+    !isTerminalBooking() &&
+        (flagLeave == "1" ||
+            (flagLeave.isBlank() &&
+                (status.trim() == "7" || statusName.contains("临时离开") || statusName.contains("暂离"))))
 
 fun LibBookBookingDto.canTemporaryLeave(): Boolean =
-    !isTerminalBooking() && (flagOut == "1" || (flagOut.isBlank() && isInUseBooking()))
+    !isTerminalBooking() &&
+        (flagOut == "1" || (flagOut.isBlank() && !canReturnSignIn() && isInUseBooking()))
 
 fun LibBookBookingDto.canCheckout(): Boolean =
     !isTerminalBooking() &&
@@ -158,6 +168,7 @@ private val nonCancelableLibBookBookingStatusKeywords = listOf("取消", "结束
 /** 座位签到/离座动作。 */
 enum class LibBookSeatAction {
   SIGN_IN,
+  RETURN_SIGN_IN,
   LEAVE,
   CHECKOUT,
 }
@@ -197,8 +208,12 @@ data class LibBookQrScanResultDto(
     val status: String = "",
     val statusName: String = "",
 ) {
+  val canReturnSignIn: Boolean
+    get() = status.trim() == "7" || statusName.contains("临时离开") || statusName.contains("暂离")
+
   val canSignIn: Boolean
-    get() = status.trim() in setOf("4", "6", "7") || statusName.contains("未签到")
+    get() =
+        !canReturnSignIn && (status.trim() in setOf("4", "6", "7") || statusName.contains("未签到"))
 
   val canTemporaryLeave: Boolean
     get() = status.trim() in inUseLibBookBookingStatusCodes || statusName.contains("使用中")

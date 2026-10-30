@@ -97,6 +97,7 @@ fun LibBookReserveScreen(
   }
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { paddingValues ->
@@ -443,7 +444,7 @@ private fun InlineLoading(text: String) {
 @Composable
 private fun LoadingBox(text: String) {
   Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-    InlineLoading(text)
+    Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
   }
 }
 

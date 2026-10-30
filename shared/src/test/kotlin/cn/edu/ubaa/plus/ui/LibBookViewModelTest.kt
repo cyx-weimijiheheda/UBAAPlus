@@ -19,6 +19,7 @@ import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -137,6 +138,53 @@ class LibBookViewModelTest {
     assertEquals("", api.actionRequests.single().query)
     assertEquals(null, viewModel.uiState.value.pendingSeatAction)
     assertEquals("临时离开成功", viewModel.uiState.value.actionMessage)
+  }
+
+  @Test
+  fun `return sign in submits signin without query`() = runTest {
+    setMainDispatcher(testScheduler)
+    val api =
+        FakeLibBookApi(
+            bookings =
+                listOf(
+                    LibBookBookingDto(
+                        id = "b1",
+                        nameMerge = "一层 / 101",
+                        status = "3",
+                        statusName = "临时离开",
+                        flagIn = "1",
+                        flagLeave = "1",
+                        flagOut = "1",
+                    )
+                )
+        )
+    val viewModel = LibBookViewModel(api, currentDateProvider = { "2026-05-08" })
+
+    viewModel.loadBookings()
+    advanceUntilIdle()
+    val booking = viewModel.uiState.value.bookings.bookings.first()
+    assertTrue(viewModel.prepareReturnSignIn(booking))
+
+    viewModel.submitSeatAction(LibBookSeatAction.RETURN_SIGN_IN)
+    advanceUntilIdle()
+
+    assertEquals(1, api.actionRequests.size)
+    assertEquals("b1", api.actionRequests.single().id)
+    assertEquals("", api.actionRequests.single().query)
+    assertEquals("签到成功", viewModel.uiState.value.actionMessage)
+  }
+
+  @Test
+  fun `prepare return sign in rejects normal booking`() = runTest {
+    setMainDispatcher(testScheduler)
+    val api = FakeLibBookApi()
+    val viewModel = LibBookViewModel(api, currentDateProvider = { "2026-05-08" })
+
+    viewModel.loadBookings()
+    advanceUntilIdle()
+    val booking = viewModel.uiState.value.bookings.bookings.first()
+
+    assertFalse(viewModel.prepareReturnSignIn(booking))
   }
 
   private fun setMainDispatcher(scheduler: TestCoroutineScheduler) {

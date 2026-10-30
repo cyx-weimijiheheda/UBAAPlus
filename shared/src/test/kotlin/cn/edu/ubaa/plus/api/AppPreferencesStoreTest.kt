@@ -19,6 +19,9 @@ class AppPreferencesStoreTest {
     AppPreferencesStore.setThemePalette(ThemePalette.BUAA_BLUE)
     AppPreferencesStore.setThemeMode(ThemeMode.SYSTEM)
     AppPreferencesStore.setFollowWallpaper(false)
+    AppPreferencesStore.setGlassEnabled(true)
+    AppPreferencesStore.setCustomBrandColor(-16753748)
+    AppPreferencesStore.setThemePalette(ThemePalette.BUAA_BLUE)
     AppPreferencesStore.setFeatureLayout(FeatureLayout.GRID)
     AppPreferencesStore.setDormDefaults("", "", "")
   }
@@ -74,6 +77,28 @@ class AppPreferencesStoreTest {
     AppPreferencesStore.settings = settings
 
     assertEquals(ThemePalette.BIT_GREEN, AppPreferencesStore.state.value.themePalette)
+  }
+
+  @Test
+  fun `液态玻璃默认开启并可关闭`() {
+    assertTrue(AppPreferencesStore.state.value.glassEnabled)
+
+    AppPreferencesStore.setGlassEnabled(false)
+
+    assertFalse(AppPreferencesStore.state.value.glassEnabled)
+    assertEquals(false, AppPreferencesStore.settings.getBoolean("app_liquid_glass_enabled", true))
+  }
+
+  @Test
+  fun `自定义颜色会选中 CUSTOM 并关闭跟随壁纸`() {
+    AppPreferencesStore.setFollowWallpaper(true)
+
+    AppPreferencesStore.setCustomBrandColor(0xFF336699.toInt())
+
+    val state = AppPreferencesStore.state.value
+    assertEquals(ThemePalette.CUSTOM, state.themePalette)
+    assertEquals(0xFF336699.toInt(), state.customBrandArgb)
+    assertFalse(state.followWallpaper)
   }
 
   @Test

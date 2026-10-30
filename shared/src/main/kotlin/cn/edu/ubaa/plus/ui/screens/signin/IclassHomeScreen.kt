@@ -48,6 +48,7 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.IclassAttendanceRecordDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** 智慧教室：今日课程一键签到 + 本学期考勤查询。扫码入口在标题栏。 */
@@ -58,6 +59,7 @@ fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode)
   UbaaToastEffect(uiState.signinResult) { viewModel.clearSigninResult() }
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { padding ->
@@ -102,7 +104,10 @@ fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode)
                     modifier = Modifier.fillMaxWidth().height(80.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                  CircularProgressIndicator()
+                  Text(
+                      "正在加载今日课程...",
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
                 }
               }
           uiState.error != null ->
@@ -248,24 +253,7 @@ private fun AttendanceDropdown(
 
 @Composable
 private fun SectionTitle(text: String, subtitle: String? = null) {
-  Row(
-      modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically,
-  ) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.weight(1f),
-    )
-    subtitle?.let {
-      Text(
-          text = it,
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-    }
-  }
+  UbaaSectionHeader(title = text, subtitle = subtitle)
 }
 
 @Composable

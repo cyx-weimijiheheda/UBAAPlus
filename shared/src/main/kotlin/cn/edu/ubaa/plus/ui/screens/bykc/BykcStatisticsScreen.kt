@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcCategoryStatisticsDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
@@ -30,11 +31,12 @@ fun BykcStatisticsScreen(viewModel: BykcViewModel) {
       onRefresh = { viewModel.ensureStatisticsLoaded(forceRefresh = true) },
   ) {
     when {
-      uiState.isLoading -> {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator()
-        }
-      }
+      uiState.isLoading ->
+          UbaaLoadingState(
+              text = "正在加载统计数据...",
+              showIndicator = false,
+              modifier = Modifier.fillMaxSize(),
+          )
       uiState.error != null -> {
         Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
           Text("加载失败: ${uiState.error}", color = MaterialTheme.colorScheme.error)

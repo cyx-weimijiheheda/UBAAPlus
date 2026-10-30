@@ -26,6 +26,7 @@ import cn.edu.ubaa.plus.AppInfo
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import kotlin.random.Random
 import kotlinx.coroutines.delay
 
@@ -192,19 +193,7 @@ fun ProfileScreen(
 
 @Composable
 private fun ProfileSection(title: String? = null, content: @Composable ColumnScope.() -> Unit) {
-  Card(modifier = Modifier.fillMaxWidth()) {
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-      if (title != null) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-      }
-      content()
-    }
-  }
+  UbaaSectionCard(title = title, modifier = Modifier.fillMaxWidth()) { content() }
 }
 
 @Composable

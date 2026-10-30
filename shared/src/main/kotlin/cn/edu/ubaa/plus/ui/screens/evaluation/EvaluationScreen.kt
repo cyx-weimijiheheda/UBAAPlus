@@ -31,6 +31,7 @@ fun EvaluationScreen(viewModel: EvaluationViewModel) {
   val uiState by viewModel.uiState.collectAsState()
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       floatingActionButton = {

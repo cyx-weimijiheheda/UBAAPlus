@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
@@ -41,6 +42,7 @@ import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -173,6 +175,7 @@ fun ScheduleScreen(
   UbaaToastEffect(error) {}
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       topBar = {
         ScheduleTopAppBar(
             title = selectedWeek?.name ?: "选择周次",
@@ -278,11 +281,7 @@ fun ScheduleScreen(
         when {
           isLoading && weeks.isEmpty() -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("加载课程表...")
-              }
+              Text("加载课程表...", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
           }
           weeks.isNotEmpty() && selectedWeek != null -> {
@@ -363,7 +362,13 @@ internal fun ScheduleWeekPager(
     val week = weeks[page]
     val schedule = schedules[week.serialNumber]
     if (schedule != null)
-        WeeklyScheduleView(schedule, week.headerDayLabels(), onCourseClick, times = times)
+        WeeklyScheduleView(
+            schedule,
+            week.headerDayLabels(),
+            onCourseClick,
+            times = times,
+            modifier = Modifier.fillMaxSize(),
+        )
     else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("此周课表尚未加载") }
   }
 }
@@ -380,40 +385,50 @@ private fun ScheduleTopAppBar(
     isNextEnabled: Boolean,
     onTitleClick: () -> Unit,
 ) {
-  CenterAlignedTopAppBar(
-      expandedHeight = 56.dp,
-      navigationIcon = {
-        IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") }
-      },
-      title = {
-        Row(
-            modifier = Modifier.clickable(onClick = onTitleClick),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-          Text(
-              text = title,
-              fontWeight = FontWeight.Bold,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis,
-          )
-        }
-      },
-      actions = {
-        IconButton(onClick = onPreviousClick, enabled = isPreviousEnabled) {
-          Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "上一周")
-        }
-        IconButton(onClick = onNextClick, enabled = isNextEnabled) {
-          Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "下一周")
-        }
-      },
-      colors =
-          TopAppBarDefaults.topAppBarColors(
-              containerColor = MaterialTheme.colorScheme.surfaceContainer,
-              titleContentColor = MaterialTheme.colorScheme.onSurface,
-              navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-              actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-          ),
-  )
+  Box(
+      modifier =
+          Modifier.fillMaxWidth()
+              .ubaaGlassSurface(
+                  shape = RectangleShape,
+                  chrome = true,
+                  solidColor = MaterialTheme.colorScheme.surfaceContainer,
+              )
+  ) {
+    CenterAlignedTopAppBar(
+        expandedHeight = 56.dp,
+        navigationIcon = {
+          IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") }
+        },
+        title = {
+          Row(
+              modifier = Modifier.clickable(onClick = onTitleClick),
+              verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+          }
+        },
+        actions = {
+          IconButton(onClick = onPreviousClick, enabled = isPreviousEnabled) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "上一周")
+          }
+          IconButton(onClick = onNextClick, enabled = isNextEnabled) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "下一周")
+          }
+        },
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+    )
+  }
 }
 
 /** 周次选择底部弹窗。 */
@@ -471,24 +486,47 @@ private fun WeeklyScheduleView(
     times: List<SectionTime> = scheduleSectionTimes(listOf(schedule)),
 ) {
   val totalPeriods = times.size
-  val rowHeight: Dp = 64.dp
   val scrollState = rememberScrollState()
 
   Column(modifier = modifier.padding(horizontal = 8.dp)) {
     HeaderRow(headerDayLabels)
     Spacer(modifier = Modifier.height(4.dp))
-    Row(
-        modifier =
-            Modifier.fillMaxWidth()
-                .verticalScroll(scrollState)
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant.copy(0.3f),
-                    RoundedCornerShape(8.dp),
-                )
-    ) {
-      TimeColumn(times, rowHeight, Modifier.width(52.dp))
-      WeeklyScheduleGrid(schedule, onCourseClick, totalPeriods, rowHeight, Modifier.weight(1f))
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+      val availableHeight = if (maxHeight.value.isFinite()) maxHeight.value else 64f * totalPeriods
+      val metrics = scheduleRowMetrics(availableHeight, totalPeriods)
+      val rowHeight = metrics.rowHeightDp.dp
+      Row(
+          modifier =
+              Modifier.fillMaxSize()
+                  .verticalScroll(scrollState)
+                  .background(
+                      MaterialTheme.colorScheme.surfaceVariant.copy(0.3f),
+                      RoundedCornerShape(8.dp),
+                  )
+      ) {
+        TimeColumn(times, rowHeight, Modifier.width(52.dp))
+        WeeklyScheduleGrid(
+            schedule,
+            onCourseClick,
+            totalPeriods,
+            rowHeight,
+            Modifier.weight(1f),
+        )
+      }
     }
+  }
+}
+
+internal data class ScheduleRowMetrics(val rowHeightDp: Float, val scrollable: Boolean)
+
+/** 根据可用高度计算课表行高；低于 40dp 时保持可读的最小行高并允许滚动。 */
+internal fun scheduleRowMetrics(availableHeightDp: Float, periods: Int): ScheduleRowMetrics {
+  if (periods <= 0) return ScheduleRowMetrics(64f, false)
+  val perRow = availableHeightDp / periods
+  return if (perRow < 40f) {
+    ScheduleRowMetrics(40f, true)
+  } else {
+    ScheduleRowMetrics(perRow.coerceAtMost(64f), false)
   }
 }
 
@@ -530,18 +568,22 @@ private fun TimeColumn(
       ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
           Text(text = it.section.toString(), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-          Text(
-              text = it.start ?: "--:--",
-              fontSize = 10.sp,
-              lineHeight = 13.sp,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-          Text(
-              text = it.end ?: "--:--",
-              fontSize = 10.sp,
-              lineHeight = 13.sp,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
+          if (rowHeight >= 40.dp) {
+            Text(
+                text = it.start ?: "--:--",
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+          if (rowHeight >= 56.dp) {
+            Text(
+                text = it.end ?: "--:--",
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
         }
       }
     }
@@ -584,9 +626,12 @@ private fun WeeklyScheduleGrid(
         CourseCell(
             course,
             { onCourseClick(course) },
-            Modifier.offset(cellWidth * dayIndex, rowHeight * startIdx)
-                .size(cellWidth, rowHeight * span)
-                .padding(1.dp),
+            rowHeight = rowHeight,
+            span = span,
+            modifier =
+                Modifier.offset(cellWidth * dayIndex, rowHeight * startIdx)
+                    .size(cellWidth, rowHeight * span)
+                    .padding(1.dp),
         )
       }
     }
@@ -595,7 +640,14 @@ private fun WeeklyScheduleGrid(
 
 /** 单个课程卡片组件。 */
 @Composable
-private fun CourseCell(course: CourseClass, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun CourseCell(
+    course: CourseClass,
+    onClick: () -> Unit,
+    rowHeight: Dp,
+    span: Int,
+    modifier: Modifier = Modifier,
+) {
+  val dense = rowHeight * span < 56.dp
   val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
   val parsedColor = remember(course.color) { parseColor(course.color) }
   // MaterialTheme 只能在组合上下文读取，remember 的 lambda 不是组合函数，故先取出
@@ -620,23 +672,25 @@ private fun CourseCell(course: CourseClass, onClick: () -> Unit, modifier: Modif
     ) {
       Text(
           text = course.courseName,
-          fontSize = 12.sp,
+          fontSize = if (dense) 10.5.sp else 12.sp,
           fontWeight = FontWeight.Bold,
           textAlign = TextAlign.Center,
-          lineHeight = 14.sp,
-          maxLines = 4,
+          lineHeight = if (dense) 12.sp else 14.sp,
+          maxLines = if (dense) 2 else 4,
           overflow = TextOverflow.Ellipsis,
       )
-      course.placeName?.let {
-        Text(
-            text = "@$it",
-            fontSize = 11.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 13.sp,
-            color = contentColor.copy(0.8f),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+      if (!dense) {
+        course.placeName?.let {
+          Text(
+              text = "@$it",
+              fontSize = 10.sp,
+              textAlign = TextAlign.Center,
+              lineHeight = 12.sp,
+              color = contentColor.copy(0.8f),
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+          )
+        }
       }
     }
   }

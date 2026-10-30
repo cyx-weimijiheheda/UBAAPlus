@@ -2,8 +2,11 @@ package cn.edu.ubaa.plus.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -19,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.api.storage.DEFAULT_CUSTOM_BRAND_ARGB
 import cn.edu.ubaa.plus.api.storage.ThemePalette
 
 /** 默认品牌色（北航蓝），也用于 launcher/预览的兜底。 */
@@ -39,20 +44,22 @@ object UbaaBrand {
 }
 
 /** 配色的主题种子色，用于派生 Material 配色；需要保证文字对比度。 */
-fun ThemePalette.brandColor(): Color =
+fun ThemePalette.brandColor(customArgb: Int? = null): Color =
     when (this) {
       ThemePalette.BUAA_BLUE -> UbaaBrandBlue
       ThemePalette.PKU_RED -> Color(0xFF7B0A0A)
       ThemePalette.THU_PURPLE -> Color(0xFF660874)
       ThemePalette.BIT_GREEN -> Color(0xFF006B3C)
       ThemePalette.ROOMMATE_PINK -> Color(0xFFC56E8B)
+      ThemePalette.CUSTOM -> Color(customArgb ?: DEFAULT_CUSTOM_BRAND_ARGB)
     }
 
 /** 设置页色块使用的展示色；粉色比主题种子更淡，避免过于刺眼。 */
-fun ThemePalette.swatchColor(): Color =
+fun ThemePalette.swatchColor(customArgb: Int? = null): Color =
     when (this) {
       ThemePalette.ROOMMATE_PINK -> Color(0xFFF0B6C6)
-      else -> brandColor()
+      ThemePalette.CUSTOM -> Color(customArgb ?: DEFAULT_CUSTOM_BRAND_ARGB)
+      else -> brandColor(customArgb)
     }
 
 private fun onColorFor(color: Color): Color =
@@ -176,35 +183,56 @@ object UbaaColors {
     @Composable @ReadOnlyComposable get() = LocalUbaaExtendedColors.current
 }
 
+/** 全应用统一的圆角尺度。 */
+private val UbaaShapes =
+    Shapes(
+        extraSmall = RoundedCornerShape(8.dp),
+        small = RoundedCornerShape(12.dp),
+        medium = RoundedCornerShape(16.dp),
+        large = RoundedCornerShape(20.dp),
+        extraLarge = RoundedCornerShape(28.dp),
+    )
+
 @Composable
 fun UBAATheme(
     palette: ThemePalette = ThemePalette.BUAA_BLUE,
     followWallpaper: Boolean = false,
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
+    customBrandArgb: Int? = null,
+    glassEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
   val useDynamicColor =
       (followWallpaper || dynamicColor) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
   val context = LocalContext.current
+  val seed = palette.brandColor(customBrandArgb)
   val colorScheme =
       when {
         useDynamicColor ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        darkTheme -> darkSchemeFor(palette.brandColor())
-        else -> lightSchemeFor(palette.brandColor())
+        darkTheme -> darkSchemeFor(seed)
+        else -> lightSchemeFor(seed)
       }
 
-  val brand = if (useDynamicColor) colorScheme.primary else palette.brandColor()
+  val brand = if (useDynamicColor) colorScheme.primary else seed
   val onBrand = onColorFor(brand)
   val extendedColors = if (darkTheme) darkExtendedColors(brand) else lightExtendedColors(brand)
 
   CompositionLocalProvider(
       LocalUbaaExtendedColors provides extendedColors,
       LocalUbaaBrandColors provides UbaaBrandColors(brand, onBrand),
+      LocalUbaaGlassEnabled provides glassEnabled,
   ) {
-    MaterialTheme(colorScheme = colorScheme, typography = getAppTypography()) {
-      Surface(modifier = Modifier.fillMaxSize(), color = colorScheme.background) { content() }
+    MaterialTheme(colorScheme = colorScheme, typography = getAppTypography(), shapes = UbaaShapes) {
+      Surface(modifier = Modifier.fillMaxSize(), color = colorScheme.background) {
+        Box(modifier = Modifier.fillMaxSize()) {
+          if (glassEnabled) {
+            UbaaAmbientBackground(modifier = Modifier.fillMaxSize())
+          }
+          content()
+        }
+      }
     }
   }
 }

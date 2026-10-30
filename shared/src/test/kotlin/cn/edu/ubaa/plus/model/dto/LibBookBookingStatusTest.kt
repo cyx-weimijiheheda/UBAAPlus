@@ -37,4 +37,29 @@ class LibBookBookingStatusTest {
     assertFalse(booking.canCancelBooking())
     assertEquals("预约记录不存在或已失效，请刷新后重试", booking.cancelBlockedMessage())
   }
+
+  @Test
+  fun `temporarily left booking shows return sign in instead of sign in`() {
+    val booking =
+        LibBookBookingDto(
+            id = "b1",
+            status = "3",
+            statusName = "临时离开",
+            flagIn = "1",
+            flagLeave = "1",
+            flagOut = "1",
+        )
+
+    assertTrue(booking.canReturnSignIn())
+    assertFalse(booking.canSignIn())
+    assertTrue(booking.canTemporaryLeave())
+    assertTrue(booking.canCheckout())
+  }
+
+  @Test
+  fun `return sign in is hidden for terminal bookings`() {
+    val booking = LibBookBookingDto(id = "b1", status = "8", statusName = "已结束", flagLeave = "1")
+
+    assertFalse(booking.canReturnSignIn())
+  }
 }

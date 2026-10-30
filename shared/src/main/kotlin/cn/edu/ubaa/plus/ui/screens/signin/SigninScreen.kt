@@ -29,6 +29,7 @@ fun SigninScreen(viewModel: SigninViewModel) {
   }
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       snackbarHost = { SnackbarHost(snackbarHostState) },

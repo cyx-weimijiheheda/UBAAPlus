@@ -4,7 +4,6 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -25,7 +24,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -55,11 +53,13 @@ import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
 import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.canCancelBooking
 import cn.edu.ubaa.plus.model.dto.canCheckout
+import cn.edu.ubaa.plus.model.dto.canReturnSignIn
 import cn.edu.ubaa.plus.model.dto.canSignIn
 import cn.edu.ubaa.plus.model.dto.canTemporaryLeave
 import cn.edu.ubaa.plus.model.dto.isInUseBooking
 import cn.edu.ubaa.plus.model.dto.isTerminalBooking
 import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
@@ -180,6 +180,7 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
   val shown = if (selectedTab == 0) current else history
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { paddingValues ->
@@ -189,9 +190,11 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
         modifier = Modifier.padding(paddingValues),
     ) {
       if (uiState.isBookingsLoading && uiState.bookings.bookings.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator()
-        }
+        UbaaLoadingState(
+            text = "正在加载预约记录...",
+            showIndicator = false,
+            modifier = Modifier.fillMaxSize(),
+        )
       } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -252,6 +255,11 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
                   now = now,
                   onCancel = { pendingCancel = booking },
                   onSignIn = { launchScan() },
+                  onReturnSignIn = {
+                    if (viewModel.prepareReturnSignIn(booking)) {
+                      submitWithLocation(LibBookSeatAction.RETURN_SIGN_IN)
+                    }
+                  },
                   onTemporaryLeave = {
                     viewModel.requestSeatActionForBooking(booking, LibBookSeatAction.LEAVE)
                   },
@@ -335,10 +343,10 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
           context = context,
           submitting = uiState.isSeatActionSubmitting || isLocating,
           onAction = { action ->
-            if (action == LibBookSeatAction.SIGN_IN) {
-              submitWithLocation(action)
-            } else {
-              viewModel.requestSeatAction(action)
+            when (action) {
+              LibBookSeatAction.SIGN_IN,
+              LibBookSeatAction.RETURN_SIGN_IN -> submitWithLocation(action)
+              else -> viewModel.requestSeatAction(action)
             }
           },
           onDismiss = viewModel::dismissSeatAction,
@@ -380,7 +388,13 @@ private fun SeatActionDialog(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (context.canSignIn) {
+            if (context.canReturnSignIn) {
+              AssistChip(
+                  onClick = { onAction(LibBookSeatAction.RETURN_SIGN_IN) },
+                  enabled = !submitting,
+                  label = { Text("返回签到") },
+              )
+            } else if (context.canSignIn) {
               AssistChip(
                   onClick = { onAction(LibBookSeatAction.SIGN_IN) },
                   enabled = !submitting,
@@ -416,6 +430,7 @@ private fun LibBookBookingCard(
     now: LocalDateTime,
     onCancel: () -> Unit,
     onSignIn: () -> Unit,
+    onReturnSignIn: () -> Unit,
     onTemporaryLeave: () -> Unit,
     onCheckout: () -> Unit,
     onScan: () -> Unit,
@@ -491,16 +506,20 @@ private fun LibBookBookingCard(
                 label = { Text(if (isCanceling) "取消中..." else "取消预约") },
             )
           }
-          if (booking.canTemporaryLeave()) {
+          if (booking.canReturnSignIn()) {
+            AssistChip(onClick = onReturnSignIn, label = { Text("返回签到") })
+          } else if (booking.canTemporaryLeave()) {
             AssistChip(onClick = onTemporaryLeave, label = { Text("临时离开") })
           }
           if (booking.canCheckout()) {
             AssistChip(onClick = onCheckout, label = { Text("完全离开") })
           }
-          if (booking.canSignIn()) {
-            AssistChip(onClick = onSignIn, label = { Text("扫码签到") })
-          } else {
-            AssistChip(onClick = onScan, label = { Text("扫码操作") })
+          if (!booking.canReturnSignIn()) {
+            if (booking.canSignIn()) {
+              AssistChip(onClick = onSignIn, label = { Text("扫码签到") })
+            } else {
+              AssistChip(onClick = onScan, label = { Text("扫码操作") })
+            }
           }
         }
       }

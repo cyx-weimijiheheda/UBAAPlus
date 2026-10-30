@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.BarChart
@@ -20,9 +19,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -41,7 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalTime::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
 fun BykcCoursesScreen(
     courses: List<BykcCourseDto>,
@@ -59,7 +56,6 @@ fun BykcCoursesScreen(
     modifier: Modifier = Modifier,
 ) {
   UbaaToastEffect(error) {}
-  val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
   val now by
       produceState(
           initialValue = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -71,7 +67,11 @@ fun BykcCoursesScreen(
       }
   val visibleCourses = remember(courses, filters) { filterBykcCourses(courses, filters) }
 
-  Box(modifier = modifier.fillMaxSize().pullRefresh(pullRefreshState)) {
+  UbaaPullToRefresh(
+      refreshing = isLoading,
+      onRefresh = onRefresh,
+      modifier = modifier.fillMaxSize(),
+  ) {
     Column(modifier = Modifier.fillMaxSize()) {
       Row(
           modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -183,15 +183,6 @@ fun BykcCoursesScreen(
         }
       }
     }
-
-    PullRefreshIndicator(
-        refreshing = isLoading,
-        state = pullRefreshState,
-        modifier = Modifier.align(Alignment.TopCenter),
-        backgroundColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.primary,
-        scale = true,
-    )
   }
 }
 

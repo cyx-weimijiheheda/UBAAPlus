@@ -7,12 +7,8 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,9 +18,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
+import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun BykcChosenCoursesScreen(
     courses: List<BykcChosenCourseDto>,
@@ -35,46 +34,31 @@ fun BykcChosenCoursesScreen(
     modifier: Modifier = Modifier,
 ) {
   UbaaToastEffect(error) {}
-  val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
 
-  Box(modifier = modifier.fillMaxSize().pullRefresh(pullRefreshState)) {
+  UbaaPullToRefresh(
+      refreshing = isLoading,
+      onRefresh = onRefresh,
+      modifier = modifier.fillMaxSize(),
+  ) {
     when {
-      isLoading && courses.isEmpty() -> {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("加载已选课程...")
-          }
-        }
-      }
-      error != null -> {
-        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "加载失败: $error", color = MaterialTheme.colorScheme.error)
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onRefresh) { Text("重试") }
-          }
-        }
-      }
-      courses.isEmpty() -> {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.EventBusy,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "暂无已选课程",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-        }
-      }
+      isLoading && courses.isEmpty() ->
+          UbaaLoadingState(
+              text = "加载已选课程...",
+              showIndicator = false,
+              modifier = Modifier.fillMaxSize(),
+          )
+      error != null ->
+          UbaaErrorState(
+              message = "加载失败: $error",
+              onRetry = onRefresh,
+              modifier = Modifier.fillMaxSize(),
+          )
+      courses.isEmpty() ->
+          UbaaEmptyState(
+              title = "暂无已选课程",
+              icon = Icons.Default.EventBusy,
+              modifier = Modifier.fillMaxSize(),
+          )
       else -> {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -87,15 +71,6 @@ fun BykcChosenCoursesScreen(
         }
       }
     }
-
-    PullRefreshIndicator(
-        refreshing = isLoading,
-        state = pullRefreshState,
-        modifier = Modifier.align(Alignment.TopCenter),
-        backgroundColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.primary,
-        scale = true,
-    )
   }
 }
 

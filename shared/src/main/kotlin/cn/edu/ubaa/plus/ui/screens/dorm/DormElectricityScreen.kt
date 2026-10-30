@@ -95,6 +95,7 @@ fun DormElectricityScreen(
   UbaaToastEffect(state.queryError) {}
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -202,7 +203,10 @@ private fun DormQueryCard(
       }
       if (state.roomsLoading && state.rooms.isEmpty()) {
         Box(modifier = Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator()
+          Text(
+              "正在加载房间...",
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
         }
       } else if (state.roomsError != null && state.rooms.isEmpty()) {
         Text(

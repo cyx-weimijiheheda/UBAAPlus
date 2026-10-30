@@ -14,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,7 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
 /** SPOC 作业详情页。 */
@@ -42,6 +43,7 @@ fun SpocAssignmentDetailScreen(
   UbaaToastEffect(uiState.detailError) {}
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { padding ->
@@ -52,9 +54,11 @@ fun SpocAssignmentDetailScreen(
     ) {
       when {
         uiState.isDetailLoading ->
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              CircularProgressIndicator()
-            }
+            UbaaLoadingState(
+                text = "正在加载作业详情...",
+                showIndicator = false,
+                modifier = Modifier.fillMaxSize(),
+            )
         uiState.detailError != null ->
             Box(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -135,26 +139,13 @@ fun SpocAssignmentDetailScreen(
 
 @Composable
 private fun DetailInfoCard(title: String, lines: List<String>) {
-  Card(
-      modifier = Modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-  ) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+  UbaaSectionCard(title = title, modifier = Modifier.fillMaxWidth()) {
+    lines.forEach {
       Text(
-          text = title,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.SemiBold,
+          text = it,
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
-      lines.forEach {
-        Text(
-            text = it,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
     }
   }
 }

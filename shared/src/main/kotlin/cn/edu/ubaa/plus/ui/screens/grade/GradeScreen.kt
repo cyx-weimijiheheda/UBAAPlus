@@ -13,17 +13,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -36,31 +31,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.Grade
+import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun GradeScreen(viewModel: GradeViewModel) {
   val uiState by viewModel.uiState.collectAsState()
   UbaaToastEffect(uiState.error) {}
-  val pullRefreshState =
-      rememberPullRefreshState(
-          refreshing = uiState.isRefreshing,
-          onRefresh = { viewModel.ensureLoaded(forceRefresh = true) },
-      )
-
-  Box(modifier = Modifier.fillMaxSize().pullRefresh(pullRefreshState)) {
+  UbaaPullToRefresh(
+      refreshing = uiState.isRefreshing,
+      onRefresh = { viewModel.ensureLoaded(forceRefresh = true) },
+      modifier = Modifier.fillMaxSize(),
+  ) {
     when {
-      uiState.isLoading -> {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator()
-        }
-      }
-      uiState.error != null -> {
-        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-          Text(text = "加载失败: ${uiState.error}", color = MaterialTheme.colorScheme.error)
-        }
-      }
+      uiState.isLoading ->
+          UbaaLoadingState(
+              text = "正在加载成绩...",
+              showIndicator = true,
+              modifier = Modifier.fillMaxSize(),
+          )
+      uiState.error != null ->
+          UbaaErrorState(
+              message = "加载失败: ${uiState.error}",
+              onRetry = { viewModel.ensureLoaded(forceRefresh = true) },
+              modifier = Modifier.fillMaxSize(),
+          )
       uiState.gradeData != null ->
           GradeList(
               grades = uiState.gradeData!!.grades,
@@ -68,11 +65,6 @@ fun GradeScreen(viewModel: GradeViewModel) {
               isSummaryLoading = uiState.isSummaryLoading,
           )
     }
-    PullRefreshIndicator(
-        refreshing = uiState.isRefreshing,
-        state = pullRefreshState,
-        modifier = Modifier.align(Alignment.TopCenter),
-    )
   }
 }
 

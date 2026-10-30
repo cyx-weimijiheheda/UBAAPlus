@@ -19,8 +19,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -42,6 +40,7 @@ import cn.edu.ubaa.plus.model.dto.CgyyPurposeTypeDto
 import cn.edu.ubaa.plus.model.dto.canCancelAt
 import cn.edu.ubaa.plus.model.dto.displayReservationDateText
 import cn.edu.ubaa.plus.model.dto.displayStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -81,26 +80,7 @@ internal fun CgyySectionCard(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-  Card(
-      modifier = modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-      elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-  ) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-      Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-      if (!subtitle.isNullOrBlank()) {
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
-      content()
-    }
-  }
+  UbaaSectionCard(modifier = modifier, title = title, subtitle = subtitle) { content() }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

@@ -15,6 +15,7 @@ import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.LibBookSeatActionRequest
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.LibBookTimeSlotDto
+import cn.edu.ubaa.plus.model.dto.canReturnSignIn
 import cn.edu.ubaa.plus.model.dto.cancelBlockedMessage
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -336,22 +337,35 @@ class LibBookViewModel(
     }
     _uiState.value =
         _uiState.value.copy(
-            seatActionContext =
-                LibBookQrScanResultDto(
-                    query = booking.query,
-                    bookId = booking.id,
-                    seatId = booking.seatId,
-                    seatNo = booking.seatNo,
-                    areaName = booking.areaName,
-                    day = booking.day,
-                    beginTime = booking.beginTime,
-                    endTime = booking.endTime,
-                    status = booking.status,
-                    statusName = booking.statusName,
-                ),
+            seatActionContext = bookingSeatContext(booking),
             pendingSeatAction = action,
         )
   }
+
+  /** 临时离开后的返回签到，直接提交，不弹操作选择框。 */
+  fun prepareReturnSignIn(booking: LibBookBookingDto): Boolean {
+    if (booking.id.isBlank() || !booking.canReturnSignIn()) return false
+    _uiState.value =
+        _uiState.value.copy(
+            seatActionContext = bookingSeatContext(booking),
+            pendingSeatAction = null,
+        )
+    return true
+  }
+
+  private fun bookingSeatContext(booking: LibBookBookingDto): LibBookQrScanResultDto =
+      LibBookQrScanResultDto(
+          query = booking.query,
+          bookId = booking.id,
+          seatId = booking.seatId,
+          seatNo = booking.seatNo,
+          areaName = booking.areaName,
+          day = booking.day,
+          beginTime = booking.beginTime,
+          endTime = booking.endTime,
+          status = booking.status,
+          statusName = booking.statusName,
+      )
 
   fun requestSeatAction(action: LibBookSeatAction) {
     val context = _uiState.value.seatActionContext ?: return
@@ -386,7 +400,8 @@ class LibBookViewModel(
     viewModelScope.launch {
       val result =
           when (action) {
-            LibBookSeatAction.SIGN_IN -> libBookApi.signIn(request)
+            LibBookSeatAction.SIGN_IN,
+            LibBookSeatAction.RETURN_SIGN_IN -> libBookApi.signIn(request)
             LibBookSeatAction.LEAVE -> libBookApi.leave(request)
             LibBookSeatAction.CHECKOUT -> libBookApi.checkout(request)
           }

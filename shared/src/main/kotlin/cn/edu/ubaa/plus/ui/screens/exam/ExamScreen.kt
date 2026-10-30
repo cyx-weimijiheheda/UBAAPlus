@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.Exam
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
+import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.collections.get
@@ -41,16 +43,18 @@ fun ExamScreen(viewModel: ExamViewModel) {
       onRefresh = { viewModel.ensureLoaded(forceRefresh = true) },
   ) {
     when {
-      uiState.isLoading -> {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator()
-        }
-      }
-      uiState.error != null -> {
-        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-          Text(text = "加载失败: ${uiState.error}", color = MaterialTheme.colorScheme.error)
-        }
-      }
+      uiState.isLoading ->
+          UbaaLoadingState(
+              text = "正在加载考试安排...",
+              showIndicator = false,
+              modifier = Modifier.fillMaxSize(),
+          )
+      uiState.error != null ->
+          UbaaErrorState(
+              message = "加载失败: ${uiState.error}",
+              onRetry = { viewModel.ensureLoaded(forceRefresh = true) },
+              modifier = Modifier.fillMaxSize(),
+          )
       uiState.examData != null -> {
         ExamTimelineList(
             arranged = uiState.examData!!.arranged,

@@ -8,6 +8,9 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+/** 默认自定义主题色（北航蓝 #005BAC）。 */
+const val DEFAULT_CUSTOM_BRAND_ARGB: Int = -16753748
+
 /** 应用可选的颜色主题。 */
 enum class ThemePalette(val displayName: String) {
   BUAA_BLUE("北航蓝"),
@@ -15,6 +18,7 @@ enum class ThemePalette(val displayName: String) {
   PKU_RED("北大红"),
   THU_PURPLE("清华紫"),
   ROOMMATE_PINK("室友粉"),
+  CUSTOM("自定义"),
 }
 
 /** 深色模式设置。 */
@@ -35,6 +39,8 @@ data class AppPreferences(
     val themePalette: ThemePalette = ThemePalette.BUAA_BLUE,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val followWallpaper: Boolean = false,
+    val customBrandArgb: Int = DEFAULT_CUSTOM_BRAND_ARGB,
+    val glassEnabled: Boolean = true,
     val featureLayout: FeatureLayout = FeatureLayout.GRID,
     val featureOrder: List<String> = emptyList(),
     val hiddenFeatures: Set<String> = emptySet(),
@@ -48,6 +54,8 @@ object AppPreferencesStore {
   private const val KEY_THEME_PALETTE = "app_theme_palette"
   private const val KEY_THEME_MODE = "app_theme_mode"
   private const val KEY_FOLLOW_WALLPAPER = "app_follow_wallpaper"
+  private const val KEY_CUSTOM_BRAND_ARGB = "app_theme_custom_argb"
+  private const val KEY_GLASS_ENABLED = "app_liquid_glass_enabled"
   private const val KEY_FEATURE_LAYOUT = "app_feature_layout"
   private const val KEY_FEATURE_ORDER = "app_feature_order"
   private const val KEY_FEATURE_HIDDEN = "app_feature_hidden"
@@ -85,6 +93,24 @@ object AppPreferencesStore {
   fun setFollowWallpaper(enabled: Boolean) {
     settings.putBoolean(KEY_FOLLOW_WALLPAPER, enabled)
     _state.value = _state.value.copy(followWallpaper = enabled)
+  }
+
+  /** 选择自定义主题色时同时选中 CUSTOM，并关闭跟随壁纸。 */
+  fun setCustomBrandColor(argb: Int) {
+    settings.putInt(KEY_CUSTOM_BRAND_ARGB, argb)
+    settings.putString(KEY_THEME_PALETTE, ThemePalette.CUSTOM.name)
+    settings.putBoolean(KEY_FOLLOW_WALLPAPER, false)
+    _state.value =
+        _state.value.copy(
+            customBrandArgb = argb,
+            themePalette = ThemePalette.CUSTOM,
+            followWallpaper = false,
+        )
+  }
+
+  fun setGlassEnabled(enabled: Boolean) {
+    settings.putBoolean(KEY_GLASS_ENABLED, enabled)
+    _state.value = _state.value.copy(glassEnabled = enabled)
   }
 
   fun setFeatureLayout(layout: FeatureLayout) {
@@ -169,6 +195,8 @@ object AppPreferencesStore {
         themePalette = palette,
         themeMode = mode,
         followWallpaper = settings.getBoolean(KEY_FOLLOW_WALLPAPER, false),
+        customBrandArgb = settings.getInt(KEY_CUSTOM_BRAND_ARGB, DEFAULT_CUSTOM_BRAND_ARGB),
+        glassEnabled = settings.getBoolean(KEY_GLASS_ENABLED, true),
         featureLayout = layout,
         featureOrder = order,
         hiddenFeatures = hidden,

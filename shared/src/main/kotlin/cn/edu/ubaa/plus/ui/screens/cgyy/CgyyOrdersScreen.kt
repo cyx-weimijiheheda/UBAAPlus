@@ -1,7 +1,6 @@
 package cn.edu.ubaa.plus.ui.screens.cgyy
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,10 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,20 +36,15 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
 import cn.edu.ubaa.plus.model.dto.displayReservationDateText
 import cn.edu.ubaa.plus.model.dto.displayStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
+import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CgyyOrdersScreen(viewModel: CgyyViewModel) {
   val uiState by viewModel.uiState.collectAsState()
   var selectedOrder by remember { mutableStateOf<CgyyOrderDto?>(null) }
-  val pullRefreshState =
-      rememberPullRefreshState(
-          refreshing = uiState.isOrdersLoading,
-          onRefresh = viewModel::loadOrders,
-      )
-
   LaunchedEffect(Unit) { viewModel.ensureOrdersLoaded() }
   LaunchedEffect(uiState.actionMessage) {
     uiState.actionMessage?.let { message ->
@@ -76,18 +66,22 @@ fun CgyyOrdersScreen(viewModel: CgyyViewModel) {
   }
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { paddingValues ->
-    Box(modifier = Modifier.fillMaxSize().padding(paddingValues).pullRefresh(pullRefreshState)) {
+    UbaaPullToRefresh(
+        refreshing = uiState.isOrdersLoading,
+        onRefresh = viewModel::loadOrders,
+        modifier = Modifier.fillMaxSize().padding(paddingValues),
+    ) {
       when {
         uiState.isOrdersLoading && uiState.orders.content.isEmpty() ->
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              Text(
-                  text = "正在加载预约记录...",
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-            }
+            UbaaLoadingState(
+                text = "正在加载预约记录...",
+                showIndicator = false,
+                modifier = Modifier.fillMaxSize(),
+            )
         uiState.ordersError != null && uiState.orders.content.isEmpty() ->
             CgyyErrorState(
                 uiState.ordersError,
@@ -111,11 +105,6 @@ fun CgyyOrdersScreen(viewModel: CgyyViewModel) {
               }
             }
       }
-      PullRefreshIndicator(
-          refreshing = uiState.isOrdersLoading,
-          state = pullRefreshState,
-          modifier = Modifier.align(Alignment.TopCenter),
-      )
     }
   }
 }

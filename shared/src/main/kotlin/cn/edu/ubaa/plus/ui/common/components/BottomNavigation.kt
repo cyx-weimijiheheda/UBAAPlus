@@ -8,6 +8,10 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 enum class BottomNavTab {
   HOME,
@@ -31,9 +35,17 @@ fun BottomNavigation(
       )
 
   NavigationBar(
-      modifier = modifier.fillMaxWidth(),
-      containerColor = MaterialTheme.colorScheme.surfaceContainer,
+      modifier =
+          modifier
+              .fillMaxWidth()
+              .ubaaGlassSurface(
+                  shape = RectangleShape,
+                  chrome = true,
+                  solidColor = MaterialTheme.colorScheme.surfaceContainer,
+              ),
+      containerColor = Color.Transparent,
       contentColor = MaterialTheme.colorScheme.onSurface,
+      tonalElevation = 0.dp,
   ) {
     NavigationBarItem(
         icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "主页") },

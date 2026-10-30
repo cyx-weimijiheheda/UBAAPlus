@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -48,6 +47,7 @@ fun CampusNetworkScreen(
   UbaaToastEffect(state.error) {}
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { padding ->
@@ -75,7 +75,10 @@ fun CampusNetworkScreen(
                 modifier = Modifier.fillMaxWidth().height(140.dp),
                 contentAlignment = Alignment.Center,
             ) {
-              CircularProgressIndicator()
+              Text(
+                  "正在加载校园网信息...",
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
             }
           }
         }

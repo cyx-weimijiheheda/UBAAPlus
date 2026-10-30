@@ -81,7 +81,10 @@ fun VenueScreen(
     }
   }
 
-  Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
+  Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
+      contentWindowInsets = WindowInsets(0, 0, 0, 0),
+  ) { padding ->
     when (state.authPhase) {
       VenueAuthPhase.CHECKING ->
           Box(

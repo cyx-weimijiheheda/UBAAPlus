@@ -68,6 +68,7 @@ fun CgyyReserveFormScreen(
   val joinersError = hasTriedSubmit && uiState.joiners.isBlank()
 
   Scaffold(
+      containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       bottomBar = {
