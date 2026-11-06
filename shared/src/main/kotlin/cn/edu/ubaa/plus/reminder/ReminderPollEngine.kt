@@ -134,7 +134,11 @@ class ReminderPollEngine(
                 route = AppNotificationRoute.SpocAssignment(assignment.assignmentId),
             )
       }
-      if (due > now && due.toInstant(TimeZone.currentSystemDefault()) - now.toInstant(TimeZone.currentSystemDefault()) <= 24.hours) {
+      if (
+          due > now &&
+              due.toInstant(TimeZone.currentSystemDefault()) -
+                  now.toInstant(TimeZone.currentSystemDefault()) <= 24.hours
+      ) {
         out +=
             ReminderCandidate(
                 key = "spoc-due24:${assignment.assignmentId}",
@@ -152,9 +156,7 @@ class ReminderPollEngine(
       out: MutableList<ReminderCandidate>,
   ) {
     val response =
-        runCatching { judgeApi.getAssignments(includeExpired = false) }
-            .getOrNull()
-            ?.getOrNull()
+        runCatching { judgeApi.getAssignments(includeExpired = false) }.getOrNull()?.getOrNull()
             ?: return
     val assignments = response.assignments
     val seeded = ReminderSeenStore.isSourceSeeded(userKey, "judge")
@@ -187,7 +189,11 @@ class ReminderPollEngine(
                     ),
             )
       }
-      if (due > now && due.toInstant(TimeZone.currentSystemDefault()) - now.toInstant(TimeZone.currentSystemDefault()) <= 24.hours) {
+      if (
+          due > now &&
+              due.toInstant(TimeZone.currentSystemDefault()) -
+                  now.toInstant(TimeZone.currentSystemDefault()) <= 24.hours
+      ) {
         out +=
             ReminderCandidate(
                 key = "judge-due24:${assignment.courseId}:${assignment.assignmentId}",

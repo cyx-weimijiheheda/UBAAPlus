@@ -27,6 +27,8 @@ import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
+import cn.edu.ubaa.plus.reminder.AppNotificationRoute
+import cn.edu.ubaa.plus.reminder.PendingAppRouteStore
 import cn.edu.ubaa.plus.ui.common.components.AppTopBar
 import cn.edu.ubaa.plus.ui.common.components.BottomNavTab
 import cn.edu.ubaa.plus.ui.common.components.QrScanResultDialog
@@ -47,8 +49,6 @@ import cn.edu.ubaa.plus.ui.screens.grade.GradeViewModel
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeViewModel
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
 import cn.edu.ubaa.plus.ui.screens.library.LibraryBorrowViewModel
-import cn.edu.ubaa.plus.reminder.AppNotificationRoute
-import cn.edu.ubaa.plus.reminder.PendingAppRouteStore
 import cn.edu.ubaa.plus.ui.screens.menu.*
 import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel
 import cn.edu.ubaa.plus.ui.screens.signin.SigninViewModel

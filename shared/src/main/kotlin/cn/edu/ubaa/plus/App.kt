@@ -39,9 +39,9 @@ import cn.edu.ubaa.plus.api.auth.AppVersionCheckResponse
 import cn.edu.ubaa.plus.api.auth.UpdateService
 import cn.edu.ubaa.plus.api.storage.AnnouncementReadStore
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
-import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.api.storage.DisclaimerStore
 import cn.edu.ubaa.plus.api.storage.ThemeMode
+import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.components.FirstRunDisclaimerDialog
 import cn.edu.ubaa.plus.ui.common.components.ReleaseNotesText

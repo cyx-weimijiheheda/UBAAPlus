@@ -16,13 +16,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,12 +44,12 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.SigninClassDto
 import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
-import cn.edu.ubaa.plus.ui.screens.signin.SigninClassCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.screens.grade.GradeScoreUpdateNotice
 import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailDialog
 import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailInfo
 import cn.edu.ubaa.plus.ui.screens.schedule.toCourseDetailInfo
+import cn.edu.ubaa.plus.ui.screens.signin.SigninClassCard
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.datetime.TimeZone

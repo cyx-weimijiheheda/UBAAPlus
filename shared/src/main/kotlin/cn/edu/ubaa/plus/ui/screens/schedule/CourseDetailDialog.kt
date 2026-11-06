@@ -49,8 +49,7 @@ data class CourseDetailInfo(
 
 fun CourseClass.toCourseDetailInfo(weekStartDate: String?): CourseDetailInfo {
   val weekStart = parseUbaaDate(weekStartDate)
-  val date =
-      weekStart?.plus(DatePeriod(days = ((dayOfWeek ?: 1) - 1).coerceIn(0, 6)))
+  val date = weekStart?.plus(DatePeriod(days = ((dayOfWeek ?: 1) - 1).coerceIn(0, 6)))
   return CourseDetailInfo(
       courseName = courseName,
       courseCode = courseCode,

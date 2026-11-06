@@ -18,9 +18,7 @@ object ReminderSeenStore {
       _settings = value
     }
 
-  @Synchronized
-  fun isSeen(userKey: String, key: String): Boolean =
-      read(userKey).contains(key)
+  @Synchronized fun isSeen(userKey: String, key: String): Boolean = read(userKey).contains(key)
 
   /** 返回 true 表示第一次见到该 key，应发通知。 */
   @Synchronized
@@ -56,9 +54,7 @@ object ReminderSeenStore {
   }
 
   private fun write(userKey: String, keys: Set<String>) {
-    val trimmed =
-        if (keys.size <= MAX_KEYS) keys
-        else keys.toList().takeLast(MAX_KEYS).toSet()
+    val trimmed = if (keys.size <= MAX_KEYS) keys else keys.toList().takeLast(MAX_KEYS).toSet()
     settings.putString(keyFor(userKey), json.encodeToString(trimmed))
   }
 

@@ -90,9 +90,8 @@ object ConnectionModeStore {
 object ConnectionRuntime {
   internal var apiFactoryProvider: () -> ApiFactory = { DefaultApiFactory }
 
-  private val _currentMode = MutableStateFlow(
-      ConnectionModeStore.get()?.takeIf { it != ConnectionMode.AUTO }
-  )
+  private val _currentMode =
+      MutableStateFlow(ConnectionModeStore.get()?.takeIf { it != ConnectionMode.AUTO })
   val currentModeFlow: StateFlow<ConnectionMode?> = _currentMode.asStateFlow()
 
   internal fun apiFactory(): ApiFactory = apiFactoryProvider()

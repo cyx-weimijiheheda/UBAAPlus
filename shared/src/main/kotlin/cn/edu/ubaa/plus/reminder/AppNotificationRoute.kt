@@ -13,8 +13,7 @@ sealed interface AppNotificationRoute {
 
   data class SpocAssignment(val assignmentId: String) : AppNotificationRoute
 
-  data class JudgeAssignment(val courseId: String, val assignmentId: String) :
-      AppNotificationRoute
+  data class JudgeAssignment(val courseId: String, val assignmentId: String) : AppNotificationRoute
 }
 
 object ReminderIntentExtras {
@@ -52,11 +51,13 @@ object ReminderIntentExtras {
     return when (intent.getStringExtra(EXTRA_ROUTE)) {
       ROUTE_ICLASS -> AppNotificationRoute.IclassHome
       ROUTE_BYKC ->
-          intent.getLongExtra(EXTRA_COURSE_ID, -1L)
+          intent
+              .getLongExtra(EXTRA_COURSE_ID, -1L)
               .takeIf { it > 0 }
               ?.let(AppNotificationRoute::BykcCourse)
       ROUTE_SPOC ->
-          intent.getStringExtra(EXTRA_ASSIGNMENT_ID)
+          intent
+              .getStringExtra(EXTRA_ASSIGNMENT_ID)
               ?.takeIf { it.isNotBlank() }
               ?.let(AppNotificationRoute::SpocAssignment)
       ROUTE_JUDGE -> {

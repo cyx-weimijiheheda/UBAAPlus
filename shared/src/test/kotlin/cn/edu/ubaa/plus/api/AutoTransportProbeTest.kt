@@ -17,21 +17,30 @@ class AutoTransportProbeTest {
   fun `campus reachable selects direct`() = runTest {
     AutoTransportProbe.reachability = { it == AutoTransportProbe.CAMPUS_PROBE_URL }
 
-    assertEquals(ConnectionMode.DIRECT, AutoTransportProbe.resolve(previous = ConnectionMode.WEBVPN))
+    assertEquals(
+        ConnectionMode.DIRECT,
+        AutoTransportProbe.resolve(previous = ConnectionMode.WEBVPN),
+    )
   }
 
   @Test
   fun `only webvpn reachable selects webvpn`() = runTest {
     AutoTransportProbe.reachability = { it == AutoTransportProbe.WEBVPN_PROBE_URL }
 
-    assertEquals(ConnectionMode.WEBVPN, AutoTransportProbe.resolve(previous = ConnectionMode.DIRECT))
+    assertEquals(
+        ConnectionMode.WEBVPN,
+        AutoTransportProbe.resolve(previous = ConnectionMode.DIRECT),
+    )
   }
 
   @Test
   fun `no probe reachable keeps previous transport`() = runTest {
     AutoTransportProbe.reachability = { false }
 
-    assertEquals(ConnectionMode.WEBVPN, AutoTransportProbe.resolve(previous = ConnectionMode.WEBVPN))
+    assertEquals(
+        ConnectionMode.WEBVPN,
+        AutoTransportProbe.resolve(previous = ConnectionMode.WEBVPN),
+    )
     assertEquals(ConnectionMode.DIRECT, AutoTransportProbe.resolve(previous = null))
   }
 }
