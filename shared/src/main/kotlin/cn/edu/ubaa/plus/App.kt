@@ -87,6 +87,7 @@ fun App() {
     val appScope = rememberCoroutineScope()
     val availableConnectionModes = remember { ConnectionRuntime.availableModes() }
     var selectedConnectionMode by remember { mutableStateOf<ConnectionMode?>(null) }
+    val effectiveConnectionMode by ConnectionRuntime.currentModeFlow.collectAsState()
     var modeResolved by remember { mutableStateOf(false) }
     var showOfflineSchedule by remember { mutableStateOf(false) }
 
@@ -112,7 +113,6 @@ fun App() {
     }
 
     suspend fun bootstrapForMode(mode: ConnectionMode) {
-      selectedConnectionMode = mode
       launchStartupTasks(
           scope = appScope,
           initializeAuthentication = authViewModel::initializeApp,
@@ -121,10 +121,12 @@ fun App() {
     }
 
     LaunchedEffect(Unit) {
-      selectedConnectionMode = ConnectionRuntime.resolveSelectedMode()
+      val preferred = ConnectionRuntime.preferredMode()
+      selectedConnectionMode = preferred
+      val effective = if (preferred != null) ConnectionRuntime.resolveStartupMode() else null
       modeResolved = true
       if (ScheduleStore.hasSavedSchedule()) isSplashFinished = true
-      selectedConnectionMode?.let { bootstrapForMode(it) }
+      effective?.let { bootstrapForMode(it) }
     }
 
     // 前台恢复时验证会话有效性
@@ -278,6 +280,10 @@ fun App() {
             userData = userData,
             userInfo = uiState.userInfo,
             connectionMode = selectedConnectionMode ?: ConnectionMode.DIRECT,
+            effectiveConnectionMode =
+                effectiveConnectionMode
+                    ?: selectedConnectionMode?.takeIf { it != ConnectionMode.AUTO }
+                    ?: ConnectionMode.DIRECT,
             availableConnectionModes = availableConnectionModes,
             onEnsureUserInfo = { authViewModel.ensureUserInfoLoaded() },
             onConnectionModeSelected = { mode ->

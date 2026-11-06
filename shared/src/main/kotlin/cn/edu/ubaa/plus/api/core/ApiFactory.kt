@@ -99,6 +99,8 @@ internal object DefaultApiFactory : ApiFactory {
       when (mode) {
         ConnectionMode.DIRECT -> directBackends
         ConnectionMode.WEBVPN -> webVpnBackends
+        // AUTO 只是用户偏好，传输解析后不会走到这里；防御性回退到直连。
+        ConnectionMode.AUTO -> directBackends
       }
 
   private class LocalBackendSet {

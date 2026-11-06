@@ -233,7 +233,7 @@ class AuthViewModel(
 
   fun switchConnectionMode(mode: ConnectionMode) {
     viewModelScope.launch {
-      ConnectionRuntime.switchMode(mode)
+      ConnectionRuntime.switchModeAsync(mode)
       resetUserInfoState()
       _uiState.value = AuthUiState()
       loadSavedCredentials()

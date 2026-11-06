@@ -75,6 +75,7 @@ internal class MainScreenContentState(
     val userData: UserData,
     val userInfo: UserInfo?,
     val connectionMode: ConnectionMode,
+    val effectiveConnectionMode: ConnectionMode,
     val availableConnectionModes: List<ConnectionMode>,
     val todayScheduleState: TodayScheduleState,
     val homeIsRefreshing: Boolean,
@@ -240,7 +241,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
         AppScreen.COURSE_DETAIL -> selectedCourse?.let { CourseDetailScreen(course = it) }
         AppScreen.BYKC_STATISTICS -> BykcStatisticsScreen(viewModel = bykcViewModel)
         AppScreen.ICLASS_HOME ->
-            IclassHomeScreen(viewModel = signinViewModel, connectionMode = connectionMode)
+            IclassHomeScreen(viewModel = signinViewModel, connectionMode = effectiveConnectionMode)
         AppScreen.BYKC_COURSES ->
             BykcCoursesScreen(
                 courses = bykcCoursesState.courses,

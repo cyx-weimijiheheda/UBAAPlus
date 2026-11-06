@@ -115,6 +115,7 @@ fun MainAppScreen(
     userData: UserData,
     userInfo: UserInfo?,
     connectionMode: ConnectionMode,
+    effectiveConnectionMode: ConnectionMode,
     availableConnectionModes: List<ConnectionMode>,
     onEnsureUserInfo: () -> Unit,
     onConnectionModeSelected: (ConnectionMode) -> Unit,
@@ -562,7 +563,7 @@ fun MainAppScreen(
   }
 
   // 连接模式切换后，重置所有 ViewModel 的加载标记与缓存数据，并强制刷新当前页面
-  LaunchedEffect(connectionMode, userData.schoolid) {
+  LaunchedEffect(effectiveConnectionMode, userData.schoolid) {
     // 常驻 ViewModel
     scheduleViewModel.resetLoadedState()
     signinViewModel.resetLoadedState()
@@ -857,6 +858,7 @@ fun MainAppScreen(
               userData = userData,
               userInfo = userInfo,
               connectionMode = connectionMode,
+              effectiveConnectionMode = effectiveConnectionMode,
               availableConnectionModes = availableConnectionModes,
               todayScheduleState = todayScheduleState,
               homeIsRefreshing = homeIsRefreshing,
