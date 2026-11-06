@@ -16,24 +16,80 @@ class VenueGrabLogicTest {
 
   @Test
   fun `按时长推导目标时段`() {
-    assertEquals(
-        listOf(template[1]),
-        resolveVenueTargetSlots(template, "19:00", hours = 1),
-    )
-    assertEquals(
-        listOf(template[1], template[2]),
-        resolveVenueTargetSlots(template, "19:00", hours = 2),
-    )
+    val oneHour = resolveVenueTargetSlots(template, "19:00", minutes = 60)
+    assertEquals(listOf(template[1]), oneHour.slots)
+    assertEquals("19:00-20:00", oneHour.rangeLabel)
+    assertTrue(oneHour.isComplete)
+
+    val twoHours = resolveVenueTargetSlots(template, "19:00", minutes = 120)
+    assertEquals(listOf(template[1], template[2]), twoHours.slots)
+    assertEquals("19:00-21:00", twoHours.rangeLabel)
   }
 
   @Test
-  fun `时长超过两个时段时最多取两个`() {
-    assertEquals(2, resolveVenueTargetSlots(template, "18:00", hours = 2).size)
+  fun `半小时场馆两小时取四个时段`() {
+    val halfHourTemplate =
+        listOf(
+            VenueTimeSlot(1, "10:00", "10:30"),
+            VenueTimeSlot(2, "10:30", "11:00"),
+            VenueTimeSlot(3, "11:00", "11:30"),
+            VenueTimeSlot(4, "11:30", "12:00"),
+        )
+
+    val resolution = resolveVenueTargetSlots(halfHourTemplate, "10:00", minutes = 120)
+
+    assertEquals(4, resolution.slots.size)
+    assertEquals("10:00-12:00", resolution.rangeLabel)
+    assertEquals(120, resolution.spanMinutes)
+  }
+
+  @Test
+  fun `单个超长时段会提示超过两小时`() {
+    val longSlot = listOf(VenueTimeSlot(1, "09:30", "22:00"))
+
+    val resolution = resolveVenueTargetSlots(longSlot, "09:30", minutes = 120)
+
+    assertEquals(1, resolution.slots.size)
+    assertEquals(750, resolution.spanMinutes)
+    assertTrue(resolution.exceedsTwoHours)
+    assertEquals("09:30-22:00", resolution.rangeLabel)
+  }
+
+  @Test
+  fun `当日剩余时段不足时标记未完成`() {
+    val resolution = resolveVenueTargetSlots(template, "20:00", minutes = 120)
+
+    assertEquals(1, resolution.slots.size)
+    assertEquals(60, resolution.resolvedMinutes)
+    assertTrue(!resolution.isComplete)
   }
 
   @Test
   fun `未知开始时间返回空`() {
-    assertTrue(resolveVenueTargetSlots(template, "07:00", hours = 1).isEmpty())
+    assertTrue(resolveVenueTargetSlots(template, "07:00", minutes = 60).slots.isEmpty())
+  }
+
+  @Test
+  fun `可选时长按场馆最小时段推导`() {
+    val halfHour = listOf(VenueTimeSlot(1, "10:00", "10:30"), VenueTimeSlot(2, "10:30", "11:00"))
+    assertEquals(listOf(30, 60, 90, 120), venueDurationOptions(halfHour))
+    assertEquals(listOf(60, 120), venueDurationOptions(template))
+    assertEquals(listOf(120), venueDurationOptions(listOf(VenueTimeSlot(1, "11:45", "13:45"))))
+    assertEquals(listOf(120), venueDurationOptions(listOf(VenueTimeSlot(1, "09:30", "22:00"))))
+  }
+
+  @Test
+  fun `时长文案与取值收敛`() {
+    assertEquals("30 分钟", venueDurationLabel(30))
+    assertEquals("1 小时", venueDurationLabel(60))
+    assertEquals("1.5 小时", venueDurationLabel(90))
+    assertEquals("2 小时", venueDurationLabel(120))
+    assertEquals("12.5 小时", venueDurationLabel(750))
+
+    val halfHour = listOf(VenueTimeSlot(1, "10:00", "10:30"))
+    assertEquals(60, coerceVenueDuration(60, halfHour))
+    assertEquals(60, coerceVenueDuration(0, template))
+    assertEquals(120, coerceVenueDuration(200, template))
   }
 
   @Test

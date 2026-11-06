@@ -43,6 +43,18 @@ private val sportCategoryOrder =
         "飞盘",
     )
 
+/**
+ * 党课场馆。
+ *
+ * 上游接口虽然能查到，但学校不允许用户预约，所有列表都不应出现，也不能触发任何场馆接口。
+ */
+fun VenueSite.isPartyClassVenue(): Boolean =
+    listOf(siteName, venueName, sportName).any { it.contains("党课") }
+
+/** 过滤掉不可预约的党课场馆。 */
+fun visibleVenueSites(sites: List<VenueSite>): List<VenueSite> =
+    sites.filterNot { it.isPartyClassVenue() }
+
 /** 校区的展示名；上游没有填校区时给出稳定占位。 */
 fun VenueSite.campusLabel(): String = campusName.trim().ifBlank { "未标注校区" }
 
@@ -85,10 +97,13 @@ fun VenueSite.sportCategoryLabel(): String {
 }
 
 fun venueCampusOptions(sites: List<VenueSite>): List<String> =
-    sites.map { it.campusLabel() }.distinct().sortedWith(compareBy({ campusRank(it) }, { it }))
+    visibleVenueSites(sites)
+        .map { it.campusLabel() }
+        .distinct()
+        .sortedWith(compareBy({ campusRank(it) }, { it }))
 
 fun venueSportOptions(sites: List<VenueSite>, campus: String): List<String> =
-    sites
+    visibleVenueSites(sites)
         .filter { it.campusLabel() == campus }
         .map { it.sportCategoryLabel() }
         .distinct()
@@ -99,7 +114,7 @@ fun venueSiteOptions(
     campus: String,
     sport: String,
 ): List<VenueSite> =
-    sites
+    visibleVenueSites(sites)
         .filter { it.campusLabel() == campus && it.sportCategoryLabel() == sport }
         .sortedWith(compareBy({ it.venueLabel() }, { it.siteName }, { it.id }))
 

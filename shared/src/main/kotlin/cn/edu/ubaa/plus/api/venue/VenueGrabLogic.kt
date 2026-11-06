@@ -12,12 +12,15 @@ enum class VenueSpaceMode {
   AUTO,
 }
 
+/** 学校限制：一次预约最多连续 2 小时。 */
+internal const val MAX_VENUE_SPAN_MINUTES = 120
+
 /** 一次抢场地任务的全部参数。 */
 data class VenueGrabTask(
     val siteId: Int,
     val date: String,
     val startBeginTime: String,
-    val durationHours: Int,
+    val durationMinutes: Int,
     val spaceMode: VenueSpaceMode,
     val preferredSpaceByBegin: Map<String, Int> = emptyMap(),
     val fallbackAnySpace: Boolean = true,
@@ -38,26 +41,83 @@ enum class VenueFailureKind {
   STOP,
 }
 
-/** 由开始时刻和时长推导真实时段，最多 2 个时段、2 小时。 */
+/** 目标时段的解析结果。 */
+data class VenueSlotResolution(
+    val slots: List<VenueTimeSlot>,
+    val requestedMinutes: Int,
+    val resolvedMinutes: Int,
+    val spanMinutes: Int,
+) {
+  val isComplete: Boolean
+    get() = slots.isNotEmpty() && resolvedMinutes >= requestedMinutes
+
+  val exceedsTwoHours: Boolean
+    get() = spanMinutes > MAX_VENUE_SPAN_MINUTES
+
+  /** 实际起止区间，例如 `19:00-20:30`。 */
+  val rangeLabel: String
+    get() = if (slots.isEmpty()) "" else "${slots.first().beginTime}-${slots.last().endTime}"
+}
+
+/**
+ * 由开始时刻和时长推导真实时段。
+ *
+ * 官方时段表不一定是整小时（射击 30 分钟一场，沙河游泳馆 11:45-13:45）， 所以按真实分钟数累计到目标时长为止，不再按“最多 2 个时段”截断。
+ */
 internal fun resolveVenueTargetSlots(
     template: List<VenueTimeSlot>,
     startBegin: String,
-    hours: Int,
-): List<VenueTimeSlot> {
+    minutes: Int,
+): VenueSlotResolution {
+  val requested = minutes.coerceIn(1, MAX_VENUE_SPAN_MINUTES)
   val startIndex = template.indexOfFirst { it.beginTime == startBegin }
-  if (startIndex < 0) return emptyList()
+  if (startIndex < 0) return VenueSlotResolution(emptyList(), requested, 0, 0)
 
-  val targetMinutes = hours.coerceIn(1, 2) * 60
   val result = mutableListOf<VenueTimeSlot>()
   var accumulated = 0
   for (index in startIndex until template.size) {
     val slot = template[index]
     result += slot
-    accumulated += slotDurationMinutes(slot)
-    if (accumulated >= targetMinutes || result.size >= 2) break
+    accumulated += venueSlotMinutes(slot)
+    if (accumulated >= requested) break
   }
-  return result
+  val span = slotSpanMinutes(result) ?: accumulated
+  return VenueSlotResolution(result, requested, accumulated, span)
 }
+
+/** 可选时长：以场馆最小时段为单位，最多 2 小时。 */
+internal fun venueDurationOptions(slots: List<VenueTimeSlot>): List<Int> {
+  val unit =
+      slots
+          .mapNotNull { slot -> slotMinutesOrNull(slot)?.takeIf { it > 0 } }
+          .minOrNull()
+          ?.coerceAtLeast(1) ?: 60
+  val options = (1..4).map { unit * it }.filter { it <= MAX_VENUE_SPAN_MINUTES }
+  return options.ifEmpty { listOf(MAX_VENUE_SPAN_MINUTES) }
+}
+
+internal fun coerceVenueDuration(minutes: Int, slots: List<VenueTimeSlot>): Int {
+  val options = venueDurationOptions(slots)
+  return when {
+    minutes in options -> minutes
+    minutes < options.first() -> options.first()
+    else -> options.last()
+  }
+}
+
+/** 时长文案：30 分钟 / 1 小时 / 1.5 小时 / 2 小时。 */
+internal fun venueDurationLabel(minutes: Int): String {
+  val hours = minutes / 60
+  val rest = minutes % 60
+  return when {
+    hours == 0 -> "$minutes 分钟"
+    rest == 0 -> "$hours 小时"
+    rest == 30 -> "$hours.5 小时"
+    else -> "$hours 小时 $rest 分钟"
+  }
+}
+
+internal fun venueSlotMinutes(slot: VenueTimeSlot): Int = slotMinutesOrNull(slot) ?: 60
 
 /** 为每个目标时段挑一个空闲场地；任意一段无空位则返回 null。 */
 internal fun pickVenueSelection(
@@ -127,10 +187,16 @@ private val RETRYABLE_KEYWORDS =
         "当前预约人数过多",
     )
 
-private fun slotDurationMinutes(slot: VenueTimeSlot): Int {
-  val begin = parseMinutes(slot.beginTime) ?: return 60
-  val end = parseMinutes(slot.endTime) ?: return 60
-  return if (end > begin) end - begin else 60
+private fun slotMinutesOrNull(slot: VenueTimeSlot): Int? {
+  val begin = parseMinutes(slot.beginTime) ?: return null
+  val end = parseMinutes(slot.endTime) ?: return null
+  return if (end > begin) end - begin else null
+}
+
+private fun slotSpanMinutes(slots: List<VenueTimeSlot>): Int? {
+  val begin = slots.firstOrNull()?.let { parseMinutes(it.beginTime) } ?: return null
+  val end = slots.lastOrNull()?.let { parseMinutes(it.endTime) } ?: return null
+  return if (end > begin) end - begin else null
 }
 
 private fun parseMinutes(value: String): Int? {

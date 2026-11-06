@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -32,6 +33,7 @@ import cn.edu.ubaa.plus.api.venue.VenueSpace
 import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
 import cn.edu.ubaa.plus.api.venue.VenueSpaceSlot
 import cn.edu.ubaa.plus.api.venue.VenueTimeSlot
+import cn.edu.ubaa.plus.api.venue.venueDurationLabel
 import cn.edu.ubaa.plus.api.venue.venueOptionLabel
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
@@ -168,7 +170,7 @@ fun VenueScreen(
               item {
                 VenueTargetOptionsCard(
                     state = state,
-                    onDurationChange = viewModel::setDurationHours,
+                    onDurationChange = viewModel::setDurationMinutes,
                     onSpaceModeChange = viewModel::setSpaceMode,
                     onRandomChange = viewModel::setRandomSpace,
                     onFallbackChange = viewModel::setFallbackAnySpace,
@@ -845,17 +847,14 @@ private fun VenueTargetOptionsCard(
       Spacer(modifier = Modifier.height(8.dp))
 
       Text("时长", style = MaterialTheme.typography.labelMedium)
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = state.durationHours == 1,
-            onClick = { onDurationChange(1) },
-            label = { Text("1 小时") },
-        )
-        FilterChip(
-            selected = state.durationHours == 2,
-            onClick = { onDurationChange(2) },
-            label = { Text("2 小时") },
-        )
+      FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        state.durationOptions.forEach { minutes ->
+          FilterChip(
+              selected = state.durationMinutes == minutes,
+              onClick = { onDurationChange(minutes) },
+              label = { Text(venueDurationLabel(minutes)) },
+          )
+        }
       }
 
       Spacer(modifier = Modifier.height(8.dp))
@@ -900,10 +899,9 @@ private fun VenueTargetOptionsCard(
               } else {
                 buildString {
                   append("目标：")
-                  append(start)
+                  append(state.selectedTargetRangeLabel)
                   append(" · ")
-                  append(state.durationHours)
-                  append(" 小时")
+                  append(venueDurationLabel(state.durationMinutes))
                   if (state.spaceMode == VenueSpaceMode.FIXED && !spaceName.isNullOrBlank()) {
                     append(" · ")
                     append(spaceName)
@@ -913,6 +911,13 @@ private fun VenueTargetOptionsCard(
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.primary,
       )
+      state.targetSpanWarning?.let { warning ->
+        Text(
+            text = warning,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+      }
     }
   }
 }

@@ -164,7 +164,7 @@ internal class VenueGrabController(
   }
 
   private suspend fun executeTask(task: VenueGrabTask) {
-    log("开始抢场地：${task.date} ${task.startBeginTime} · ${task.durationHours} 小时")
+    log("开始抢场地：${task.date} ${task.startBeginTime} · ${task.durationMinutes} 分钟")
 
     val preflight = api.getDayInfo(task.siteId, task.date)
     preflight
@@ -201,17 +201,23 @@ internal class VenueGrabController(
         continue
       }
 
-      val targetSlots = resolveVenueTargetSlots(day.slots, task.startBeginTime, task.durationHours)
-      if (targetSlots.isEmpty()) {
+      val resolution = resolveVenueTargetSlots(day.slots, task.startBeginTime, task.durationMinutes)
+      if (resolution.slots.isEmpty()) {
         logThrottled("未找到目标时段 ${task.startBeginTime}，重试中")
         delay(task.pollInterval)
         continue
+      }
+      if (!resolution.isComplete) {
+        throw VenueGrabFatalException("所选时长超出当日剩余时段，请调整时长或开始时间")
+      }
+      if (resolution.exceedsTwoHours) {
+        logThrottled("所选时段实际跨度 ${resolution.spanMinutes} 分钟，超过连续 2 小时限制")
       }
 
       val selections =
           pickVenueSelection(
               dayInfo = day,
-              targetSlots = targetSlots,
+              targetSlots = resolution.slots,
               preferredSpaceByBegin = task.preferredSpaceByBegin,
               fallbackAnySpace = task.fallbackAnySpace,
               randomSpace = task.randomSpace,

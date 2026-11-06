@@ -49,13 +49,33 @@ class VenueCategoriesTest {
   }
 
   @Test
-  fun `艺术与党课归入其他且排在最后`() {
+  fun `艺术归入其他且排在最后`() {
     val sports = venueSportOptions(sites, "沙河校区")
     assertEquals(listOf("乒乓球", "其他"), sports)
     assertEquals(
-        setOf(5, 6),
+        setOf(5),
         venueSiteOptions(sites, "沙河校区", VENUE_OTHER_CATEGORY).map { it.id }.toSet(),
     )
+  }
+
+  @Test
+  fun `党课场馆不出现在任何列表`() {
+    val allSiteIds =
+        venueCampusOptions(sites).flatMap { campus ->
+          venueSportOptions(sites, campus).flatMap { sport ->
+            venueSiteOptions(sites, campus, sport).map { it.id }
+          }
+        }
+
+    assertTrue(6 !in allSiteIds)
+    assertTrue(visibleVenueSites(sites).none { it.id == 6 })
+  }
+
+  @Test
+  fun `仅含党课场馆的校区不出现`() {
+    val onlyParty = sites + site(10, "杭州校区", "党课", "党校", "党课教室")
+
+    assertTrue("杭州校区" !in venueCampusOptions(onlyParty))
   }
 
   @Test

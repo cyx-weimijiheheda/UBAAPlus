@@ -125,7 +125,7 @@ class VenueGrabControllerTest {
           siteId = 1,
           date = "2026-09-26",
           startBeginTime = "19:00",
-          durationHours = 1,
+          durationMinutes = 60,
           spaceMode = VenueSpaceMode.AUTO,
           pollInterval = 1.milliseconds,
           grabAt = null,

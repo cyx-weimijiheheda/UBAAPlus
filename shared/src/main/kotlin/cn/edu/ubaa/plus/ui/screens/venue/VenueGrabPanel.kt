@@ -260,7 +260,8 @@ private fun venueTargetLines(state: VenueUiState, alreadyReleased: Boolean): Lis
     buildList {
       state.selectedSite?.let { add("场地：${it.displayName}") }
       add("日期：${formatUbaaDate(state.selectedDate)}")
-      state.selectedStartBegin?.let { add("时段：$it 起 ${state.durationHours} 小时") }
+      state.selectedStartBegin?.let { add("时段：${state.selectedTargetRangeLabel}") }
+      state.targetSpanWarning?.let { add("注意：$it") }
       add("场地模式：${if (state.spaceMode == VenueSpaceMode.FIXED) "指定场地" else "自动选场地"}")
       if (state.selectedBuddyIds.isNotEmpty()) {
         add("同伴：${state.selectedBuddyIds.size} 位")

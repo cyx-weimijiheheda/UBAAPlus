@@ -16,15 +16,21 @@ import cn.edu.ubaa.plus.api.venue.VenueMembershipCode
 import cn.edu.ubaa.plus.api.venue.VenueOrderRecord
 import cn.edu.ubaa.plus.api.venue.VenuePoint
 import cn.edu.ubaa.plus.api.venue.VenueSite
+import cn.edu.ubaa.plus.api.venue.VenueSlotResolution
 import cn.edu.ubaa.plus.api.venue.VenueSpace
 import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
 import cn.edu.ubaa.plus.api.venue.VenueTimeSlot
 import cn.edu.ubaa.plus.api.venue.campusLabel
+import cn.edu.ubaa.plus.api.venue.coerceVenueDuration
+import cn.edu.ubaa.plus.api.venue.resolveVenueTargetSlots
 import cn.edu.ubaa.plus.api.venue.sportCategoryLabel
 import cn.edu.ubaa.plus.api.venue.venueCampusOptions
+import cn.edu.ubaa.plus.api.venue.venueDurationLabel
+import cn.edu.ubaa.plus.api.venue.venueDurationOptions
 import cn.edu.ubaa.plus.api.venue.venueOptionLabel
 import cn.edu.ubaa.plus.api.venue.venueSiteOptions
 import cn.edu.ubaa.plus.api.venue.venueSportOptions
+import cn.edu.ubaa.plus.api.venue.visibleVenueSites
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
@@ -89,7 +95,7 @@ data class VenueUiState(
     val dayInfoMessage: String? = null,
     val selectedStartBegin: String? = null,
     val selectedSpaceId: Int? = null,
-    val durationHours: Int = 1,
+    val durationMinutes: Int = 60,
     val spaceMode: VenueSpaceMode = VenueSpaceMode.FIXED,
     val randomSpace: Boolean = false,
     val fallbackAnySpace: Boolean = true,
@@ -132,24 +138,66 @@ data class VenueUiState(
       }
     }
 
-  /** 下拉框只列出至少还有一块空闲场地的时段；未放票时回退到时段模板。 */
-  val selectableSlots: List<VenueTimeSlot>
+  private val timeSlots: List<VenueTimeSlot>
+    get() = dayInfo?.slots?.takeIf { it.isNotEmpty() } ?: slotTemplate
+
+  /** 当前场馆真实时段表推导出的可选时长。 */
+  val durationOptions: List<Int>
+    get() = venueDurationOptions(timeSlots)
+
+  /** 开始时间 + 时长 → 真实时段。 */
+  val targetResolution: VenueSlotResolution?
     get() {
-      val day = dayInfo ?: return slotTemplate
-      return day.slots.filter { slot ->
-        day.spaces.any { space -> space.slot(slot.timeId)?.isFree == true }
-      }
+      val start = selectedStartBegin ?: return null
+      return resolveVenueTargetSlots(timeSlots, start, durationMinutes)
     }
+
+  /** 实际起止区间，例如 `19:00-20:30`；未选时段时为空。 */
+  val selectedTargetRangeLabel: String
+    get() = targetResolution?.rangeLabel?.takeIf { it.isNotEmpty() } ?: selectedStartBegin.orEmpty()
+
+  /** 单个超长时段（如 09:30-22:00）超过连续 2 小时限制时的提示。 */
+  val targetSpanWarning: String?
+    get() {
+      val resolution = targetResolution ?: return null
+      if (!resolution.exceedsTwoHours) return null
+      return "所选时段实际跨度 ${venueDurationLabel(resolution.spanMinutes)}，超过连续 2 小时限制，服务端可能拒绝"
+    }
+
+  /** 某片场地在整段目标时段内是否都空闲。 */
+  fun spaceFreeForResolution(space: VenueSpace, resolution: VenueSlotResolution): Boolean =
+      resolution.slots.all { space.slot(it.timeId)?.isFree == true }
+
+  /** 时段是否满足当前时长与场地约束。 */
+  fun isResolutionSelectable(startSlot: VenueTimeSlot): Boolean {
+    val resolution = resolveVenueTargetSlots(timeSlots, startSlot.beginTime, durationMinutes)
+    if (!resolution.isComplete) return false
+    val day = dayInfo ?: return true
+    val anyFree =
+        resolution.slots.all { target -> day.spaces.any { it.slot(target.timeId)?.isFree == true } }
+    if (!anyFree) return false
+    val fixedSpace =
+        selectedSpaceId
+            ?.takeIf { spaceMode == VenueSpaceMode.FIXED && !fallbackAnySpace }
+            ?.let { id -> day.spaces.firstOrNull { it.spaceId == id } }
+    return fixedSpace == null || spaceFreeForResolution(fixedSpace, resolution)
+  }
+
+  /** 下拉框只列出能满足完整时长的起始时段；未放票时回退到时段模板。 */
+  val selectableSlots: List<VenueTimeSlot>
+    get() = timeSlots.filter { isResolutionSelectable(it) }
 
   /** 当前目标时段的展示文本；目标已不可用时保留选择并附加提示。 */
   val selectedSlotLabel: String
     get() {
       val start = selectedStartBegin ?: return ""
-      val source = dayInfo?.slots ?: slotTemplate
-      val slot = source.firstOrNull { it.beginTime == start }
-      val label = slot?.label ?: start
-      val unavailable =
-          dayInfo != null && slot != null && selectableSlots.none { it.timeId == slot.timeId }
+      val resolution = targetResolution
+      val label =
+          resolution?.rangeLabel?.takeIf { it.isNotEmpty() }
+              ?: timeSlots.firstOrNull { it.beginTime == start }?.label
+              ?: start
+      val slot = timeSlots.firstOrNull { it.beginTime == start }
+      val unavailable = dayInfo != null && slot != null && !isResolutionSelectable(slot)
       return if (unavailable) "$label（当前无空闲）" else label
     }
 }
@@ -352,11 +400,12 @@ class VenueViewModel(
     venueApi
         .getSites()
         .onSuccess { result ->
+          val sites = visibleVenueSites(result.sites)
           val current = _state.value.selectedSiteId
-          val selected = result.sites.firstOrNull { it.id == current } ?: result.sites.firstOrNull()
+          val selected = sites.firstOrNull { it.id == current } ?: sites.firstOrNull()
           _state.update {
             it.copy(
-                sites = result.sites,
+                sites = sites,
                 advanceDays = result.advanceReservationDays,
                 selectedSiteId = selected?.id,
                 selectedDate = currentVenueDate().toString(),
@@ -371,7 +420,7 @@ class VenueViewModel(
             loadSlotTemplate(it.id)
             loadDayInfo()
           }
-          if (result.sites.isEmpty()) {
+          if (sites.isEmpty()) {
             _state.update { it.copy(dayInfoMessage = "没有可预约的运动场地") }
           }
         }
@@ -578,7 +627,12 @@ class VenueViewModel(
     if (epoch != templateEpoch || _state.value.selectedSiteId != siteId) return
     if (template.isEmpty()) template = fallbackVenueTemplate()
     templateLoadedForSite = siteId
-    _state.update { it.copy(slotTemplate = template) }
+    _state.update {
+      it.copy(
+          slotTemplate = template,
+          durationMinutes = coerceVenueDuration(it.durationMinutes, template),
+      )
+    }
   }
 
   private suspend fun loadDayInfo() {
@@ -606,6 +660,7 @@ class VenueViewModel(
               it.copy(
                   isLoadingDayInfo = false,
                   dayInfo = day,
+                  durationMinutes = coerceVenueDuration(it.durationMinutes, day.slots),
                   buddyLimit = day.buddyNumMax.coerceIn(1, 3),
                   phone = it.phone.ifBlank { day.phone.orEmpty() },
                   selectedBuddyIds =
@@ -627,24 +682,36 @@ class VenueViewModel(
         }
   }
 
-  /** 从下拉框选择目标开始时间；已放票时校验指定场地在该时段是否仍空闲。 */
+  /** 从下拉框选择目标开始时间；已放票时校验整段时长与指定场地是否仍空闲。 */
   fun selectTemplateSlot(slot: VenueTimeSlot) {
-    _state.update {
+    if (!_state.value.isResolutionSelectable(slot)) {
+      _state.update { it.copy(message = "所选时长内没有连续空闲场地") }
+      return
+    }
+    _state.update { state ->
+      val slots = state.dayInfo?.slots?.takeIf { it.isNotEmpty() } ?: state.slotTemplate
+      val resolution = resolveVenueTargetSlots(slots, slot.beginTime, state.durationMinutes)
+      val fixedSpace =
+          state.selectedSpaceId?.let { id ->
+            state.dayInfo?.spaces?.firstOrNull { it.spaceId == id }
+          }
       val keepFixedSpace =
-          it.spaceMode == VenueSpaceMode.FIXED &&
-              it.selectedSpaceId?.let { spaceId ->
-                val space = it.dayInfo?.spaces?.firstOrNull { space -> space.spaceId == spaceId }
-                space == null || space.slot(slot.timeId)?.isFree == true
-              } == true
-      it.copy(
+          state.spaceMode == VenueSpaceMode.FIXED &&
+              state.selectedSpaceId != null &&
+              (fixedSpace == null || state.spaceFreeForResolution(fixedSpace, resolution))
+      state.copy(
           selectedStartBegin = slot.beginTime,
-          selectedSpaceId = if (keepFixedSpace) it.selectedSpaceId else null,
+          selectedSpaceId = if (keepFixedSpace) state.selectedSpaceId else null,
           message = null,
       )
     }
   }
 
   fun selectCell(space: VenueSpace, slot: VenueTimeSlot) {
+    if (!_state.value.isResolutionSelectable(slot)) {
+      _state.update { it.copy(message = "所选时长内没有连续空闲场地") }
+      return
+    }
     _state.update {
       it.copy(
           selectedStartBegin = slot.beginTime,
@@ -655,8 +722,11 @@ class VenueViewModel(
     }
   }
 
-  fun setDurationHours(hours: Int) {
-    _state.update { it.copy(durationHours = hours.coerceIn(1, 2)) }
+  fun setDurationMinutes(minutes: Int) {
+    _state.update {
+      val slots = it.dayInfo?.slots?.takeIf { list -> list.isNotEmpty() } ?: it.slotTemplate
+      it.copy(durationMinutes = coerceVenueDuration(minutes, slots))
+    }
   }
 
   fun setSpaceMode(mode: VenueSpaceMode) {
@@ -753,6 +823,11 @@ class VenueViewModel(
       _state.update { it.copy(message = "请先在表格中点击一个目标时段") }
       return
     }
+    val resolution = current.targetResolution
+    if (resolution == null || !resolution.isComplete) {
+      _state.update { it.copy(message = "所选时长超出当日剩余时段，请调整时长或开始时间") }
+      return
+    }
     val pollSeconds = current.pollIntervalText.toDoubleOrNull()?.coerceIn(0.2, 10.0) ?: 0.35
     val alreadyReleased = current.dayInfo != null
     val grabAt =
@@ -778,7 +853,7 @@ class VenueViewModel(
             siteId = siteId,
             date = current.selectedDate,
             startBeginTime = startBegin,
-            durationHours = current.durationHours,
+            durationMinutes = current.durationMinutes,
             spaceMode = current.spaceMode,
             preferredSpaceByBegin = preferred,
             fallbackAnySpace = current.fallbackAnySpace,
