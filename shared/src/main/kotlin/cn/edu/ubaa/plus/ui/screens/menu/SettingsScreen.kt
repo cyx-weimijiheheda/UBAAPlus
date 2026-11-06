@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
@@ -45,6 +46,7 @@ import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
 import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.model.dto.DormRoomDto
+import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 
@@ -143,6 +145,7 @@ fun SettingsScreen(
 
     item {
       SettingsSection(title = "通知") {
+        val context = LocalContext.current
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -159,6 +162,16 @@ fun SettingsScreen(
           Switch(
               checked = preferences.backgroundRemindersEnabled,
               onCheckedChange = AppPreferencesStore::setBackgroundRemindersEnabled,
+          )
+        }
+        if (
+            android.os.Build.VERSION.SDK_INT >= 33 &&
+                !ReminderServiceController.notificationsAllowed(context)
+        ) {
+          Text(
+              text = "通知权限未开启，后台提醒不会显示。请在系统设置中允许 UBAAPlus 发送通知。",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.error,
           )
         }
       }

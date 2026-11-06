@@ -74,6 +74,16 @@ class ConnectionRuntimeTest {
   }
 
   @Test
+  fun `auto preference is kept separate from transport mode`() {
+    ConnectionModeStore.save(ConnectionMode.DIRECT)
+    ConnectionRuntime.resolveSelectedMode()
+    ConnectionPreferenceStore.save(ConnectionMode.AUTO)
+
+    assertEquals(ConnectionMode.AUTO, ConnectionRuntime.preferredMode())
+    assertEquals(ConnectionMode.DIRECT, ConnectionRuntime.currentMode())
+  }
+
+  @Test
   fun `direct mode auth service uses local persisted session contract by default`() {
     ConnectionModeStore.save(ConnectionMode.DIRECT)
     LocalAuthSessionStore.save(

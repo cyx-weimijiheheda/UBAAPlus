@@ -155,6 +155,7 @@ object ConnectionRuntime {
   }
 
   fun switchMode(mode: ConnectionMode) {
+    require(mode != ConnectionMode.AUTO) { "Use switchModeAsync for AUTO" }
     require(mode in availableModes()) {
       "Connection mode ${mode.name} is not supported on this platform"
     }

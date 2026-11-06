@@ -45,10 +45,7 @@ internal data class HomeTodoItem(
     val timeLabel: String,
     val sortTime: LocalDateTime?,
     val action: HomeTodoAction,
-) {
-  val actionLabel: String?
-    get() = null
-}
+)
 
 internal fun buildHomeTodoItems(
     bykcCourses: List<BykcChosenCourseDto>,
