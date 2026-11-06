@@ -10,6 +10,7 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
+import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.ui.screens.bykc.*
@@ -43,6 +44,7 @@ import cn.edu.ubaa.plus.ui.screens.judge.JudgeAssignmentDetailScreen
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeAssignmentsScreen
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeViewModel
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookBookingsScreen
+import cn.edu.ubaa.plus.ui.screens.libbook.LibBookCardAction
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookReserveScreen
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
 import cn.edu.ubaa.plus.ui.screens.library.LibraryBorrowScreen
@@ -68,6 +70,7 @@ import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkClockinFormScreen
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkHomeScreen
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkUiState
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkViewModel
+import kotlinx.datetime.LocalDateTime
 
 /** 主界面各屏幕渲染所需的只读状态与 ViewModel。 */
 internal class MainScreenContentState(
@@ -84,6 +87,10 @@ internal class MainScreenContentState(
     val homeTodoLoadingSources: List<HomeTodoSource>,
     val homeTodoFailedSources: List<HomeTodoSource>,
     val signinUiState: SigninUiState,
+    val homeLibBookBooking: LibBookBookingDto?,
+    val homeLibBookSubmitting: Boolean,
+    val homeLibBookCanceling: Boolean,
+    val homeNow: LocalDateTime,
     val gradeScoreWatchUiState: GradeScoreWatchUiState,
     val scheduleUiState: ScheduleUiState,
     val bykcCoursesState: BykcCoursesUiState,
@@ -128,6 +135,7 @@ internal class MainScreenActions(
     val refreshHomeData: () -> Unit,
     val openScoresFromHomeNotice: () -> Unit,
     val handleHomeTodoClick: (HomeTodoItem) -> Unit,
+    val handleHomeLibBookAction: (LibBookBookingDto, LibBookCardAction) -> Unit,
     val onConnectionModeSelected: (ConnectionMode) -> Unit,
     val onFeatureLongPressWeb: (FeatureItem) -> Unit,
     val onOpenUrl: (String) -> Unit,
@@ -162,6 +170,10 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 signinLoading = signinUiState.isLoading,
                 signinError = signinUiState.error,
                 signingCourseId = signinUiState.signingInCourseId,
+                libBookBooking = homeLibBookBooking,
+                libBookSubmitting = homeLibBookSubmitting,
+                libBookCanceling = homeLibBookCanceling,
+                libBookNow = homeNow,
                 scoreUpdateNotice = gradeScoreWatchUiState.notice,
                 onRetrySchedule = { scheduleViewModel.loadTodaySchedule() },
                 onRefresh = { refreshHomeData() },
@@ -169,6 +181,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onDismissScoreNotice = { gradeScoreWatchViewModel.consumeNotice() },
                 onTodoClick = { todoItem -> handleHomeTodoClick(todoItem) },
                 onSigninClick = { courseId -> signinViewModel.performSignin(courseId) },
+                onLibBookAction = { booking, action -> handleHomeLibBookAction(booking, action) },
             )
         AppScreen.REGULAR ->
             RegularFeaturesScreen(

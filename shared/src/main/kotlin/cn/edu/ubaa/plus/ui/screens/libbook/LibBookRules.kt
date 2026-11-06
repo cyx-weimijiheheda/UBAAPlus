@@ -1,6 +1,11 @@
 package cn.edu.ubaa.plus.ui.screens.libbook
 
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
+import cn.edu.ubaa.plus.model.dto.canCancelBooking
+import cn.edu.ubaa.plus.model.dto.canCheckout
+import cn.edu.ubaa.plus.model.dto.canReturnSignIn
+import cn.edu.ubaa.plus.model.dto.canTemporaryLeave
+import cn.edu.ubaa.plus.model.dto.isTerminalBooking
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -8,6 +13,40 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
 internal const val LIB_BOOK_CHECK_IN_MINUTES = 30
+
+/** 图书馆座位卡片上的操作，与「我的预约」保持一致。 */
+enum class LibBookCardAction {
+  CANCEL,
+  SIGN_IN,
+  RETURN_SIGN_IN,
+  LEAVE,
+  CHECKOUT,
+}
+
+fun LibBookBookingDto.cardActions(): List<LibBookCardAction> =
+    if (isTerminalBooking()) {
+      emptyList()
+    } else {
+      buildList {
+        if (canCancelBooking()) add(LibBookCardAction.CANCEL)
+        if (canReturnSignIn()) {
+          add(LibBookCardAction.RETURN_SIGN_IN)
+        } else if (canTemporaryLeave()) {
+          add(LibBookCardAction.LEAVE)
+        }
+        if (canCheckout()) add(LibBookCardAction.CHECKOUT)
+        if (!canReturnSignIn()) add(LibBookCardAction.SIGN_IN)
+      }
+    }
+
+/** 首页只显示今天的、未结束的预约；有多条时取开始最早的一条。 */
+fun selectHomeLibBookBooking(
+    bookings: List<LibBookBookingDto>,
+    today: String,
+): LibBookBookingDto? =
+    bookings
+        .filter { !it.isTerminalBooking() && it.day.take(10) == today }
+        .minByOrNull { it.beginTime.ifBlank { "99:99" } }
 
 /** 座位使用规则；客户端只提示，最终以服务端校验为准。 */
 internal val LIB_BOOK_RULES: List<String> =

@@ -154,7 +154,7 @@ fun SettingsScreen(
           Column(modifier = Modifier.weight(1f)) {
             Text("后台提醒", style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = "登录后每 5 分钟检查签到、签退和作业；关闭后停止前台服务。",
+                text = "登录后按课表在开课、签到、签退和作业截止前提醒；关闭后停止前台服务。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

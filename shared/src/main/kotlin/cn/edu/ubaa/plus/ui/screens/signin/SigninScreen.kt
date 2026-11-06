@@ -14,6 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.SigninClassDto
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.model.format.formatUbaaTime
+import cn.edu.ubaa.plus.model.format.parseUbaaDate
+import cn.edu.ubaa.plus.model.format.parseUbaaTime
 
 /** 课堂签到主界面。 展示今日课程列表并提供一键签到按钮。 */
 @Composable
@@ -75,6 +79,14 @@ fun SigninScreen(viewModel: SigninViewModel) {
   }
 }
 
+/** 签到卡片的时间文案：`08:00 - 09:40`，字符串自带日期时补上 `yyyy.MM.dd`。 */
+internal fun formatSigninTimeRange(beginRaw: String, endRaw: String): String {
+  val begin = parseUbaaTime(beginRaw)?.let(::formatUbaaTime) ?: beginRaw.trim()
+  val end = parseUbaaTime(endRaw)?.let(::formatUbaaTime) ?: endRaw.trim()
+  val date = parseUbaaDate(beginRaw)?.let(::formatUbaaDate)
+  return listOfNotNull(date, "$begin - $end").joinToString(" ")
+}
+
 /** 单个签到课程卡片。 */
 @Composable
 fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningIn: Boolean) {
@@ -110,7 +122,7 @@ fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningI
           )
           Spacer(modifier = Modifier.width(4.dp))
           Text(
-              text = "${clazz.classBeginTime} - ${clazz.classEndTime}",
+              text = formatSigninTimeRange(clazz.classBeginTime, clazz.classEndTime),
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )

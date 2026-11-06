@@ -83,7 +83,9 @@ fun OfflineScheduleScreen(
     Text(
         today.error
             ?: today.todayClasses
-                .joinToString("\n") { "${it.time.orEmpty()}  ${it.bizName}  ${it.place.orEmpty()}" }
+                .joinToString("\n") {
+                  "${it.time.orEmpty()}  ${it.displayCourseName()}  ${it.place.orEmpty()}"
+                }
                 .ifEmpty { "今天没有课程" },
         modifier =
             Modifier.padding(horizontal = 16.dp)

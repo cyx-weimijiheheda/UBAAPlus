@@ -15,16 +15,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.SystemBarsAppearance
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.local.SsoTicketHandoff
+import cn.edu.ubaa.plus.api.platform.currentLocationPoint
+import cn.edu.ubaa.plus.api.platform.hasLocationPermission
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.BykcCourseFilterStore
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
+import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
+import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.reminder.AppNotificationRoute
@@ -47,7 +52,9 @@ import cn.edu.ubaa.plus.ui.screens.grade.GradeScoreWatchViewModel
 import cn.edu.ubaa.plus.ui.screens.grade.GradeUiState
 import cn.edu.ubaa.plus.ui.screens.grade.GradeViewModel
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeViewModel
+import cn.edu.ubaa.plus.ui.screens.libbook.LibBookCardAction
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
+import cn.edu.ubaa.plus.ui.screens.libbook.selectHomeLibBookBooking
 import cn.edu.ubaa.plus.ui.screens.library.LibraryBorrowViewModel
 import cn.edu.ubaa.plus.ui.screens.menu.*
 import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel
@@ -125,6 +132,7 @@ fun MainAppScreen(
     modifier: Modifier = Modifier,
 ) {
   val scope = rememberCoroutineScope()
+  val appContext = LocalContext.current
   val uriHandler = LocalUriHandler.current
   val navController = rememberNavigationController()
   val currentScreen = navController.currentScreen
@@ -137,7 +145,6 @@ fun MainAppScreen(
     )
   }
   val ygdkScreens = remember { setOf(AppScreen.YGDK_HOME, AppScreen.YGDK_FORM) }
-  val libBookScreens = remember { setOf(AppScreen.LIBBOOK_RESERVE, AppScreen.LIBBOOK_BOOKINGS) }
 
   var selectedBottomTab by remember { mutableStateOf(BottomNavTab.HOME) }
   var homeManualRefreshPending by remember { mutableStateOf(false) }
@@ -155,11 +162,9 @@ fun MainAppScreen(
         }
       }
   var hasVisitedCgyy by remember { mutableStateOf(false) }
-  var hasVisitedLibBook by remember { mutableStateOf(false) }
   var hasVisitedVenue by remember { mutableStateOf(false) }
   val shouldKeepCgyyViewModel =
       currentScreen == AppScreen.HOME || hasVisitedCgyy || currentScreen in cgyyScreens
-  val shouldKeepLibBookViewModel = hasVisitedLibBook || currentScreen in libBookScreens
   val shouldKeepVenueViewModel = hasVisitedVenue || currentScreen == AppScreen.VENUE_HOME
 
   // 初始化各模块 ViewModel
@@ -233,11 +238,13 @@ fun MainAppScreen(
         null
       }
   val cgyyUiState = cgyyViewModel?.uiState?.collectAsState()?.value ?: CgyyUiState()
-  val libBookViewModel: LibBookViewModel? =
-      if (shouldKeepLibBookViewModel) {
-        viewModel(key = "libbook-${userData.schoolid}") { LibBookViewModel() }
-      } else {
-        null
+  val libBookViewModel: LibBookViewModel =
+      viewModel(key = "libbook-${userData.schoolid}") { LibBookViewModel() }
+  val libBookUiState by libBookViewModel.uiState.collectAsState()
+  val homeLibBookBooking =
+      remember(libBookUiState.bookings.bookings, homeNow) {
+        val today = Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai")).date.toString()
+        selectHomeLibBookBooking(libBookUiState.bookings.bookings, today)
       }
   val classroomViewModel: ClassroomViewModel? =
       if (currentScreen == AppScreen.CLASSROOM_QUERY) {
@@ -336,6 +343,10 @@ fun MainAppScreen(
   LaunchedEffect(pendingNotificationRoute, userData.schoolid) {
     val route = pendingNotificationRoute ?: return@LaunchedEffect
     when (route) {
+      AppNotificationRoute.Home -> {
+        navController.setRoot(AppScreen.HOME)
+        selectedBottomTab = BottomNavTab.HOME
+      }
       AppNotificationRoute.IclassHome -> navController.navigateTo(AppScreen.ICLASS_HOME)
       is AppNotificationRoute.BykcCourse -> {
         selectedBykcCourseId = route.courseId
@@ -417,6 +428,7 @@ fun MainAppScreen(
             !judgeViewModel.hasAssignmentsLoaded() ||
             !bykcViewModel.hasChosenCoursesLoaded() ||
             cgyyViewModel?.hasOrdersLoaded() != true ||
+            libBookViewModel.hasBookingsLoaded() != true ||
             !scheduleViewModel.hasCurrentWeekLoaded() ||
             (shouldLoadYgdkHomeOverview && ygdkViewModel.hasOverviewLoaded() != true) ||
             !gradeScoreWatchViewModel.hasChecked()
@@ -430,6 +442,7 @@ fun MainAppScreen(
             loadJudge = { force -> judgeViewModel.ensureAssignmentsLoaded(forceRefresh = force) },
             loadBykc = { force -> bykcViewModel.ensureChosenCoursesLoaded(forceRefresh = force) },
             loadCgyy = { force -> cgyyViewModel?.ensureOrdersLoaded(forceRefresh = force) },
+            loadLibBook = { force -> libBookViewModel.ensureBookingsLoaded(forceRefresh = force) },
             loadYgdk = { force ->
               scheduleViewModel.ensureCurrentWeekLoaded(forceRefresh = force)
               if (shouldLoadYgdkHomeOverview) {
@@ -534,6 +547,39 @@ fun MainAppScreen(
     }
   }
 
+  fun submitLibBookSeatAction(action: LibBookSeatAction) {
+    val viewModel = libBookViewModel
+    scope.launch {
+      val point = if (hasLocationPermission(appContext)) currentLocationPoint(appContext) else null
+      viewModel.submitSeatAction(action, point)
+    }
+  }
+
+  /** 首页图书馆座位卡片的操作；扫码签到进入「我的预约」走现有扫码流程。 */
+  fun handleHomeLibBookAction(booking: LibBookBookingDto, action: LibBookCardAction) {
+    val viewModel = libBookViewModel
+    when (action) {
+      LibBookCardAction.CANCEL -> viewModel.cancelBooking(booking.id)
+      LibBookCardAction.SIGN_IN -> {
+        viewModel.ensureBookingsLoaded()
+        navigateTo(AppScreen.LIBBOOK_BOOKINGS)
+      }
+      LibBookCardAction.RETURN_SIGN_IN -> {
+        if (viewModel.prepareReturnSignIn(booking)) {
+          submitLibBookSeatAction(LibBookSeatAction.RETURN_SIGN_IN)
+        }
+      }
+      LibBookCardAction.LEAVE -> {
+        viewModel.requestSeatActionForBooking(booking, LibBookSeatAction.LEAVE)
+        submitLibBookSeatAction(LibBookSeatAction.LEAVE)
+      }
+      LibBookCardAction.CHECKOUT -> {
+        viewModel.requestSeatActionForBooking(booking, LibBookSeatAction.CHECKOUT)
+        submitLibBookSeatAction(LibBookSeatAction.CHECKOUT)
+      }
+    }
+  }
+
   fun openScoresFromHomeNotice() {
     gradeScoreWatchViewModel.consumeNotice()
     navigateTo(AppScreen.GRADE)
@@ -570,9 +616,6 @@ fun MainAppScreen(
     if (currentScreen in cgyyScreens) {
       hasVisitedCgyy = true
     }
-    if (currentScreen in libBookScreens) {
-      hasVisitedLibBook = true
-    }
     if (currentScreen == AppScreen.VENUE_HOME) {
       hasVisitedVenue = true
     } else {
@@ -605,7 +648,7 @@ fun MainAppScreen(
     gradeViewModel?.resetLoadedState()
     gradeScoreWatchViewModel.resetLoadedState()
     evaluationViewModel?.resetLoadedState()
-    libBookViewModel?.resetLoadedState()
+    libBookViewModel.resetLoadedState()
     dormElectricityViewModel?.resetLoadedState()
     campusNetworkViewModel?.resetLoadedState()
     campusCardViewModel?.resetLoadedState()
@@ -639,8 +682,8 @@ fun MainAppScreen(
       AppScreen.EVALUATION -> evaluationViewModel?.ensureLoaded(forceRefresh = true)
       AppScreen.SPOC_ASSIGNMENTS -> spocViewModel.ensureAssignmentsLoaded(forceRefresh = true)
       AppScreen.JUDGE_ASSIGNMENTS -> judgeViewModel.ensureAssignmentsLoaded(forceRefresh = true)
-      AppScreen.LIBBOOK_RESERVE -> libBookViewModel?.ensureInitialLoaded(forceRefresh = true)
-      AppScreen.LIBBOOK_BOOKINGS -> libBookViewModel?.ensureBookingsLoaded(forceRefresh = true)
+      AppScreen.LIBBOOK_RESERVE -> libBookViewModel.ensureInitialLoaded(forceRefresh = true)
+      AppScreen.LIBBOOK_BOOKINGS -> libBookViewModel.ensureBookingsLoaded(forceRefresh = true)
       AppScreen.YGDK_HOME,
       AppScreen.YGDK_FORM -> ygdkViewModel?.ensureLoaded(forceRefresh = true)
       AppScreen.VENUE_HOME -> venueViewModel?.ensureInitialized()
@@ -706,8 +749,8 @@ fun MainAppScreen(
       AppScreen.SPOC_ASSIGNMENT_DETAIL -> spocViewModel.ensureAssignmentsLoaded()
       AppScreen.JUDGE_ASSIGNMENTS,
       AppScreen.JUDGE_ASSIGNMENT_DETAIL -> judgeViewModel.ensureAssignmentsLoaded()
-      AppScreen.LIBBOOK_RESERVE -> libBookViewModel?.ensureInitialLoaded()
-      AppScreen.LIBBOOK_BOOKINGS -> libBookViewModel?.ensureBookingsLoaded()
+      AppScreen.LIBBOOK_RESERVE -> libBookViewModel.ensureInitialLoaded()
+      AppScreen.LIBBOOK_BOOKINGS -> libBookViewModel.ensureBookingsLoaded()
       AppScreen.YGDK_HOME,
       AppScreen.YGDK_FORM -> ygdkViewModel?.ensureLoaded()
       AppScreen.VENUE_HOME -> venueViewModel?.ensureInitialized()
@@ -895,6 +938,10 @@ fun MainAppScreen(
               homeTodoLoadingSources = homeTodoLoadingSources,
               homeTodoFailedSources = homeTodoFailedSources,
               signinUiState = signinUiState,
+              homeLibBookBooking = homeLibBookBooking,
+              homeLibBookSubmitting = libBookUiState.isSeatActionSubmitting,
+              homeLibBookCanceling = libBookUiState.cancelingBookingId != null,
+              homeNow = homeNow,
               gradeScoreWatchUiState = gradeScoreWatchUiState,
               scheduleUiState = scheduleUiState,
               bykcCoursesState = bykcCoursesState,
@@ -938,6 +985,9 @@ fun MainAppScreen(
               refreshHomeData = { refreshHomeData() },
               openScoresFromHomeNotice = { openScoresFromHomeNotice() },
               handleHomeTodoClick = { handleHomeTodoClick(it) },
+              handleHomeLibBookAction = { booking, action ->
+                handleHomeLibBookAction(booking, action)
+              },
               onConnectionModeSelected = onConnectionModeSelected,
               onFeatureLongPressWeb = { feature -> feature.webUrl?.let(::openUrl) },
               onOpenUrl = { openUrl(it) },

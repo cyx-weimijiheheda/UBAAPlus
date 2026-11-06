@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chair
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
@@ -14,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -29,6 +32,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.collections.get
 import kotlin.time.Clock
@@ -187,6 +191,7 @@ fun ExamTimelineItem(
 @Composable
 fun ExamCard(exam: Exam, showSeat: Boolean, isFinished: Boolean = false) {
   val alpha = if (isFinished) 0.65f else 1f
+  val clipboard = LocalClipboardManager.current
   UbaaSectionCard(
       modifier = Modifier.fillMaxWidth().alpha(alpha),
       glass = false,
@@ -227,6 +232,18 @@ fun ExamCard(exam: Exam, showSeat: Boolean, isFinished: Boolean = false) {
           }
         }
       }
+      IconButton(
+          onClick = {
+            clipboard.setText(AnnotatedString(exam.toClipboardText()))
+            UbaaToast.show("考试信息已复制")
+          }
+      ) {
+        Icon(
+            Icons.Default.ContentCopy,
+            contentDescription = "复制考试信息",
+            modifier = Modifier.size(18.dp),
+        )
+      }
     }
 
     val dateText = exam.examDate?.let { formatUbaaDate(it) }
@@ -254,6 +271,26 @@ private fun examStatusText(status: Int): String =
       2 -> "已结束"
       else -> "状态 $status"
     }
+
+/** 考试信息的可复制文本；空字段不输出。 */
+internal fun Exam.toClipboardText(): String =
+    buildList {
+          add(courseName)
+          courseNo?.takeIf { it.isNotBlank() }?.let { add("课程号：$it") }
+          examDate?.takeIf { it.isNotBlank() }?.let { add("日期：${formatUbaaDate(it)}") }
+          val begin = parseUbaaTime(startTime)
+          val end = parseUbaaTime(endTime)
+          if (begin != null && end != null) {
+            add("时间：${formatUbaaTime(begin)}-${formatUbaaTime(end)}")
+          }
+          examTimeDescription?.takeIf { it.isNotBlank() }?.let { add("考试时间：$it") }
+          examPlace?.takeIf { it.isNotBlank() }?.let { add("地点：$it") }
+          examSeatNo?.takeIf { it.isNotBlank() }?.let { add("座位：${it}号") }
+          week?.let { add("周次：第${it}周") }
+          examType?.takeIf { it.isNotBlank() }?.let { add("类型：$it") }
+          examStatus?.let { add("状态：${examStatusText(it)}") }
+        }
+        .joinToString("\n")
 
 @Composable
 private fun ExamInfoLine(label: String, value: String) {

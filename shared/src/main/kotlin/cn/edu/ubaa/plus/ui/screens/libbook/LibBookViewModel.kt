@@ -86,6 +86,9 @@ class LibBookViewModel(
     loadBookings()
   }
 
+  /** 首页判断是否还需要展示加载状态。 */
+  fun hasBookingsLoaded(): Boolean = bookingsLoadedOnce
+
   fun loadLibraries() {
     initialLoadedOnce = true
     val day = _uiState.value.selectedDay.ifBlank { currentDateProvider() }

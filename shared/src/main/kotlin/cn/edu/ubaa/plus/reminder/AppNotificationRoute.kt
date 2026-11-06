@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /** 通知点击后的目标页面。 */
 sealed interface AppNotificationRoute {
+  /** 主界面（首页）。普通课程的签到提醒点击后直达这里。 */
+  data object Home : AppNotificationRoute
+
   data object IclassHome : AppNotificationRoute
 
   data class BykcCourse(val courseId: Long) : AppNotificationRoute
@@ -22,6 +25,7 @@ object ReminderIntentExtras {
   const val EXTRA_ASSIGNMENT_ID = "ubaa_reminder_assignment_id"
   const val EXTRA_JUDGE_COURSE_ID = "ubaa_reminder_judge_course_id"
 
+  const val ROUTE_HOME = "home"
   const val ROUTE_ICLASS = "iclass"
   const val ROUTE_BYKC = "bykc"
   const val ROUTE_SPOC = "spoc"
@@ -29,6 +33,7 @@ object ReminderIntentExtras {
 
   fun putRoute(intent: Intent, route: AppNotificationRoute) {
     when (route) {
+      AppNotificationRoute.Home -> intent.putExtra(EXTRA_ROUTE, ROUTE_HOME)
       AppNotificationRoute.IclassHome -> intent.putExtra(EXTRA_ROUTE, ROUTE_ICLASS)
       is AppNotificationRoute.BykcCourse -> {
         intent.putExtra(EXTRA_ROUTE, ROUTE_BYKC)
@@ -49,6 +54,7 @@ object ReminderIntentExtras {
   fun readRoute(intent: Intent?): AppNotificationRoute? {
     if (intent == null) return null
     return when (intent.getStringExtra(EXTRA_ROUTE)) {
+      ROUTE_HOME -> AppNotificationRoute.Home
       ROUTE_ICLASS -> AppNotificationRoute.IclassHome
       ROUTE_BYKC ->
           intent

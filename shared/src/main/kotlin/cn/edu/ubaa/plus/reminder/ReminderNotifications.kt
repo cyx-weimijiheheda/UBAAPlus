@@ -49,7 +49,7 @@ object ReminderNotifications {
                 NotificationManager.IMPORTANCE_HIGH,
             )
             .apply {
-              description = "课程进入签到/签退窗口时提醒"
+              description = "课程开课、签到与签退提醒"
               enableVibration(true)
               vibrationPattern = longArrayOf(0, 250, 150, 250)
               setSound(sound, audioAttributes)
@@ -75,14 +75,15 @@ object ReminderNotifications {
       NotificationCompat.Builder(context, SERVICE_CHANNEL)
           .setSmallIcon(R.drawable.ic_stat_ubaa)
           .setContentTitle("UBAAPlus 后台提醒已开启")
-          .setContentText("每 5 分钟检查签到与作业；可在设置中关闭")
-          .setContentIntent(appPendingIntent(context, AppNotificationRoute.IclassHome))
+          .setContentText("将在课程开始、签到与作业截止前提醒；可在设置中关闭")
+          .setContentIntent(appPendingIntent(context, AppNotificationRoute.Home))
           .setOngoing(true)
           .setSilent(true)
           .setPriority(NotificationCompat.PRIORITY_LOW)
           .build()
 
-  fun notifyAttendance(
+  /** 课程开课、签到、签退提醒。 */
+  fun notifyCourse(
       context: Context,
       key: String,
       title: String,

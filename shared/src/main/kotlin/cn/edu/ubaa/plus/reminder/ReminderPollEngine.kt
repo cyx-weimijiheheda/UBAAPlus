@@ -1,14 +1,11 @@
 package cn.edu.ubaa.plus.reminder
 
-import cn.edu.ubaa.plus.api.feature.BykcApi
 import cn.edu.ubaa.plus.api.feature.JudgeApi
-import cn.edu.ubaa.plus.api.feature.SigninApi
 import cn.edu.ubaa.plus.api.feature.SpocApi
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
 import cn.edu.ubaa.plus.model.dto.SpocSubmissionStatus
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.model.format.parseUbaaDateTime
-import cn.edu.ubaa.plus.model.format.parseUbaaTime
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
@@ -24,77 +21,15 @@ data class ReminderCandidate(
     val route: AppNotificationRoute,
 )
 
+/** 作业提醒：新作业发布 + 截止前 24 小时；课程提醒由 [ReminderScheduleBuilder] 按课表生成。 */
 @OptIn(ExperimentalTime::class)
 class ReminderPollEngine(
-    private val signinApi: SigninApi = SigninApi(),
-    private val bykcApi: BykcApi = BykcApi(),
     private val spocApi: SpocApi = SpocApi(),
     private val judgeApi: JudgeApi = JudgeApi(),
     private val nowProvider: () -> LocalDateTime = {
       Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
     },
 ) {
-  suspend fun collectAttendance(now: LocalDateTime = nowProvider()): List<ReminderCandidate> {
-    val candidates = mutableListOf<ReminderCandidate>()
-    collectIclass(now, candidates)
-    collectBykc(now, candidates)
-    return candidates
-  }
-
-  private suspend fun collectIclass(
-      now: LocalDateTime,
-      out: MutableList<ReminderCandidate>,
-  ) {
-    val response = runCatching { signinApi.getTodayClassesStrict() }.getOrNull()?.getOrNull()
-    if (response == null || response.data.isEmpty()) return
-    response.data
-        .filter { it.signStatus == 0 }
-        .forEach { clazz ->
-          val begin = parseUbaaTime(clazz.classBeginTime) ?: return@forEach
-          val end = parseUbaaTime(clazz.classEndTime) ?: return@forEach
-          val nowMinutes = now.hour * 60 + now.minute
-          val beginMinutes = begin.hour * 60 + begin.minute
-          val endMinutes = end.hour * 60 + end.minute
-          if (nowMinutes < beginMinutes - 10 || nowMinutes > endMinutes) return@forEach
-          out +=
-              ReminderCandidate(
-                  key = "iclass:${clazz.courseId}:${now.date}:sign",
-                  title = "智慧教室可以签到",
-                  text = "${clazz.courseName} · ${clazz.classBeginTime}-${clazz.classEndTime}",
-                  route = AppNotificationRoute.IclassHome,
-              )
-        }
-  }
-
-  private suspend fun collectBykc(
-      now: LocalDateTime,
-      out: MutableList<ReminderCandidate>,
-  ) {
-    val courses = runCatching { bykcApi.getChosenCourses() }.getOrNull()?.getOrNull().orEmpty()
-    courses.forEach { course ->
-      if (course.canSign) {
-        val episode = course.signConfig?.signStartDate?.toString() ?: now.toString()
-        out +=
-            ReminderCandidate(
-                key = "bykc:${course.courseId}:sign:$episode",
-                title = "博雅课程可以签到",
-                text = course.courseName,
-                route = AppNotificationRoute.BykcCourse(course.courseId),
-            )
-      }
-      if (course.canSignOut) {
-        val episode = course.signConfig?.signOutStartDate?.toString() ?: now.toString()
-        out +=
-            ReminderCandidate(
-                key = "bykc:${course.courseId}:signout:$episode",
-                title = "博雅课程可以签退",
-                text = course.courseName,
-                route = AppNotificationRoute.BykcCourse(course.courseId),
-            )
-      }
-    }
-  }
-
   /** 作业轮询；首次运行只建立基线，不把历史作业全部推一遍。 */
   suspend fun collectHomework(
       userKey: String,

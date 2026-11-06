@@ -67,10 +67,27 @@ fun CourseClass.toCourseDetailInfo(weekStartDate: String?): CourseDetailInfo {
   )
 }
 
+/**
+ * 今日课程的真实名称。
+ *
+ * 上游 `shortName` 有时只返回“课”这类占位词，优先用 `bizName`；`bizName` 也是占位词时才回退。
+ */
+fun TodayClass.displayCourseName(): String {
+  val biz = bizName.trim()
+  val short = shortName?.trim().orEmpty()
+  return when {
+    biz.isNotEmpty() && biz !in GENERIC_TODAY_CLASS_NAMES -> biz
+    short.isNotEmpty() -> short
+    else -> biz.ifEmpty { "未命名课程" }
+  }
+}
+
+private val GENERIC_TODAY_CLASS_NAMES = setOf("课", "课程", "课程安排", "教学班", "未命名课程")
+
 fun TodayClass.toCourseDetailInfo(date: LocalDate): CourseDetailInfo {
   val times = time?.split("-", limit = 2).orEmpty()
   return CourseDetailInfo(
-      courseName = shortName?.ifBlank { bizName } ?: bizName,
+      courseName = displayCourseName(),
       placeName = place,
       beginTime = times.getOrNull(0)?.trim()?.takeIf { it.isNotEmpty() },
       endTime = times.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() },

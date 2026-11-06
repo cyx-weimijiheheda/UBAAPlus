@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,17 +42,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.SigninClassDto
 import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.screens.grade.GradeScoreUpdateNotice
+import cn.edu.ubaa.plus.ui.screens.libbook.LibBookCardAction
+import cn.edu.ubaa.plus.ui.screens.libbook.LibBookHomeSeatCard
 import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailDialog
 import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailInfo
+import cn.edu.ubaa.plus.ui.screens.schedule.displayCourseName
 import cn.edu.ubaa.plus.ui.screens.schedule.toCourseDetailInfo
 import cn.edu.ubaa.plus.ui.screens.signin.SigninClassCard
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -70,6 +76,10 @@ internal fun HomeScreen(
     signinLoading: Boolean,
     signinError: String?,
     signingCourseId: String?,
+    libBookBooking: LibBookBookingDto?,
+    libBookSubmitting: Boolean,
+    libBookCanceling: Boolean,
+    libBookNow: LocalDateTime,
     scoreUpdateNotice: GradeScoreUpdateNotice?,
     onRetrySchedule: () -> Unit,
     onRefresh: () -> Unit,
@@ -77,10 +87,14 @@ internal fun HomeScreen(
     onDismissScoreNotice: () -> Unit,
     onTodoClick: (HomeTodoItem) -> Unit,
     onSigninClick: (String) -> Unit,
+    onLibBookAction: (LibBookBookingDto, LibBookCardAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
   var selectedCourseInfo by remember { mutableStateOf<CourseDetailInfo?>(null) }
+  var pendingLibBookAction by remember {
+    mutableStateOf<Pair<LibBookBookingDto, LibBookCardAction>?>(null)
+  }
   val todoLoadingSummary = todoLoadingSources.joinToString("、") { it.label }
   val sortedClasses =
       todayClasses.sortedBy { course ->
@@ -210,6 +224,28 @@ internal fun HomeScreen(
         }
       }
 
+      libBookBooking?.let { booking ->
+        item(key = "home-libbook-seat") {
+          LibBookHomeSeatCard(
+              booking = booking,
+              now = libBookNow,
+              isCanceling = libBookCanceling,
+              isSubmitting = libBookSubmitting,
+              onAction = { action ->
+                if (
+                    action == LibBookCardAction.CANCEL ||
+                        action == LibBookCardAction.LEAVE ||
+                        action == LibBookCardAction.CHECKOUT
+                ) {
+                  pendingLibBookAction = booking to action
+                } else {
+                  onLibBookAction(booking, action)
+                }
+              },
+          )
+        }
+      }
+
       if (todoFailedSources.isNotEmpty()) {
         item {
           HomeInfoBanner(
@@ -244,6 +280,33 @@ internal fun HomeScreen(
 
   selectedCourseInfo?.let {
     CourseDetailDialog(info = it, onDismiss = { selectedCourseInfo = null })
+  }
+
+  pendingLibBookAction?.let { (booking, action) ->
+    val label =
+        when (action) {
+          LibBookCardAction.CANCEL -> "取消预约"
+          LibBookCardAction.LEAVE -> "临时离开"
+          LibBookCardAction.CHECKOUT -> "完全离开"
+          else -> ""
+        }
+    val place = booking.nameMerge.ifBlank { booking.seatNo.ifBlank { "图书馆座位" } }
+    AlertDialog(
+        onDismissRequest = { pendingLibBookAction = null },
+        title = { Text(label) },
+        text = { Text("确认对「$place」执行$label？") },
+        confirmButton = {
+          TextButton(
+              onClick = {
+                pendingLibBookAction = null
+                onLibBookAction(booking, action)
+              }
+          ) {
+            Text("确认")
+          }
+        },
+        dismissButton = { TextButton(onClick = { pendingLibBookAction = null }) { Text("取消") } },
+    )
   }
 }
 
@@ -305,7 +368,7 @@ private fun TodayClassCard(
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Text(
-          text = todayClass.bizName,
+          text = todayClass.displayCourseName(),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
       )
@@ -331,19 +394,22 @@ private fun TodayClassCard(
           }
         }
 
-        todayClass.shortName?.let { shortName ->
-          Surface(
-              color = MaterialTheme.colorScheme.primaryContainer,
-              contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-              shape = MaterialTheme.shapes.small,
-          ) {
-            Text(
-                text = shortName,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-          }
-        }
+        todayClass.shortName
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() && it != todayClass.displayCourseName() && it != "课" }
+            ?.let { shortName ->
+              Surface(
+                  color = MaterialTheme.colorScheme.primaryContainer,
+                  contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                  shape = MaterialTheme.shapes.small,
+              ) {
+                Text(
+                    text = shortName,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+              }
+            }
       }
     }
   }
