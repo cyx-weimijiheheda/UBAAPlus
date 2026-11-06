@@ -4,28 +4,23 @@ import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
-import cn.edu.ubaa.plus.model.dto.SigninClassDto
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.SpocSubmissionStatus
 import cn.edu.ubaa.plus.model.dto.Week
 import cn.edu.ubaa.plus.model.dto.YgdkOverviewResponse
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDateTime
-import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
-import kotlinx.datetime.toInstant
 
 internal enum class HomeTodoSource(val label: String) {
   BYKC("博雅"),
   SPOC("SPOC"),
   JUDGE("希冀"),
   CGYY("研讨室"),
-  SIGNIN("签到"),
   YGDK("阳光打卡"),
 }
 
@@ -37,8 +32,6 @@ internal sealed interface HomeTodoAction {
   data class OpenJudgeAssignment(val courseId: String, val assignmentId: String) : HomeTodoAction
 
   data object OpenCgyyOrders : HomeTodoAction
-
-  data class SigninCourse(val courseId: String) : HomeTodoAction
 
   data object OpenYgdkHome : HomeTodoAction
 }
@@ -54,11 +47,7 @@ internal data class HomeTodoItem(
     val action: HomeTodoAction,
 ) {
   val actionLabel: String?
-    get() =
-        when (action) {
-          is HomeTodoAction.SigninCourse -> "签到"
-          else -> null
-        }
+    get() = null
 }
 
 internal fun buildHomeTodoItems(
@@ -66,22 +55,18 @@ internal fun buildHomeTodoItems(
     spocAssignments: List<SpocAssignmentSummaryDto>,
     judgeAssignments: List<JudgeAssignmentSummaryDto>,
     cgyyOrders: List<CgyyOrderDto>,
-    signinClasses: List<SigninClassDto>,
     ygdkOverview: YgdkOverviewResponse? = null,
     currentWeek: Week? = null,
     ygdkReminderEnabled: Boolean = true,
     ygdkWeekDone: Boolean = false,
     ygdkTermDone: Boolean = false,
     now: LocalDateTime,
-    timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): List<HomeTodoItem> {
-  val today = now.date
   return buildList {
         addAll(buildBykcTodoItems(bykcCourses, now))
         addAll(buildSpocTodoItems(spocAssignments, now))
         addAll(buildJudgeTodoItems(judgeAssignments, now))
         addAll(buildCgyyTodoItems(cgyyOrders, now))
-        addAll(buildSigninTodoItems(signinClasses, now, today, timeZone))
         buildYgdkTodoItem(
                 overview = ygdkOverview,
                 currentWeek = currentWeek,
@@ -266,41 +251,6 @@ private fun buildCgyyTodoItems(
           action = HomeTodoAction.OpenCgyyOrders,
       )
     }
-
-private fun buildSigninTodoItems(
-    classes: List<SigninClassDto>,
-    now: LocalDateTime,
-    today: LocalDate,
-    timeZone: TimeZone,
-): List<HomeTodoItem> {
-  val nowInstant = now.toInstant(timeZone)
-  return classes.mapNotNull { signinClass ->
-    val start = parseHomeDateTime(signinClass.classBeginTime, today)
-    val end = parseHomeDateTime(signinClass.classEndTime, today)
-    if (signinClass.signStatus != 0 || start == null || end == null || now >= end) {
-      return@mapNotNull null
-    }
-
-    val startInstant = start.toInstant(timeZone)
-    val isUpcoming = now < start
-    val withinUpcomingWindow = nowInstant >= startInstant - 10.minutes
-    if (isUpcoming && !withinUpcomingWindow) {
-      return@mapNotNull null
-    }
-
-    HomeTodoItem(
-        id = "signin:${signinClass.courseId}",
-        source = HomeTodoSource.SIGNIN,
-        title = signinClass.courseName,
-        subtitle = "课程签到",
-        statusLabel = if (isUpcoming) "即将签到" else "签到中",
-        timeLabel =
-            "${start.hour.toPaddedString()}:${start.minute.toPaddedString()} - ${end.hour.toPaddedString()}:${end.minute.toPaddedString()}",
-        sortTime = start,
-        action = HomeTodoAction.SigninCourse(signinClass.courseId),
-    )
-  }
-}
 
 internal fun buildYgdkTodoItem(
     overview: YgdkOverviewResponse?,

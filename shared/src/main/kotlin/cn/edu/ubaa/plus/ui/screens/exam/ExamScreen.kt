@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
@@ -23,9 +24,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.Exam
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.model.format.formatUbaaTime
+import cn.edu.ubaa.plus.model.format.parseUbaaTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
 import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import kotlin.collections.get
 import kotlin.time.Clock
@@ -68,25 +75,31 @@ fun ExamScreen(viewModel: ExamViewModel) {
 @Composable
 fun ExamTimelineList(arranged: List<Exam>, notArranged: List<Exam>) {
   var showFinished by remember { mutableStateOf(false) }
-
   val (finished, upcoming) = arranged.partition { isExamFinished(it) }
 
-  // 按日期分组考试，未定日期排后
-  val groupedUpcoming = upcoming.groupBy { it.examDate?.substringBefore(" ") ?: "待定" }
-  val upcomingSortedKeys = groupedUpcoming.keys.sorted()
+  LazyColumn(
+      contentPadding = PaddingValues(16.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+  ) {
+    if (upcoming.isNotEmpty()) {
+      item { UbaaSectionHeader(title = "即将到来", subtitle = "共 ${upcoming.size} 场") }
+      items(upcoming.sortedBy { it.examDate.orEmpty() }) { exam ->
+        ExamCard(exam = exam, showSeat = true)
+      }
+    }
 
-  val groupedFinished = finished.groupBy { it.examDate?.substringBefore(" ") ?: "待定" }
-  val finishedSortedKeys = groupedFinished.keys.sortedDescending() // 已结束的按日期倒序排
+    if (notArranged.isNotEmpty()) {
+      item { UbaaSectionHeader(title = "未安排/其他", subtitle = "共 ${notArranged.size} 场") }
+      items(notArranged) { exam -> ExamCard(exam = exam, showSeat = false) }
+    }
 
-  LazyColumn(contentPadding = PaddingValues(16.dp)) {
-    // 已结束考试折叠部分
     if (finished.isNotEmpty()) {
       item {
         Surface(
             onClick = { showFinished = !showFinished },
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(8.dp),
+            shape = MaterialTheme.shapes.medium,
         ) {
           Row(
               modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -107,86 +120,19 @@ fun ExamTimelineList(arranged: List<Exam>, notArranged: List<Exam>) {
           }
         }
       }
-
       if (showFinished) {
-        finishedSortedKeys.forEach { date ->
-          val exams = groupedFinished[date]!!
-          items(exams.size) { index ->
-            ExamTimelineItem(
-                exam = exams[index],
-                dateString = if (index == 0) date else null,
-                isLastInGroup = index == exams.size - 1,
-                isLastGlobal =
-                    date == finishedSortedKeys.last() &&
-                        index == exams.size - 1 &&
-                        upcoming.isEmpty() &&
-                        notArranged.isEmpty(),
-                isFinished = true,
-            )
-          }
-        }
-
-        if (upcoming.isNotEmpty() || notArranged.isNotEmpty()) {
-          item {
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-          }
+        items(finished.sortedByDescending { it.examDate.orEmpty() }) { exam ->
+          ExamCard(exam = exam, showSeat = true, isFinished = true)
         }
       }
     }
 
-    if (upcoming.isNotEmpty()) {
+    if (upcoming.isEmpty() && notArranged.isEmpty() && finished.isEmpty()) {
       item {
-        Text(
-            text = "即将到来",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 16.dp),
+        UbaaEmptyState(
+            title = "暂无考试安排",
+            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
         )
-      }
-
-      upcomingSortedKeys.forEach { date ->
-        val exams = groupedUpcoming[date]!!
-        items(exams.size) { index ->
-          ExamTimelineItem(
-              exam = exams[index],
-              dateString = if (index == 0) date else null,
-              isLastInGroup = index == exams.size - 1,
-              isLastGlobal =
-                  date == upcomingSortedKeys.last() &&
-                      index == exams.size - 1 &&
-                      notArranged.isEmpty(),
-          )
-        }
-      }
-    } else if (notArranged.isEmpty() && finished.isEmpty()) {
-      item {
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(32.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-          Text("暂无考试安排", style = MaterialTheme.typography.bodyLarge)
-        }
-      }
-    }
-
-    if (notArranged.isNotEmpty()) {
-      item {
-        Text(
-            text = "未安排/其他",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.padding(top = 24.dp, bottom = 16.dp),
-        )
-      }
-      items(notArranged) { exam ->
-        // 未安排考试使用标准卡片
-        ExamCard(exam, showSeat = false)
-        Spacer(modifier = Modifier.height(12.dp))
       }
     }
   }
@@ -244,133 +190,85 @@ fun ExamTimelineItem(
 
 @Composable
 fun ExamCard(exam: Exam, showSeat: Boolean, isFinished: Boolean = false) {
-  val alpha = if (isFinished) 0.6f else 1f
-
-  CompositionLocalProvider(
-      LocalContentColor provides LocalContentColor.current.copy(alpha = alpha)
+  val alpha = if (isFinished) 0.65f else 1f
+  UbaaSectionCard(
+      modifier = Modifier.fillMaxWidth().alpha(alpha),
+      glass = false,
   ) {
-    OutlinedCard(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        colors =
-            CardDefaults.outlinedCardColors(
-                containerColor =
-                    if (isFinished) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    else MaterialTheme.colorScheme.surface
-            ),
-        border =
-            CardDefaults.outlinedCardBorder()
-                .copy(
-                    brush = SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = alpha))
-                ),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-      Column(modifier = Modifier.padding(16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+      Text(
+          text = exam.courseName,
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.weight(1f),
+      )
+      if (showSeat && !exam.examSeatNo.isNullOrBlank()) {
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            shape = MaterialTheme.shapes.small,
         ) {
-          Text(
-              text = exam.courseName,
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.onSurface,
-              modifier = Modifier.weight(1f),
-          )
-
-          if (showSeat && !exam.examSeatNo.isNullOrBlank()) {
-
-            Surface(
-                color =
-                    if (isFinished) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    else MaterialTheme.colorScheme.secondaryContainer,
-                shape = RoundedCornerShape(8.dp),
-            ) {
-              Row(
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                  verticalAlignment = Alignment.CenterVertically,
-              ) {
-                Icon(
-                    imageVector = Icons.Default.Chair,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint =
-                        if (isFinished) MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Text(
-                    text = "${exam.examSeatNo}号",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color =
-                        if (isFinished) MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-              }
-            }
-          }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 时间行
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(
-              imageVector = Icons.Default.AccessTime,
-              contentDescription = null,
-              modifier = Modifier.size(16.dp),
-              tint =
-                  if (isFinished) MaterialTheme.colorScheme.outline
-                  else MaterialTheme.colorScheme.primary,
-          )
-
-          Spacer(modifier = Modifier.width(8.dp))
-
-          val timeText =
-              if (exam.startTime != null && exam.endTime != null) {
-
-                "${exam.startTime} - ${exam.endTime}"
-              } else {
-
-                exam.examTimeDescription ?: "时间待定"
-              }
-
-          Text(
-              text = timeText,
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-
-        // 地点行
-
-        exam.examPlace?.let { place ->
-          Spacer(modifier = Modifier.height(6.dp))
-
-          Row(verticalAlignment = Alignment.CenterVertically) {
+          Row(
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+              verticalAlignment = Alignment.CenterVertically,
+          ) {
             Icon(
-                imageVector = Icons.Default.LocationOn,
+                Icons.Default.Chair,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint =
-                    if (isFinished) MaterialTheme.colorScheme.outline
-                    else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
             )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
+            Spacer(Modifier.width(4.dp))
             Text(
-                text = place,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "${exam.examSeatNo}号",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
           }
         }
       }
     }
+
+    val dateText = exam.examDate?.let { formatUbaaDate(it) }
+    val begin = parseUbaaTime(exam.startTime)
+    val end = parseUbaaTime(exam.endTime)
+    val timeText =
+        if (begin != null && end != null) {
+          "${formatUbaaTime(begin)}-${formatUbaaTime(end)}"
+        } else {
+          exam.examTimeDescription
+        }
+    val timeLine = listOfNotNull(dateText, timeText?.takeIf { it.isNotBlank() }).joinToString(" ")
+    if (timeLine.isNotBlank()) ExamInfoLine("时间", timeLine)
+    exam.examPlace?.takeIf { it.isNotBlank() }?.let { ExamInfoLine("地点", it) }
+    exam.examType?.takeIf { it.isNotBlank() }?.let { ExamInfoLine("类型", it) }
+    exam.examStatus?.let { ExamInfoLine("状态", examStatusText(it)) }
+    exam.week?.let { ExamInfoLine("周次", "第${it}周") }
+  }
+}
+
+private fun examStatusText(status: Int): String =
+    when (status) {
+      0 -> "未开始"
+      1 -> "进行中"
+      2 -> "已结束"
+      else -> "状态 $status"
+    }
+
+@Composable
+private fun ExamInfoLine(label: String, value: String) {
+  Row(modifier = Modifier.fillMaxWidth()) {
+    Text(
+        text = "$label：",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.width(48.dp),
+    )
+    Text(text = value, style = MaterialTheme.typography.bodyMedium)
   }
 }
 

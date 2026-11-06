@@ -157,15 +157,17 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 todoLoading = homeTodoLoading,
                 todoLoadingSources = homeTodoLoadingSources,
                 todoFailedSources = homeTodoFailedSources,
-                signingTodoId =
-                    signinUiState.signingInCourseId?.let { courseId -> "signin:$courseId" },
+                signinClasses = signinUiState.classes,
+                signinLoading = signinUiState.isLoading,
+                signinError = signinUiState.error,
+                signingCourseId = signinUiState.signingInCourseId,
                 scoreUpdateNotice = gradeScoreWatchUiState.notice,
                 onRetrySchedule = { scheduleViewModel.loadTodaySchedule() },
                 onRefresh = { refreshHomeData() },
                 onOpenScoresClick = { openScoresFromHomeNotice() },
                 onDismissScoreNotice = { gradeScoreWatchViewModel.consumeNotice() },
                 onTodoClick = { todoItem -> handleHomeTodoClick(todoItem) },
-                onSigninTodoClick = { courseId -> signinViewModel.performSignin(courseId) },
+                onSigninClick = { courseId -> signinViewModel.performSignin(courseId) },
             )
         AppScreen.REGULAR ->
             RegularFeaturesScreen(

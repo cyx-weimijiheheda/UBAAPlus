@@ -4,7 +4,6 @@ import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
-import cn.edu.ubaa.plus.model.dto.SigninClassDto
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.SpocSubmissionStatus
 import cn.edu.ubaa.plus.model.dto.Week
@@ -20,7 +19,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
 
 class HomeTodoTest {
   @Test
@@ -116,31 +114,12 @@ class HomeTodoTest {
                         orderStatus = 2,
                     ),
                 ),
-            signinClasses =
-                listOf(
-                    SigninClassDto(
-                        courseId = "signin-1",
-                        courseName = "离散数学",
-                        classBeginTime = "11:55",
-                        classEndTime = "12:45",
-                        signStatus = 0,
-                    ),
-                    SigninClassDto(
-                        courseId = "signin-2",
-                        courseName = "数字逻辑",
-                        classBeginTime = "12:20",
-                        classEndTime = "13:10",
-                        signStatus = 0,
-                    ),
-                ),
             now = NOW,
-            timeZone = TimeZone.UTC,
         )
 
     assertEquals(
         listOf(
             "bykc:101",
-            "signin:signin-1",
             "judge:judge-course-1:judge-1",
             "spoc:spoc-1",
             "cgyy:201",
@@ -148,36 +127,6 @@ class HomeTodoTest {
         items.map { it.id },
     )
     assertEquals("进行中", items.first().statusLabel)
-    assertEquals("签到中", items[1].statusLabel)
-  }
-
-  @Test
-  fun `signin todo item uses direct sign action`() {
-    val items =
-        buildHomeTodoItems(
-            bykcCourses = emptyList(),
-            spocAssignments = emptyList(),
-            judgeAssignments = emptyList(),
-            cgyyOrders = emptyList(),
-            signinClasses =
-                listOf(
-                    SigninClassDto(
-                        courseId = "signin-1",
-                        courseName = "大学物理",
-                        classBeginTime = "12:08",
-                        classEndTime = "13:00",
-                        signStatus = 0,
-                    )
-                ),
-            now = NOW,
-            timeZone = TimeZone.UTC,
-        )
-
-    val item = items.single()
-    val action = assertIs<HomeTodoAction.SigninCourse>(item.action)
-    assertEquals("signin-1", action.courseId)
-    assertEquals("签到", item.actionLabel)
-    assertEquals("即将签到", item.statusLabel)
   }
 
   @Test
@@ -202,9 +151,7 @@ class HomeTodoTest {
                     )
                 ),
             cgyyOrders = emptyList(),
-            signinClasses = emptyList(),
             now = NOW,
-            timeZone = TimeZone.UTC,
         )
 
     val item = items.single()
@@ -244,9 +191,7 @@ class HomeTodoTest {
                 ),
             judgeAssignments = emptyList(),
             cgyyOrders = emptyList(),
-            signinClasses = emptyList(),
             now = NOW,
-            timeZone = TimeZone.UTC,
         )
 
     assertEquals(listOf("spoc:spoc-started"), items.map { it.id })
@@ -260,11 +205,9 @@ class HomeTodoTest {
             spocAssignments = emptyList(),
             judgeAssignments = emptyList(),
             cgyyOrders = emptyList(),
-            signinClasses = emptyList(),
             ygdkOverview = ygdkOverview(weekCount = 3, termCount = 15),
             currentWeek = week(serialNumber = 11),
             now = NOW,
-            timeZone = TimeZone.UTC,
         )
 
     val item = assertNotNull(items.singleOrNull())
@@ -368,14 +311,12 @@ class HomeTodoTest {
             spocAssignments = emptyList(),
             judgeAssignments = emptyList(),
             cgyyOrders = emptyList(),
-            signinClasses = emptyList(),
             ygdkOverview = overview,
             currentWeek = currentWeek,
             ygdkReminderEnabled = ygdkReminderEnabled,
             ygdkWeekDone = ygdkWeekDone,
             ygdkTermDone = ygdkTermDone,
             now = NOW,
-            timeZone = TimeZone.UTC,
         )
 
     private fun ygdkOverview(

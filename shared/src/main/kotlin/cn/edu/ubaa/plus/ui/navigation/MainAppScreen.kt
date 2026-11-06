@@ -347,7 +347,6 @@ fun MainAppScreen(
             spocAssignments = spocUiState.assignmentsResponse?.assignments.orEmpty(),
             judgeAssignments = judgeUiState.assignmentsResponse?.assignments.orEmpty(),
             cgyyOrders = cgyyUiState.orders.content,
-            signinClasses = signinUiState.classes,
             ygdkOverview = ygdkUiState.overview,
             currentWeek = currentWeek,
             ygdkReminderEnabled = ygdkUiState.homeReminderEnabled,
@@ -361,12 +360,14 @@ fun MainAppScreen(
     if (spocUiState.isLoading || spocUiState.isRefreshing) add(HomeTodoSource.SPOC)
     if (judgeUiState.isLoading || judgeUiState.isRefreshing) add(HomeTodoSource.JUDGE)
     if (cgyyUiState.isOrdersLoading) add(HomeTodoSource.CGYY)
-    if (signinUiState.isLoading) add(HomeTodoSource.SIGNIN)
     if (shouldLoadYgdkHomeOverview && ygdkUiState.isLoading) add(HomeTodoSource.YGDK)
   }
   val homeTodoLoading = homeTodoLoadingSources.isNotEmpty()
   val homeContentLoading =
-      todayScheduleState.isLoading || homeTodoLoading || gradeScoreWatchUiState.isLoading
+      todayScheduleState.isLoading ||
+          homeTodoLoading ||
+          signinUiState.isLoading ||
+          gradeScoreWatchUiState.isLoading
   val homeIsRefreshing =
       homeManualRefreshPending &&
           (homeManualRefreshStarted || homeBootstrapRunning || homeContentLoading)
@@ -375,7 +376,6 @@ fun MainAppScreen(
     if (spocUiState.error != null) add(HomeTodoSource.SPOC)
     if (judgeUiState.error != null) add(HomeTodoSource.JUDGE)
     if (cgyyUiState.ordersError != null) add(HomeTodoSource.CGYY)
-    if (signinUiState.error != null) add(HomeTodoSource.SIGNIN)
     if (shouldLoadYgdkHomeOverview && ygdkUiState.loadError != null) add(HomeTodoSource.YGDK)
   }
 
@@ -501,7 +501,6 @@ fun MainAppScreen(
         cgyyViewModel?.ensureOrdersLoaded()
         navigateTo(AppScreen.CGYY_ORDERS)
       }
-      is HomeTodoAction.SigninCourse -> signinViewModel.performSignin(action.courseId)
       HomeTodoAction.OpenYgdkHome -> navigateTo(AppScreen.YGDK_HOME)
     }
   }

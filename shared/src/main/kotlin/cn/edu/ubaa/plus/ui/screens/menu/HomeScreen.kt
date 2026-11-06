@@ -43,8 +43,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.model.dto.SigninClassDto
 import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.ui.screens.signin.SigninClassCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.screens.grade.GradeScoreUpdateNotice
 import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailDialog
@@ -66,14 +68,17 @@ internal fun HomeScreen(
     todoLoading: Boolean,
     todoLoadingSources: List<HomeTodoSource>,
     todoFailedSources: List<HomeTodoSource>,
-    signingTodoId: String?,
+    signinClasses: List<SigninClassDto>,
+    signinLoading: Boolean,
+    signinError: String?,
+    signingCourseId: String?,
     scoreUpdateNotice: GradeScoreUpdateNotice?,
     onRetrySchedule: () -> Unit,
     onRefresh: () -> Unit,
     onOpenScoresClick: () -> Unit,
     onDismissScoreNotice: () -> Unit,
     onTodoClick: (HomeTodoItem) -> Unit,
-    onSigninTodoClick: (String) -> Unit,
+    onSigninClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -149,6 +154,31 @@ internal fun HomeScreen(
       }
 
       item {
+        Text(
+            text = "今日课程考勤",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+        )
+      }
+      when {
+        signinLoading && signinClasses.isEmpty() ->
+            item { HomeLoadingCard(title = "正在加载今日考勤", subtitle = "签到状态会在这里显示。") }
+        signinError != null && signinClasses.isEmpty() ->
+            item { HomeErrorCard(message = signinError, onRetry = onRetrySchedule) }
+        signinClasses.isEmpty() ->
+            item { HomeEmptyCard(title = "今天没有需要签到的课程", subtitle = "有签到安排的课程会显示在这里。") }
+        else ->
+            items(signinClasses, key = { "signin:${it.courseId}" }) { clazz ->
+              SigninClassCard(
+                  clazz = clazz,
+                  onSigninClick = { onSigninClick(clazz.courseId) },
+                  isSigningIn = signingCourseId == clazz.courseId,
+              )
+            }
+      }
+
+      item {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -206,12 +236,7 @@ internal fun HomeScreen(
         }
       } else {
         items(todoItems) { todoItem ->
-          HomeTodoCard(
-              item = todoItem,
-              isSigning = signingTodoId == todoItem.id,
-              onClick = { onTodoClick(todoItem) },
-              onSigninClick = { courseId -> onSigninTodoClick(courseId) },
-          )
+          HomeTodoCard(item = todoItem, onClick = { onTodoClick(todoItem) })
         }
       }
 
@@ -327,17 +352,9 @@ private fun TodayClassCard(
 }
 
 @Composable
-private fun HomeTodoCard(
-    item: HomeTodoItem,
-    isSigning: Boolean,
-    onClick: () -> Unit,
-    onSigninClick: (String) -> Unit,
-) {
-  val isSigninItem = item.action is HomeTodoAction.SigninCourse
+private fun HomeTodoCard(item: HomeTodoItem, onClick: () -> Unit) {
   Card(
-      modifier =
-          Modifier.fillMaxWidth()
-              .then(if (isSigninItem) Modifier else Modifier.clickable(onClick = onClick)),
+      modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
       elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
@@ -402,28 +419,11 @@ private fun HomeTodoCard(
         )
       }
 
-      if (item.action is HomeTodoAction.SigninCourse) {
-        Button(
-            onClick = { onSigninClick(item.action.courseId) },
-            enabled = !isSigning,
-        ) {
-          if (isSigning) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
-                strokeWidth = 2.dp,
-            )
-          } else {
-            Text("签到")
-          }
-        }
-      } else {
-        Icon(
-            imageVector = Icons.Default.Info,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
+      Icon(
+          imageVector = Icons.Default.Info,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
     }
   }
 }
@@ -557,7 +557,6 @@ private fun sourceContainerColor(source: HomeTodoSource): Color =
       HomeTodoSource.SPOC -> MaterialTheme.colorScheme.tertiaryContainer
       HomeTodoSource.JUDGE -> MaterialTheme.colorScheme.primaryContainer
       HomeTodoSource.CGYY -> MaterialTheme.colorScheme.secondaryContainer
-      HomeTodoSource.SIGNIN -> MaterialTheme.colorScheme.errorContainer
       HomeTodoSource.YGDK -> MaterialTheme.colorScheme.tertiaryContainer
     }
 
@@ -568,7 +567,6 @@ private fun sourceContentColor(source: HomeTodoSource): Color =
       HomeTodoSource.SPOC -> MaterialTheme.colorScheme.onTertiaryContainer
       HomeTodoSource.JUDGE -> MaterialTheme.colorScheme.onPrimaryContainer
       HomeTodoSource.CGYY -> MaterialTheme.colorScheme.onSecondaryContainer
-      HomeTodoSource.SIGNIN -> MaterialTheme.colorScheme.onErrorContainer
       HomeTodoSource.YGDK -> MaterialTheme.colorScheme.onTertiaryContainer
     }
 
@@ -578,6 +576,5 @@ private fun sourceIcon(source: HomeTodoSource): ImageVector =
       HomeTodoSource.SPOC -> Icons.Default.AssignmentTurnedIn
       HomeTodoSource.JUDGE -> Icons.Default.Code
       HomeTodoSource.CGYY -> Icons.Default.MeetingRoom
-      HomeTodoSource.SIGNIN -> Icons.Default.CheckCircle
       HomeTodoSource.YGDK -> Icons.AutoMirrored.Filled.DirectionsRun
     }
