@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.CourseClass
+import cn.edu.ubaa.plus.model.format.formatUbaaWeekdayLabel
 
 @Composable
 fun CourseDetailScreen(course: CourseClass, modifier: Modifier = Modifier) {
@@ -71,18 +72,7 @@ fun CourseDetailScreen(course: CourseClass, modifier: Modifier = Modifier) {
           }
 
           course.dayOfWeek?.let { dayOfWeek ->
-            val dayName =
-                when (dayOfWeek) {
-                  1 -> "周一"
-                  2 -> "周二"
-                  3 -> "周三"
-                  4 -> "周四"
-                  5 -> "周五"
-                  6 -> "周六"
-                  7 -> "周日"
-                  else -> "未知"
-                }
-            CourseInfoRow("星期", dayName)
+            CourseInfoRow("星期", formatUbaaWeekdayLabel(dayOfWeek) ?: "未知")
           }
         }
       }

@@ -14,6 +14,7 @@ import cn.edu.ubaa.plus.model.dto.WeeklySchedule
 import cn.edu.ubaa.plus.model.dto.scheduleSectionTimes
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
+import cn.edu.ubaa.plus.model.format.formatUbaaWeekdayLabel
 import cn.edu.ubaa.plus.repository.SavedAgendaItem
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -50,10 +51,11 @@ internal fun renderScheduleWidget(
   val column = (width - left) / 7f
   val row = (height - top) / periods
   val start = LocalDate.parse(week.startDate)
-  listOf("一", "二", "三", "四", "五", "六", "日").forEachIndexed { index, day ->
+  (1..7).forEach { day ->
+    val index = day - 1
     val center = left + column * (index + 0.5f)
     text.textAlign = Paint.Align.CENTER
-    canvas.drawText("周$day", center, 11f, text)
+    canvas.drawText(formatUbaaWeekdayLabel(day).orEmpty(), center, 11f, text)
     canvas.drawText(
         formatUbaaMonthDay(start.plus(index, DateTimeUnit.DAY).toString()),
         center,
@@ -185,7 +187,7 @@ private fun renderCompactWeek(
         schedule?.arrangedList.orEmpty().filter { it.dayOfWeek == day }.sortedBy { it.beginTime }
     val date = formatUbaaMonthDay(start.plus(day - 1, DateTimeUnit.DAY).toString())
     val label =
-        "周${"一二三四五六日"[day - 1]} $date · ${classes.size}门\n" +
+        "${formatUbaaWeekdayLabel(day).orEmpty()} $date · ${classes.size}门\n" +
             classes
                 .joinToString(" / ") { "${it.beginTime.orEmpty()} ${it.courseName}" }
                 .ifEmpty { "无课" }

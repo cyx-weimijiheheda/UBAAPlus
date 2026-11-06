@@ -12,6 +12,7 @@ import android.widget.RemoteViews
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDateTime
 import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
+import cn.edu.ubaa.plus.model.format.formatUbaaWeekdayLabel
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.repository.selectSavedScheduleWeek
 import cn.edu.ubaa.plus.shared.R
@@ -222,7 +223,7 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
                   ?.sortedWith(compareBy({ it.dayOfWeek }, { it.beginSection }))
                   ?.forEach {
                     append(
-                        "周${it.dayOfWeek} ${it.beginTime} ${it.courseName} ${it.placeName.orEmpty()}；"
+                        "${it.dayOfWeek?.let(::formatUbaaWeekdayLabel).orEmpty()} ${it.beginTime} ${it.courseName} ${it.placeName.orEmpty()}；"
                     )
                   }
             },

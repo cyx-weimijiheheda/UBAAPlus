@@ -12,8 +12,8 @@ import kotlinx.datetime.toLocalDateTime
 
 /**
  * 全应用统一的日期时间显示格式：
- * - 完整：`2026年10月30日 星期五`、`2026年10月30日 星期五 14:00`、`2026年10月30日 星期五 14:00-16:00`
- * - 紧凑：`10月30日 周五`
+ * - 完整：`2026.10.30 Fri`、`2026.10.30 Fri 14:00`、`2026.10.30 Fri 14:00-16:00`
+ * - 紧凑：`10.30 Fri`、`10.30`
  *
  * 解析不了的值原样返回，避免把后端返回的可用文案弄丢。
  */
@@ -25,7 +25,7 @@ fun formatUbaaDate(raw: String?): String {
 }
 
 fun formatUbaaDate(date: LocalDate): String =
-    "${date.year}年${date.month.ordinal + 1}月${date.day}日 ${ubaFullWeekdayLabel(date.dayOfWeek)}"
+    "${date.year}.${pad2(date.month.ordinal + 1)}.${pad2(date.day)} ${formatUbaaWeekdayLabel(date.dayOfWeek)}"
 
 fun formatUbaaDate(dateTime: LocalDateTime): String = formatUbaaDate(dateTime.date)
 
@@ -123,7 +123,7 @@ fun formatUbaaCompactDate(raw: String?): String {
 }
 
 fun formatUbaaCompactDate(date: LocalDate): String =
-    "${date.month.ordinal + 1}月${date.day}日 ${ubaCompactWeekdayLabel(date.dayOfWeek)}"
+    "${pad2(date.month.ordinal + 1)}.${pad2(date.day)} ${formatUbaaWeekdayLabel(date.dayOfWeek)}"
 
 fun formatUbaaCompactDateTime(raw: String?): String {
   val text = raw?.trim().orEmpty()
@@ -163,7 +163,7 @@ fun formatUbaaMonthDay(raw: String?): String {
   val text = raw?.trim().orEmpty()
   if (text.isEmpty()) return ""
   val date = parseUbaaDate(text) ?: return text
-  return "${date.month.ordinal + 1}月${date.day}日"
+  return "${pad2(date.month.ordinal + 1)}.${pad2(date.day)}"
 }
 
 fun parseUbaaDate(raw: String?): LocalDate? {
@@ -223,27 +223,21 @@ private fun parseTimeAfterDate(text: String, startIndex: Int): LocalTime? {
   return parseUbaaTime(tail)
 }
 
-private fun ubaFullWeekdayLabel(dayOfWeek: DayOfWeek): String =
+fun formatUbaaWeekdayLabel(dayOfWeek: DayOfWeek): String =
     when (dayOfWeek) {
-      DayOfWeek.MONDAY -> "星期一"
-      DayOfWeek.TUESDAY -> "星期二"
-      DayOfWeek.WEDNESDAY -> "星期三"
-      DayOfWeek.THURSDAY -> "星期四"
-      DayOfWeek.FRIDAY -> "星期五"
-      DayOfWeek.SATURDAY -> "星期六"
-      DayOfWeek.SUNDAY -> "星期日"
+      DayOfWeek.MONDAY -> "Mon"
+      DayOfWeek.TUESDAY -> "Tue"
+      DayOfWeek.WEDNESDAY -> "Wed"
+      DayOfWeek.THURSDAY -> "Thu"
+      DayOfWeek.FRIDAY -> "Fri"
+      DayOfWeek.SATURDAY -> "Sat"
+      DayOfWeek.SUNDAY -> "Sun"
     }
 
-private fun ubaCompactWeekdayLabel(dayOfWeek: DayOfWeek): String =
-    when (dayOfWeek) {
-      DayOfWeek.MONDAY -> "周一"
-      DayOfWeek.TUESDAY -> "周二"
-      DayOfWeek.WEDNESDAY -> "周三"
-      DayOfWeek.THURSDAY -> "周四"
-      DayOfWeek.FRIDAY -> "周五"
-      DayOfWeek.SATURDAY -> "周六"
-      DayOfWeek.SUNDAY -> "周日"
-    }
+fun formatUbaaWeekdayLabel(dayOfWeek: Int): String? =
+    DayOfWeek.entries.getOrNull(dayOfWeek - 1)?.let(::formatUbaaWeekdayLabel)
+
+private fun pad2(value: Int): String = value.toString().padStart(2, '0')
 
 private val ubaDatePattern = Regex("""(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?""")
 

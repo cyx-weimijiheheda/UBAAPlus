@@ -1,6 +1,8 @@
 package cn.edu.ubaa.plus.ui.screens.schedule
 
 import cn.edu.ubaa.plus.model.dto.Week
+import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
+import cn.edu.ubaa.plus.model.format.formatUbaaWeekdayLabel
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
@@ -11,8 +13,8 @@ internal data class ScheduleHeaderDayLabel(
 )
 
 internal fun defaultScheduleHeaderDayLabels(): List<ScheduleHeaderDayLabel> =
-    listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日").map {
-      ScheduleHeaderDayLabel(weekdayLabel = it)
+    (1..7).map { day ->
+      ScheduleHeaderDayLabel(weekdayLabel = formatUbaaWeekdayLabel(day).orEmpty())
     }
 
 internal fun Week.headerDayLabels(): List<ScheduleHeaderDayLabel> {
@@ -25,7 +27,7 @@ internal fun Week.headerDayLabels(): List<ScheduleHeaderDayLabel> {
   return defaults.mapIndexed { index, default ->
     ScheduleHeaderDayLabel(
         weekdayLabel = default.weekdayLabel,
-        dateLabel = parsedStart.plus(DatePeriod(days = index)).toShortMonthDayLabel(),
+        dateLabel = formatUbaaMonthDay(parsedStart.plus(DatePeriod(days = index)).toString()),
     )
   }
 }
@@ -44,7 +46,5 @@ private fun parseWeekBoundaryDate(raw: String?): LocalDate? {
   val (yearText, monthText, dayText) = match.destructured
   return runCatching { LocalDate(yearText.toInt(), monthText.toInt(), dayText.toInt()) }.getOrNull()
 }
-
-private fun LocalDate.toShortMonthDayLabel(): String = "${month.ordinal + 1}月${day}日"
 
 private val FLEXIBLE_DATE_PATTERN = Regex("""(\d{4})\D+(\d{1,2})\D+(\d{1,2})""")
