@@ -62,7 +62,6 @@ fun OfflineScheduleScreen(
       viewModel(key = "offline-schedule-$account") { ScheduleViewModel(offlineOnly = true) }
   val state by model.uiState.collectAsState()
   val today by model.todayScheduleState.collectAsState()
-  var course by remember { mutableStateOf<CourseClass?>(null) }
   LaunchedEffect(account) {
     model.resetLoadedState()
     model.ensureScheduleLoaded()
@@ -103,26 +102,8 @@ fun OfflineScheduleScreen(
         onTermSelected = model::selectTerm,
         onWeekSelected = model::selectWeek,
         onNavigateBack = onBack,
-        onCourseClick = { course = it },
         updatedAt = state.updatedAt,
         modifier = Modifier.weight(1f),
-    )
-  }
-  course?.let { item ->
-    AlertDialog(
-        onDismissRequest = { course = null },
-        title = { Text(item.courseName) },
-        text = {
-          Text(
-              listOfNotNull(
-                      item.placeName,
-                      "${item.beginTime.orEmpty()}-${item.endTime.orEmpty()}",
-                      item.weeksAndTeachers,
-                  )
-                  .joinToString("\n")
-          )
-        },
-        confirmButton = { TextButton(onClick = { course = null }) { Text("关闭") } },
     )
   }
 }
@@ -155,7 +136,6 @@ fun ScheduleScreen(
     onTermSelected: (Term) -> Unit,
     onWeekSelected: (Week) -> Unit,
     onNavigateBack: () -> Unit,
-    onCourseClick: (CourseClass) -> Unit,
     modifier: Modifier = Modifier,
     isUpdating: Boolean = false,
     updatedAt: String? = null,
@@ -170,6 +150,7 @@ fun ScheduleScreen(
   var responseCopied by remember(diagnosticResponse) { mutableStateOf(false) }
   var showWeekSelector by remember { mutableStateOf(false) }
   var showTermSelector by remember { mutableStateOf(false) }
+  var selectedCourseInfo by remember { mutableStateOf<CourseDetailInfo?>(null) }
   val currentWeekIndex = weeks.indexOf(selectedWeek)
 
   UbaaToastEffect(error) {}
@@ -293,7 +274,9 @@ fun ScheduleScreen(
                     weeklySchedule?.let { mapOf(selectedWeek.serialNumber to it) }.orEmpty()
                   },
                   onWeekSelected,
-                  onCourseClick,
+                  { course, weekStart ->
+                    selectedCourseInfo = course.toCourseDetailInfo(weekStart)
+                  },
               )
             }
           }
@@ -324,6 +307,10 @@ fun ScheduleScreen(
         onDismiss = { showWeekSelector = false },
     )
   }
+
+  selectedCourseInfo?.let {
+    CourseDetailDialog(info = it, onDismiss = { selectedCourseInfo = null })
+  }
 }
 
 /** Pager 消费已加载的周数据，在线模式切换到未加载的周时由 ViewModel 查询。 */
@@ -333,7 +320,7 @@ internal fun ScheduleWeekPager(
     selectedWeek: Week,
     schedules: Map<Int, WeeklySchedule>,
     onWeekSelected: (Week) -> Unit,
-    onCourseClick: (CourseClass) -> Unit,
+    onCourseClick: (CourseClass, String?) -> Unit,
 ) {
   val index = weeks.indexOfFirst { it.serialNumber == selectedWeek.serialNumber }.coerceAtLeast(0)
   val pager = rememberPagerState(initialPage = index, pageCount = { weeks.size })
@@ -365,7 +352,7 @@ internal fun ScheduleWeekPager(
         WeeklyScheduleView(
             schedule,
             week.headerDayLabels(),
-            onCourseClick,
+            { course -> onCourseClick(course, week.startDate) },
             times = times,
             modifier = Modifier.fillMaxSize(),
         )
@@ -504,7 +491,7 @@ private fun WeeklyScheduleView(
                       RoundedCornerShape(8.dp),
                   )
       ) {
-        TimeColumn(times, rowHeight, Modifier.width(52.dp))
+        TimeColumn(times, rowHeight, Modifier.width(64.dp))
         WeeklyScheduleGrid(
             schedule,
             onCourseClick,
@@ -534,7 +521,13 @@ internal fun scheduleRowMetrics(availableHeightDp: Float, periods: Int): Schedul
 @Composable
 private fun HeaderRow(dayLabels: List<ScheduleHeaderDayLabel>) {
   Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-    Spacer(modifier = Modifier.width(52.dp))
+    Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+      Text(
+          text = "节次",
+          fontSize = 10.sp,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
     dayLabels.forEach {
       Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -567,21 +560,19 @@ private fun TimeColumn(
           contentAlignment = Alignment.Center,
       ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-          Text(text = it.section.toString(), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+          Text(
+              text = "第${it.section}节",
+              fontSize = 10.sp,
+              fontWeight = FontWeight.Medium,
+              maxLines = 1,
+          )
           if (rowHeight >= 40.dp) {
             Text(
                 text = it.start ?: "--:--",
                 fontSize = 10.sp,
                 lineHeight = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-          if (rowHeight >= 56.dp) {
-            Text(
-                text = it.end ?: "--:--",
-                fontSize = 10.sp,
-                lineHeight = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
             )
           }
         }

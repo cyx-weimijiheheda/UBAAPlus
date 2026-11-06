@@ -32,6 +32,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,6 +47,9 @@ import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.screens.grade.GradeScoreUpdateNotice
+import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailDialog
+import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailInfo
+import cn.edu.ubaa.plus.ui.screens.schedule.toCourseDetailInfo
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.datetime.TimeZone
@@ -70,6 +77,7 @@ internal fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
   val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+  var selectedCourseInfo by remember { mutableStateOf<CourseDetailInfo?>(null) }
   val todoLoadingSummary = todoLoadingSources.joinToString("、") { it.label }
   val sortedClasses =
       todayClasses.sortedBy { course ->
@@ -131,7 +139,13 @@ internal fun HomeScreen(
             }
         sortedClasses.isEmpty() && !isLoading ->
             item { HomeEmptyCard(title = "今天没有课程安排", subtitle = "今天可以安心处理其他事项。") }
-        else -> items(sortedClasses) { todayClass -> TodayClassCard(todayClass = todayClass) }
+        else ->
+            items(sortedClasses) { todayClass ->
+              TodayClassCard(
+                  todayClass = todayClass,
+                  onClick = { selectedCourseInfo = todayClass.toCourseDetailInfo(today) },
+              )
+            }
       }
 
       item {
@@ -204,6 +218,10 @@ internal fun HomeScreen(
       item { Spacer(modifier = Modifier.height(16.dp)) }
     }
   }
+
+  selectedCourseInfo?.let {
+    CourseDetailDialog(info = it, onDismiss = { selectedCourseInfo = null })
+  }
 }
 
 @Composable
@@ -253,9 +271,13 @@ private fun HomeLoadingCard(title: String, subtitle: String) {
 }
 
 @Composable
-private fun TodayClassCard(todayClass: TodayClass, modifier: Modifier = Modifier) {
+private fun TodayClassCard(
+    todayClass: TodayClass,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {},
+) {
   Card(
-      modifier = modifier.fillMaxWidth(),
+      modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {

@@ -232,10 +232,6 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onTermSelected = { scheduleViewModel.selectTerm(it) },
                 onWeekSelected = { scheduleViewModel.selectWeek(it) },
                 onNavigateBack = { navigateBack() },
-                onCourseClick = {
-                  onSelectedCourseChange(it)
-                  navigateTo(AppScreen.COURSE_DETAIL)
-                },
             )
         AppScreen.EXAM -> examViewModel?.let { ExamScreen(viewModel = it) }
         AppScreen.GRADE -> gradeViewModel?.let { GradeScreen(viewModel = it) }
