@@ -6,6 +6,9 @@ import cn.edu.ubaa.plus.model.dto.*
 interface SigninApiBackend {
   suspend fun getTodayClasses(): Result<SigninStatusResponse>
 
+  /** 后台提醒使用：网络/解析失败返回 failure，而不是空列表。 */
+  suspend fun getTodayClassesStrict(): Result<SigninStatusResponse> = getTodayClasses()
+
   suspend fun performSignin(
       courseId: String,
       timestamp: String? = null,
@@ -41,6 +44,10 @@ class SigninApi(
    */
   suspend fun getTodayClasses(): Result<SigninStatusResponse> {
     return currentBackend().getTodayClasses()
+  }
+
+  suspend fun getTodayClassesStrict(): Result<SigninStatusResponse> {
+    return currentBackend().getTodayClassesStrict()
   }
 
   /**

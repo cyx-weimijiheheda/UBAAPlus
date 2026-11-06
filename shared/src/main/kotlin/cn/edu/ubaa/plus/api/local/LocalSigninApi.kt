@@ -73,15 +73,23 @@ internal class LocalSigninApiBackend : SigninApiBackend {
   }
 
   override suspend fun getTodayClasses(): Result<SigninStatusResponse> {
-    return getTodayClasses(allowRetry = true)
+    return getTodayClasses(allowRetry = true, strict = false)
   }
 
-  private suspend fun getTodayClasses(allowRetry: Boolean): Result<SigninStatusResponse> {
+  override suspend fun getTodayClassesStrict(): Result<SigninStatusResponse> {
+    return getTodayClasses(allowRetry = true, strict = true)
+  }
+
+  private suspend fun getTodayClasses(
+      allowRetry: Boolean,
+      strict: Boolean,
+  ): Result<SigninStatusResponse> {
     val authSession =
         LocalAuthSessionStore.get() ?: return Result.failure(localUnauthenticatedApiException())
     val signinSession = runCatching { currentSession(authSession.studentId()) }.getOrNull()
     if (signinSession == null) {
-      return Result.success(SigninStatusResponse(code = 200, message = "获取成功"))
+      return if (strict) Result.failure(localUnauthenticatedApiException())
+      else Result.success(SigninStatusResponse(code = 200, message = "获取成功"))
     }
 
     return try {
@@ -96,21 +104,30 @@ internal class LocalSigninApiBackend : SigninApiBackend {
             parameter("dateStr", currentSigninDate())
           }
       if (response.status != HttpStatusCode.OK) {
-        return Result.success(SigninStatusResponse(code = 200, message = "获取成功"))
+        return if (strict) {
+          Result.failure(ApiCallException("智慧教室服务暂不可用，请稍后重试", code = "signin_unavailable"))
+        } else {
+          Result.success(SigninStatusResponse(code = 200, message = "获取成功"))
+        }
       }
       val payload = json.parseToJsonElement(response.bodyAsText()).jsonObject
       if (payload.containsKey("STATUS") && !isStatusSuccess(payload)) {
         if (allowRetry) {
           invalidateSession(authSession.studentId())
           val refreshed = runCatching { currentSession(authSession.studentId()) }.getOrNull()
-          if (refreshed != null) return getTodayClasses(allowRetry = false)
+          if (refreshed != null) return getTodayClasses(allowRetry = false, strict = strict)
         }
-        return Result.success(SigninStatusResponse(code = 200, message = "获取成功"))
+        return if (strict) {
+          Result.failure(ApiCallException("智慧教室签到状态查询失败", code = "signin_status_failed"))
+        } else {
+          Result.success(SigninStatusResponse(code = 200, message = "获取成功"))
+        }
       }
       val classes = payload["result"]?.jsonArray?.map(::mapSigninClass).orEmpty()
       Result.success(SigninStatusResponse(code = 200, message = "获取成功", data = classes))
-    } catch (_: Exception) {
-      Result.success(SigninStatusResponse(code = 200, message = "获取成功"))
+    } catch (e: Exception) {
+      if (strict) Result.failure(e)
+      else Result.success(SigninStatusResponse(code = 200, message = "获取成功"))
     }
   }
 

@@ -1,8 +1,12 @@
 package cn.edu.ubaa.plus
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -35,6 +39,7 @@ import cn.edu.ubaa.plus.api.auth.AppVersionCheckResponse
 import cn.edu.ubaa.plus.api.auth.UpdateService
 import cn.edu.ubaa.plus.api.storage.AnnouncementReadStore
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
+import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.api.storage.DisclaimerStore
 import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.repository.ScheduleStore
@@ -85,6 +90,37 @@ fun App() {
     val uiState by authViewModel.uiState.collectAsState()
     val loginForm by authViewModel.loginForm.collectAsState()
     val appScope = rememberCoroutineScope()
+    val appContext = LocalContext.current
+    var notificationPermissionGranted by remember {
+      mutableStateOf(ReminderServiceController.notificationsAllowed(appContext))
+    }
+    var notificationPermissionRequested by remember { mutableStateOf(false) }
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+          notificationPermissionGranted = granted
+        }
+    LaunchedEffect(uiState.isLoggedIn) {
+      if (
+          uiState.isLoggedIn &&
+              Build.VERSION.SDK_INT >= 33 &&
+              !notificationPermissionGranted &&
+              !notificationPermissionRequested
+      ) {
+        notificationPermissionRequested = true
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+      }
+    }
+    LaunchedEffect(
+        uiState.isLoggedIn,
+        preferences.backgroundRemindersEnabled,
+        notificationPermissionGranted,
+    ) {
+      ReminderServiceController.sync(
+          context = appContext,
+          loggedIn = uiState.isLoggedIn,
+          enabled = preferences.backgroundRemindersEnabled,
+      )
+    }
     val availableConnectionModes = remember { ConnectionRuntime.availableModes() }
     var selectedConnectionMode by remember { mutableStateOf<ConnectionMode?>(null) }
     val effectiveConnectionMode by ConnectionRuntime.currentModeFlow.collectAsState()

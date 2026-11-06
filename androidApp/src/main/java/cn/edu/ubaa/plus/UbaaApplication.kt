@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus
 import android.app.Application
 import cn.edu.ubaa.plus.api.storage.LegacyCredentialMigration
 import cn.edu.ubaa.plus.api.storage.SecureSettings
+import cn.edu.ubaa.plus.reminder.ReminderNotifications
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 
 /**
@@ -15,6 +16,7 @@ class UbaaApplication : Application() {
     super.onCreate()
     SecureSettings.initialize(this)
     UbaaToast.initialize(this)
+    ReminderNotifications.ensureChannels(this)
     LegacyCredentialMigration.migrate(this)
     AppForegroundMonitor.start()
   }

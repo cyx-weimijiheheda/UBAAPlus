@@ -20,6 +20,7 @@ class AppPreferencesStoreTest {
     AppPreferencesStore.setThemeMode(ThemeMode.SYSTEM)
     AppPreferencesStore.setFollowWallpaper(false)
     AppPreferencesStore.setGlassEnabled(true)
+    AppPreferencesStore.setBackgroundRemindersEnabled(true)
     AppPreferencesStore.setCustomBrandColor(-16753748)
     AppPreferencesStore.setThemePalette(ThemePalette.BUAA_BLUE)
     AppPreferencesStore.setFeatureLayout(FeatureLayout.GRID)
@@ -87,6 +88,19 @@ class AppPreferencesStoreTest {
 
     assertFalse(AppPreferencesStore.state.value.glassEnabled)
     assertEquals(false, AppPreferencesStore.settings.getBoolean("app_liquid_glass_enabled", true))
+  }
+
+  @Test
+  fun `后台提醒默认开启并可关闭`() {
+    assertTrue(AppPreferencesStore.state.value.backgroundRemindersEnabled)
+
+    AppPreferencesStore.setBackgroundRemindersEnabled(false)
+
+    assertFalse(AppPreferencesStore.state.value.backgroundRemindersEnabled)
+    assertEquals(
+        false,
+        AppPreferencesStore.settings.getBoolean("app_background_reminders_enabled", true),
+    )
   }
 
   @Test

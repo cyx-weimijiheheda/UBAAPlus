@@ -47,6 +47,8 @@ import cn.edu.ubaa.plus.ui.screens.grade.GradeViewModel
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeViewModel
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
 import cn.edu.ubaa.plus.ui.screens.library.LibraryBorrowViewModel
+import cn.edu.ubaa.plus.reminder.AppNotificationRoute
+import cn.edu.ubaa.plus.reminder.PendingAppRouteStore
 import cn.edu.ubaa.plus.ui.screens.menu.*
 import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel
 import cn.edu.ubaa.plus.ui.screens.signin.SigninViewModel
@@ -329,6 +331,32 @@ fun MainAppScreen(
   var selectedJudgeCourseId by remember { mutableStateOf<String?>(null) }
   var selectedJudgeAssignmentId by remember { mutableStateOf<String?>(null) }
   var showJudgeSortFilterDialog by remember { mutableStateOf(false) }
+
+  val pendingNotificationRoute by PendingAppRouteStore.route.collectAsState()
+  LaunchedEffect(pendingNotificationRoute, userData.schoolid) {
+    val route = pendingNotificationRoute ?: return@LaunchedEffect
+    when (route) {
+      AppNotificationRoute.IclassHome -> navController.navigateTo(AppScreen.ICLASS_HOME)
+      is AppNotificationRoute.BykcCourse -> {
+        selectedBykcCourseId = route.courseId
+        selectedBykcCourseSnapshot = null
+        bykcViewModel.loadCourseDetail(route.courseId)
+        navController.navigateTo(AppScreen.BYKC_DETAIL)
+      }
+      is AppNotificationRoute.SpocAssignment -> {
+        selectedSpocAssignmentId = route.assignmentId
+        spocViewModel.loadAssignmentDetail(route.assignmentId)
+        navController.navigateTo(AppScreen.SPOC_ASSIGNMENT_DETAIL)
+      }
+      is AppNotificationRoute.JudgeAssignment -> {
+        selectedJudgeCourseId = route.courseId
+        selectedJudgeAssignmentId = route.assignmentId
+        judgeViewModel.loadAssignmentDetail(route.courseId, route.assignmentId)
+        navController.navigateTo(AppScreen.JUDGE_ASSIGNMENT_DETAIL)
+      }
+    }
+    PendingAppRouteStore.consume()
+  }
   val homeTodoItems =
       remember(
           bykcChosenState.courses,
@@ -485,18 +513,18 @@ fun MainAppScreen(
         selectedBykcCourseId = action.courseId
         selectedBykcCourseSnapshot = null
         bykcViewModel.loadCourseDetail(action.courseId)
-        navigateTo(AppScreen.BYKC_DETAIL)
+        navController.navigateTo(AppScreen.BYKC_DETAIL)
       }
       is HomeTodoAction.OpenSpocAssignment -> {
         selectedSpocAssignmentId = action.assignmentId
         spocViewModel.loadAssignmentDetail(action.assignmentId)
-        navigateTo(AppScreen.SPOC_ASSIGNMENT_DETAIL)
+        navController.navigateTo(AppScreen.SPOC_ASSIGNMENT_DETAIL)
       }
       is HomeTodoAction.OpenJudgeAssignment -> {
         selectedJudgeCourseId = action.courseId
         selectedJudgeAssignmentId = action.assignmentId
         judgeViewModel.loadAssignmentDetail(action.courseId, action.assignmentId)
-        navigateTo(AppScreen.JUDGE_ASSIGNMENT_DETAIL)
+        navController.navigateTo(AppScreen.JUDGE_ASSIGNMENT_DETAIL)
       }
       HomeTodoAction.OpenCgyyOrders -> {
         cgyyViewModel?.ensureOrdersLoaded()

@@ -41,6 +41,7 @@ data class AppPreferences(
     val followWallpaper: Boolean = false,
     val customBrandArgb: Int = DEFAULT_CUSTOM_BRAND_ARGB,
     val glassEnabled: Boolean = true,
+    val backgroundRemindersEnabled: Boolean = true,
     val featureLayout: FeatureLayout = FeatureLayout.GRID,
     val featureOrder: List<String> = emptyList(),
     val hiddenFeatures: Set<String> = emptySet(),
@@ -56,6 +57,7 @@ object AppPreferencesStore {
   private const val KEY_FOLLOW_WALLPAPER = "app_follow_wallpaper"
   private const val KEY_CUSTOM_BRAND_ARGB = "app_theme_custom_argb"
   private const val KEY_GLASS_ENABLED = "app_liquid_glass_enabled"
+  private const val KEY_BACKGROUND_REMINDERS = "app_background_reminders_enabled"
   private const val KEY_FEATURE_LAYOUT = "app_feature_layout"
   private const val KEY_FEATURE_ORDER = "app_feature_order"
   private const val KEY_FEATURE_HIDDEN = "app_feature_hidden"
@@ -111,6 +113,11 @@ object AppPreferencesStore {
   fun setGlassEnabled(enabled: Boolean) {
     settings.putBoolean(KEY_GLASS_ENABLED, enabled)
     _state.value = _state.value.copy(glassEnabled = enabled)
+  }
+
+  fun setBackgroundRemindersEnabled(enabled: Boolean) {
+    settings.putBoolean(KEY_BACKGROUND_REMINDERS, enabled)
+    _state.value = _state.value.copy(backgroundRemindersEnabled = enabled)
   }
 
   fun setFeatureLayout(layout: FeatureLayout) {
@@ -197,6 +204,7 @@ object AppPreferencesStore {
         followWallpaper = settings.getBoolean(KEY_FOLLOW_WALLPAPER, false),
         customBrandArgb = settings.getInt(KEY_CUSTOM_BRAND_ARGB, DEFAULT_CUSTOM_BRAND_ARGB),
         glassEnabled = settings.getBoolean(KEY_GLASS_ENABLED, true),
+        backgroundRemindersEnabled = settings.getBoolean(KEY_BACKGROUND_REMINDERS, true),
         featureLayout = layout,
         featureOrder = order,
         hiddenFeatures = hidden,

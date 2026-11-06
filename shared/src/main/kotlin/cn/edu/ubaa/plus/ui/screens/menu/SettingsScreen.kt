@@ -142,6 +142,29 @@ fun SettingsScreen(
     }
 
     item {
+      SettingsSection(title = "通知") {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text("后台提醒", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = "登录后每 5 分钟检查签到、签退和作业；关闭后停止前台服务。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+          Switch(
+              checked = preferences.backgroundRemindersEnabled,
+              onCheckedChange = AppPreferencesStore::setBackgroundRemindersEnabled,
+          )
+        }
+      }
+    }
+
+    item {
       SettingsSection(title = "功能") {
         Row(
             modifier =

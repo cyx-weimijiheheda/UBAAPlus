@@ -79,6 +79,7 @@ dependencies {
   )
   implementation("org.jetbrains.compose.ui:ui-tooling-preview:$composeVersion")
   implementation(libs.androidx.activity.compose)
+  implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.viewmodelCompose)
   implementation(libs.androidx.lifecycle.runtimeCompose)
   implementation(libs.androidx.lifecycle.process)

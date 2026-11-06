@@ -43,6 +43,29 @@ enum class ConnectionMode(
   }
 }
 
+/** 用户界面选择的模式（可为 AUTO）；实际传输仍由 [ConnectionModeStore] 保存。 */
+object ConnectionPreferenceStore {
+  private const val KEY_CONNECTION_PREFERENCE = "connection_preference"
+  private var _settings: Settings? = null
+  var settings: Settings
+    get() = _settings ?: ConnectionModeStore.settings
+    set(value) {
+      _settings = value
+    }
+
+  fun save(mode: ConnectionMode) {
+    settings.putString(KEY_CONNECTION_PREFERENCE, mode.storageKey)
+  }
+
+  fun get(): ConnectionMode? =
+      ConnectionMode.fromStorageKey(settings.getStringOrNull(KEY_CONNECTION_PREFERENCE))
+          ?: ConnectionModeStore.get()
+
+  fun clear() {
+    settings.remove(KEY_CONNECTION_PREFERENCE)
+  }
+}
+
 object ConnectionModeStore {
   private const val KEY_CONNECTION_MODE = "connection_mode"
   private var _settings: Settings? = null
@@ -91,15 +114,18 @@ object ConnectionRuntime {
     return resolvedMode
   }
 
-  fun preferredMode(): ConnectionMode? = ConnectionModeStore.get()
+  fun preferredMode(): ConnectionMode? = ConnectionPreferenceStore.get()
 
   fun currentMode(): ConnectionMode? =
       _currentMode.value ?: resolveSelectedMode()?.takeIf { it != ConnectionMode.AUTO }
 
   /** App 启动时调用：AUTO 先探测，其它模式直接返回。 */
   suspend fun resolveStartupMode(): ConnectionMode? {
-    val stored = ConnectionModeStore.get() ?: return resolveSelectedMode()
-    if (stored != ConnectionMode.AUTO) return resolveSelectedMode()
+    val stored = preferredMode() ?: return resolveSelectedMode()
+    if (stored != ConnectionMode.AUTO) {
+      ConnectionPreferenceStore.save(stored)
+      return resolveSelectedMode()
+    }
     val effective = AutoTransportProbe.resolve(previous = _currentMode.value)
     applyEffectiveTransport(effective)
     return effective
@@ -112,7 +138,7 @@ object ConnectionRuntime {
       return
     }
     resetSession()
-    ConnectionModeStore.save(mode)
+    ConnectionPreferenceStore.save(mode)
     val effective = AutoTransportProbe.resolve(previous = _currentMode.value)
     applyEffectiveTransport(effective)
   }
@@ -138,6 +164,7 @@ object ConnectionRuntime {
       return
     }
     resetSession()
+    ConnectionPreferenceStore.save(mode)
     ConnectionModeStore.save(mode)
     _currentMode.value = mode
   }
@@ -157,6 +184,7 @@ object ConnectionRuntime {
 
   fun clearSelectedMode() {
     resetSession()
+    ConnectionPreferenceStore.clear()
     ConnectionModeStore.clear()
     _currentMode.value = null
   }
