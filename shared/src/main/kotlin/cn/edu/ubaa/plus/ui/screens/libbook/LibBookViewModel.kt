@@ -17,6 +17,7 @@ import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.LibBookTimeSlotDto
 import cn.edu.ubaa.plus.model.dto.canReturnSignIn
 import cn.edu.ubaa.plus.model.dto.cancelBlockedMessage
+import cn.edu.ubaa.plus.reminder.LibBookNotifications
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,9 +55,21 @@ data class LibBookUiState(
     val isSeatActionSubmitting: Boolean = false,
 )
 
+/**
+ * 图书馆座位操作的结果，交给平台层转成系统通知。
+ *
+ * [booking] 是成功时用来补充座位与时间详情的那条预约；失败时可能为空。
+ */
+data class LibBookNotice(
+    val outcome: LibBookNotifications.Outcome,
+    val booking: LibBookBookingDto? = null,
+    val message: String? = null,
+)
+
 @OptIn(ExperimentalTime::class)
 class LibBookViewModel(
     private val libBookApi: LibBookApi = LibBookApi(),
+    private val notifyResult: (LibBookNotice) -> Unit = {},
     private val currentDateProvider: () -> String = {
       val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
       val month = (now.month.ordinal + 1).toString().padStart(2, '0')
@@ -223,13 +236,36 @@ class LibBookViewModel(
                   endTime = slot.end,
               )
           )
-          .onSuccess {
+          .onSuccess { response ->
             _uiState.value =
                 _uiState.value.copy(
                     isSubmitting = false,
                     selectedSeatId = null,
-                    actionMessage = it.message,
+                    actionMessage = response.message,
                 )
+            val reserved =
+                response.booking
+                    ?: LibBookBookingDto(
+                        id = "",
+                        areaName = _uiState.value.selectedArea?.name.orEmpty(),
+                        seatNo =
+                            _uiState.value.seats
+                                .firstOrNull { seat -> seat.id == seatId }
+                                ?.no
+                                .orEmpty(),
+                        day = day,
+                        beginTime = slot.start,
+                        endTime = slot.end,
+                    )
+            notifyResult(
+                LibBookNotice(
+                    outcome =
+                        if (response.success) LibBookNotifications.Outcome.RESERVED
+                        else LibBookNotifications.Outcome.RESERVE_FAILED,
+                    booking = reserved,
+                    message = response.message,
+                )
+            )
             loadSeats(areaId, day, slot)
             loadBookings()
           }
@@ -239,6 +275,12 @@ class LibBookViewModel(
                     isSubmitting = false,
                     actionMessage = it.message ?: "预约失败",
                 )
+            notifyResult(
+                LibBookNotice(
+                    outcome = LibBookNotifications.Outcome.RESERVE_FAILED,
+                    message = it.message ?: "预约失败",
+                )
+            )
           }
     }
   }
@@ -281,12 +323,21 @@ class LibBookViewModel(
     viewModelScope.launch {
       libBookApi
           .cancelBooking(bookingId)
-          .onSuccess {
+          .onSuccess { response ->
             _uiState.value =
                 _uiState.value.copy(
                     cancelingBookingId = null,
-                    actionMessage = it.message,
+                    actionMessage = response.message,
                 )
+            notifyResult(
+                LibBookNotice(
+                    outcome =
+                        if (response.success) LibBookNotifications.Outcome.CANCELED
+                        else LibBookNotifications.Outcome.CANCEL_FAILED,
+                    booking = booking,
+                    message = response.message,
+                )
+            )
             loadBookings(_uiState.value.bookings.page, _uiState.value.bookings.limit)
           }
           .onFailure {
@@ -295,6 +346,13 @@ class LibBookViewModel(
                     cancelingBookingId = null,
                     actionMessage = it.message ?: "取消预约失败",
                 )
+            notifyResult(
+                LibBookNotice(
+                    outcome = LibBookNotifications.Outcome.CANCEL_FAILED,
+                    booking = booking,
+                    message = it.message ?: "取消预约失败",
+                )
+            )
           }
     }
   }
@@ -399,6 +457,7 @@ class LibBookViewModel(
             query = context.query,
             points = points,
         )
+    val booking = state.bookings.bookings.firstOrNull { it.id == context.bookId }
     _uiState.value = state.copy(isSeatActionSubmitting = true, actionMessage = null)
     viewModelScope.launch {
       val result =
@@ -409,14 +468,21 @@ class LibBookViewModel(
             LibBookSeatAction.CHECKOUT -> libBookApi.checkout(request)
           }
       result
-          .onSuccess {
+          .onSuccess { response ->
             _uiState.value =
                 _uiState.value.copy(
                     isSeatActionSubmitting = false,
                     pendingSeatAction = null,
                     seatActionContext = null,
-                    actionMessage = it.message,
+                    actionMessage = response.message,
                 )
+            notifyResult(
+                LibBookNotice(
+                    outcome = seatActionOutcome(action, response.success),
+                    booking = booking,
+                    message = response.message,
+                )
+            )
             loadBookings(_uiState.value.bookings.page, _uiState.value.bookings.limit)
           }
           .onFailure {
@@ -427,6 +493,13 @@ class LibBookViewModel(
                     seatActionContext = null,
                     actionMessage = it.message ?: "座位操作失败",
                 )
+            notifyResult(
+                LibBookNotice(
+                    outcome = seatActionOutcome(action, succeeded = false),
+                    booking = booking,
+                    message = it.message ?: "座位操作失败",
+                )
+            )
           }
     }
   }
@@ -540,6 +613,25 @@ class LibBookViewModel(
           }
     }
   }
+
+  private fun seatActionOutcome(
+      action: LibBookSeatAction,
+      succeeded: Boolean,
+  ): LibBookNotifications.Outcome =
+      when (action) {
+        LibBookSeatAction.SIGN_IN ->
+            if (succeeded) LibBookNotifications.Outcome.SIGNED_IN
+            else LibBookNotifications.Outcome.SIGN_IN_FAILED
+        LibBookSeatAction.RETURN_SIGN_IN ->
+            if (succeeded) LibBookNotifications.Outcome.RETURNED
+            else LibBookNotifications.Outcome.RETURN_FAILED
+        LibBookSeatAction.LEAVE ->
+            if (succeeded) LibBookNotifications.Outcome.LEFT
+            else LibBookNotifications.Outcome.LEAVE_FAILED
+        LibBookSeatAction.CHECKOUT ->
+            if (succeeded) LibBookNotifications.Outcome.CHECKED_OUT
+            else LibBookNotifications.Outcome.CHECKOUT_FAILED
+      }
 
   private fun setActionMessage(message: String) {
     _uiState.value = _uiState.value.copy(actionMessage = message)

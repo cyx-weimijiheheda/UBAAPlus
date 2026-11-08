@@ -12,6 +12,9 @@ sealed interface AppNotificationRoute {
 
   data object IclassHome : AppNotificationRoute
 
+  /** 图书馆座位预约与操作结果。 */
+  data object LibBookBookings : AppNotificationRoute
+
   data class BykcCourse(val courseId: Long) : AppNotificationRoute
 
   data class SpocAssignment(val assignmentId: String) : AppNotificationRoute
@@ -27,6 +30,7 @@ object ReminderIntentExtras {
 
   const val ROUTE_HOME = "home"
   const val ROUTE_ICLASS = "iclass"
+  const val ROUTE_LIBBOOK = "libbook"
   const val ROUTE_BYKC = "bykc"
   const val ROUTE_SPOC = "spoc"
   const val ROUTE_JUDGE = "judge"
@@ -35,6 +39,7 @@ object ReminderIntentExtras {
     when (route) {
       AppNotificationRoute.Home -> intent.putExtra(EXTRA_ROUTE, ROUTE_HOME)
       AppNotificationRoute.IclassHome -> intent.putExtra(EXTRA_ROUTE, ROUTE_ICLASS)
+      AppNotificationRoute.LibBookBookings -> intent.putExtra(EXTRA_ROUTE, ROUTE_LIBBOOK)
       is AppNotificationRoute.BykcCourse -> {
         intent.putExtra(EXTRA_ROUTE, ROUTE_BYKC)
         intent.putExtra(EXTRA_COURSE_ID, route.courseId)
@@ -56,6 +61,7 @@ object ReminderIntentExtras {
     return when (intent.getStringExtra(EXTRA_ROUTE)) {
       ROUTE_HOME -> AppNotificationRoute.Home
       ROUTE_ICLASS -> AppNotificationRoute.IclassHome
+      ROUTE_LIBBOOK -> AppNotificationRoute.LibBookBookings
       ROUTE_BYKC ->
           intent
               .getLongExtra(EXTRA_COURSE_ID, -1L)

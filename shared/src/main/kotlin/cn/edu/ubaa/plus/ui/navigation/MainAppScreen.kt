@@ -33,7 +33,9 @@ import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.reminder.AppNotificationRoute
+import cn.edu.ubaa.plus.reminder.LibBookNotifications
 import cn.edu.ubaa.plus.reminder.PendingAppRouteStore
+import cn.edu.ubaa.plus.reminder.SigninNotifications
 import cn.edu.ubaa.plus.ui.common.components.AppTopBar
 import cn.edu.ubaa.plus.ui.common.components.BottomNavTab
 import cn.edu.ubaa.plus.ui.common.components.QrScanResultDialog
@@ -199,7 +201,11 @@ fun MainAppScreen(
   val gradeScoreWatchUiState by gradeScoreWatchViewModel.uiState.collectAsState()
 
   val signinViewModel: SigninViewModel =
-      viewModel(key = "signin-${userData.schoolid}") { SigninViewModel() }
+      viewModel(key = "signin-${userData.schoolid}") {
+        SigninViewModel(
+            notifyResult = { notice -> SigninNotifications.notifyResult(appContext, notice) }
+        )
+      }
   val signinUiState by signinViewModel.uiState.collectAsState()
   var showVenueMembershipCodeDialog by remember { mutableStateOf(false) }
   val iclassScanOptions = remember {
@@ -239,7 +245,11 @@ fun MainAppScreen(
       }
   val cgyyUiState = cgyyViewModel?.uiState?.collectAsState()?.value ?: CgyyUiState()
   val libBookViewModel: LibBookViewModel =
-      viewModel(key = "libbook-${userData.schoolid}") { LibBookViewModel() }
+      viewModel(key = "libbook-${userData.schoolid}") {
+        LibBookViewModel(
+            notifyResult = { notice -> LibBookNotifications.notifyResult(appContext, notice) }
+        )
+      }
   val libBookUiState by libBookViewModel.uiState.collectAsState()
   val homeLibBookBooking =
       remember(libBookUiState.bookings.bookings, homeNow) {
@@ -348,6 +358,11 @@ fun MainAppScreen(
         selectedBottomTab = BottomNavTab.HOME
       }
       AppNotificationRoute.IclassHome -> navController.navigateTo(AppScreen.ICLASS_HOME)
+      AppNotificationRoute.LibBookBookings -> {
+        libBookViewModel.ensureBookingsLoaded()
+        navController.navigateTo(AppScreen.LIBBOOK_BOOKINGS)
+        selectedBottomTab = BottomNavTab.HOME
+      }
       is AppNotificationRoute.BykcCourse -> {
         selectedBykcCourseId = route.courseId
         selectedBykcCourseSnapshot = null
@@ -941,6 +956,7 @@ fun MainAppScreen(
               homeLibBookBooking = homeLibBookBooking,
               homeLibBookSubmitting = libBookUiState.isSeatActionSubmitting,
               homeLibBookCanceling = libBookUiState.cancelingBookingId != null,
+              homeLibBookLoading = libBookUiState.isBookingsLoading,
               homeNow = homeNow,
               gradeScoreWatchUiState = gradeScoreWatchUiState,
               scheduleUiState = scheduleUiState,
@@ -987,6 +1003,10 @@ fun MainAppScreen(
               handleHomeTodoClick = { handleHomeTodoClick(it) },
               handleHomeLibBookAction = { booking, action ->
                 handleHomeLibBookAction(booking, action)
+              },
+              openLibBookBookings = {
+                libBookViewModel.ensureBookingsLoaded()
+                navigateTo(AppScreen.LIBBOOK_BOOKINGS)
               },
               onConnectionModeSelected = onConnectionModeSelected,
               onFeatureLongPressWeb = { feature -> feature.webUrl?.let(::openUrl) },

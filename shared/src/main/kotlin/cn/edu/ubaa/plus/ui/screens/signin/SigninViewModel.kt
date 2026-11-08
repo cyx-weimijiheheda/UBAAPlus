@@ -46,9 +46,22 @@ data class SigninUiState(
     get() = attendanceCourses.firstOrNull { it.courseId == attendanceSelectedCourseId }
 }
 
-/** 管理课堂签到功能的 ViewModel。 */
+/** 一次签到尝试的结果，交给平台层转成系统通知。 */
+data class SigninNotice(
+    val success: Boolean,
+    val title: String,
+    val text: String,
+    val courseName: String,
+)
+
+/**
+ * 管理课堂签到功能的 ViewModel。
+ *
+ * [notifyResult] 由平台层注入，用来把签到成功/失败落到系统通知栏；ViewModel 本身不依赖 Android。
+ */
 class SigninViewModel(
     private val signinApi: SigninApi = SigninApi(),
+    private val notifyResult: (SigninNotice) -> Unit = {},
 ) : ViewModel() {
   private var loadedOnce = false
   private var attendanceLoadedOnce = false
@@ -307,10 +320,19 @@ class SigninViewModel(
     val payload = parseIclassSigninPayload(rawContent)
     if (payload == null) {
       _uiState.value = _uiState.value.copy(signinResult = "无法识别的签到二维码")
+      notifyResult(
+          SigninNotice(
+              success = false,
+              title = "扫码签到失败",
+              text = "二维码无法识别，请对准智慧教室的签到二维码重新扫描",
+              courseName = "",
+          )
+      )
       return
     }
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isScanSigning = true, signinResult = null)
+      val course = matchSigninCourse(payload.courseSchedId)
       signinApi
           .performSignin(payload.courseSchedId, payload.timestamp)
           .onSuccess { response ->
@@ -324,6 +346,14 @@ class SigninViewModel(
                           "扫码签到失败：${response.message}"
                         },
                 )
+            notifyResult(
+                SigninNotice(
+                    success = response.success,
+                    title = if (response.success) "扫码签到成功" else "扫码签到失败",
+                    text = signinNoticeText(course, response.message, scanned = true),
+                    courseName = course?.courseName.orEmpty(),
+                )
+            )
             if (response.success) refreshAfterSignin()
           }
           .onFailure {
@@ -332,6 +362,14 @@ class SigninViewModel(
                     isScanSigning = false,
                     signinResult = "扫码签到异常：${it.message}",
                 )
+            notifyResult(
+                SigninNotice(
+                    success = false,
+                    title = "扫码签到失败",
+                    text = signinNoticeText(course, it.message ?: "网络异常，请稍后重试"),
+                    courseName = course?.courseName.orEmpty(),
+                )
+            )
           }
     }
   }
@@ -348,6 +386,7 @@ class SigninViewModel(
   fun performSignin(courseId: String) {
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(signingInCourseId = courseId, signinResult = null)
+      val course = _uiState.value.classes.firstOrNull { it.courseId == courseId }
       signinApi
           .performSignin(courseId)
           .onSuccess { response ->
@@ -356,13 +395,60 @@ class SigninViewModel(
                     signingInCourseId = null,
                     signinResult = if (response.success) "签到成功" else "签到失败: ${response.message}",
                 )
+            notifyResult(
+                SigninNotice(
+                    success = response.success,
+                    title = if (response.success) "课堂签到成功" else "课堂签到失败",
+                    text = signinNoticeText(course, response.message, scanned = false),
+                    courseName = course?.courseName.orEmpty(),
+                )
+            )
             if (response.success) refreshAfterSignin()
           }
           .onFailure {
             _uiState.value =
                 _uiState.value.copy(signingInCourseId = null, signinResult = "签到异常: ${it.message}")
+            notifyResult(
+                SigninNotice(
+                    success = false,
+                    title = "课堂签到失败",
+                    text = signinNoticeText(course, it.message ?: "网络异常，请稍后重试", scanned = false),
+                    courseName = course?.courseName.orEmpty(),
+                )
+            )
           }
     }
+  }
+
+  /** 扫码回调只带排课 ID，尽量从今日课程里补出课程名与时间段。 */
+  private fun matchSigninCourse(courseSchedId: String): SigninClassDto? {
+    val target = courseSchedId.trim()
+    if (target.isEmpty()) return null
+    return _uiState.value.classes.firstOrNull { it.courseId.trim() == target }
+        ?: _uiState.value.classes.firstOrNull {
+          it.courseId.isNotBlank() && target.contains(it.courseId.trim())
+        }
+  }
+
+  private fun signinNoticeText(
+      course: SigninClassDto?,
+      message: String? = null,
+      scanned: Boolean = false,
+  ): String {
+    val head =
+        if (course == null) {
+          if (scanned) "已提交扫码签到请求" else "已提交签到请求"
+        } else {
+          listOfNotNull(
+                  course.courseName.takeIf { it.isNotBlank() },
+                  formatSigninTimeRange(course.classBeginTime, course.classEndTime).takeIf {
+                    it.isNotBlank()
+                  },
+              )
+              .joinToString(" · ")
+        }
+    val tail = message?.trim()?.takeIf { it.isNotEmpty() }
+    return listOfNotNull(head, tail).joinToString("\n")
   }
 
   /** 重置内部加载标记与 UI 状态，用于连接模式切换等场景。 */
