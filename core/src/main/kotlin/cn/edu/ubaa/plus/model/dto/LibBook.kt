@@ -192,6 +192,8 @@ data class LibBookSeatActionRequest(
 data class LibBookSeatActionResponse(
     val success: Boolean,
     val message: String,
+    /** 上游返回的原始 code：1 表示已落座/签到成功，其余含义暂未确认，按失败处理并原样显示。 */
+    val code: Int? = null,
 )
 
 /** 扫描座位二维码后由 /v4/space/qr_scan 返回的状态。 */
@@ -207,6 +209,10 @@ data class LibBookQrScanResultDto(
     val endTime: String = "",
     val status: String = "",
     val statusName: String = "",
+    /** 二维码扫出来的座位状态码（原始返回值）。 */
+    val code: String = "",
+    /** 上游给的提示文案；为空时由界面按 code 解释。 */
+    val message: String = "",
 ) {
   val canReturnSignIn: Boolean
     get() = status.trim() == "7" || statusName.contains("临时离开") || statusName.contains("暂离")

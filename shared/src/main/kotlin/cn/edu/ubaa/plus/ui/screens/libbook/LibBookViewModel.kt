@@ -378,7 +378,18 @@ class LibBookViewModel(
                 _uiState.value.copy(
                     isSeatActionSubmitting = false,
                     seatActionContext = context,
+                    actionMessage = context.scanResultMessage().takeIf { it.isNotBlank() },
                 )
+            // 扫码结果本身就是一次落座/签到，成功要落通知，失败也要让用户看到原因。
+            if (context.qrScanLanded()) {
+              notifyResult(
+                  LibBookNotice(
+                      outcome = LibBookNotifications.Outcome.SIGNED_IN,
+                      booking = context.toBookingSnapshot(),
+                      message = context.scanResultMessage().ifBlank { "座位二维码签到成功" },
+                  )
+              )
+            }
           }
           .onFailure {
             _uiState.value =
@@ -386,6 +397,12 @@ class LibBookViewModel(
                     isSeatActionSubmitting = false,
                     actionMessage = it.message ?: "座位二维码识别失败",
                 )
+            notifyResult(
+                LibBookNotice(
+                    outcome = LibBookNotifications.Outcome.SIGN_IN_FAILED,
+                    message = it.message ?: "座位二维码识别失败",
+                )
+            )
           }
     }
   }
@@ -457,7 +474,9 @@ class LibBookViewModel(
             query = context.query,
             points = points,
         )
-    val booking = state.bookings.bookings.firstOrNull { it.id == context.bookId }
+    val booking =
+        state.bookings.bookings.firstOrNull { it.id == context.bookId }
+            ?: context.toBookingSnapshot()
     _uiState.value = state.copy(isSeatActionSubmitting = true, actionMessage = null)
     viewModelScope.launch {
       val result =

@@ -175,6 +175,11 @@ internal class LocalLibBookApiBackend(
             endTime = data.string("end_time").ifBlank { data.string("endTime") },
             status = data.string("status"),
             statusName = data.string("status_name"),
+            code = data.string("status").ifBlank { data.string("code") },
+            message =
+                listOf(data.string("message"), data.string("msg"), raw.string("message"))
+                    .firstOrNull { it.isNotBlank() }
+                    .orEmpty(),
         )
       }
 
@@ -196,17 +201,33 @@ internal class LocalLibBookApiBackend(
   ): Result<LibBookSeatActionResponse> =
       execute("${defaultMessage}失败，请稍后重试") { client ->
         val response = client.seatAction(path, request, todayProvider())
+        // 座位接口的 data 可能包一层，消息既可能在外层也可能在里面，两边都找一遍。
+        val payload = response["data"]?.jsonObjectOrNull() ?: response
         val message =
-            response.string("message").ifBlank { response.string("msg").ifBlank { defaultMessage } }
-        val code = response["code"]?.jsonPrimitive?.intOrNull
-        if (code != null && code != 0) {
+            listOf(
+                    payload.string("message"),
+                    payload.string("msg"),
+                    response.string("message"),
+                    response.string("msg"),
+                )
+                .firstOrNull { it.isNotBlank() }
+                .orEmpty()
+        val code =
+            payload["code"]?.jsonPrimitive?.intOrNull ?: response["code"]?.jsonPrimitive?.intOrNull
+        // 已确认 1 = 签到落座成功；0 视作成功，其余按失败处理并保留原始 code 供界面/通知展示。
+        val succeeded = seatActionSucceeded(code)
+        if (!succeeded) {
           throw LocalLibBookApiException(
-              message,
+              message.ifBlank { "${defaultMessage}失败（返回码 ${code ?: "未知"}）" },
               "libbook_action_failed",
               HttpStatusCode.BadRequest,
           )
         }
-        LibBookSeatActionResponse(success = true, message = message)
+        LibBookSeatActionResponse(
+            success = true,
+            message = message.ifBlank { defaultMessage },
+            code = code,
+        )
       }
 
   private suspend fun currentClient(username: String): LocalLibBookClient =
@@ -688,6 +709,9 @@ private fun JsonObject.isCancelSuccess(): Boolean {
 }
 
 private const val CANCEL_SUCCESS_CODE = 287
+
+/** 座位操作成功的返回码：1 是已确认的「落座/签到成功」，0 与缺失同样视为成功。 */
+private fun seatActionSucceeded(code: Int?): Boolean = code == null || code == 0 || code == 1
 
 private fun JsonObject.isBusinessSuccess(): Boolean {
   val code = this["code"]?.jsonPrimitive?.intOrNull

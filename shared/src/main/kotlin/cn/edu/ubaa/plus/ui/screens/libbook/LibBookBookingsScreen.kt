@@ -383,9 +383,13 @@ private fun SeatActionDialog(
                 )
             )
           }
+          // 优先展示上游文案/已翻译的码义，不再只丢一个裸返回值。
           Text(
-              "状态：${context.statusName.ifBlank { context.status.ifBlank { "未知" } }}",
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              text = context.scanResultMessage(),
+              color =
+                  if (context.qrScanLanded()) MaterialTheme.colorScheme.primary
+                  else MaterialTheme.colorScheme.onSurfaceVariant,
+              fontWeight = if (context.qrScanLanded()) FontWeight.Medium else FontWeight.Normal,
           )
           Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (context.canReturnSignIn) {
