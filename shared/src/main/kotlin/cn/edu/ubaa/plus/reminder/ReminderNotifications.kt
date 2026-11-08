@@ -34,6 +34,7 @@ object ReminderNotifications {
               description = "UBAAPlus 后台签到与作业提醒服务"
               setShowBadge(false)
               setSound(null, null)
+              enableVibration(false)
             }
     manager.createNotificationChannel(serviceChannel)
 
@@ -85,15 +86,24 @@ object ReminderNotifications {
     manager.createNotificationChannel(libBookChannel)
   }
 
+  /**
+   * 前台服务必需的常驻通知。
+   *
+   * 静默启动：不发声、不震动、不弹横幅，也不在启动时强调“后台已开启”。它只是 Android 对前台服务的硬性要求， 真正的提醒由课程开课、签到、作业事件触发。
+   */
   fun buildServiceNotification(context: Context): Notification =
       NotificationCompat.Builder(context, SERVICE_CHANNEL)
           .setSmallIcon(R.drawable.ic_stat_ubaa)
-          .setContentTitle("UBAAPlus 后台提醒已开启")
-          .setContentText("有课程开课、需要签到或发布新作业时才会推送；可在设置中关闭")
+          .setContentTitle("UBAAPlus 提醒服务")
+          .setContentText("有课要上、需要签到或有新作业时会通知你")
           .setContentIntent(appPendingIntent(context, AppNotificationRoute.Home))
           .setOngoing(true)
           .setSilent(true)
-          .setPriority(NotificationCompat.PRIORITY_LOW)
+          .setShowWhen(false)
+          .setOnlyAlertOnce(true)
+          .setLocalOnly(true)
+          .setPriority(NotificationCompat.PRIORITY_MIN)
+          .setVisibility(NotificationCompat.VISIBILITY_SECRET)
           .build()
 
   /** 课程开课、签到、签退提醒。 */

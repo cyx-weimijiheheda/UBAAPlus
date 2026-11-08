@@ -493,7 +493,7 @@ private fun WeeklyScheduleView(
                       RoundedCornerShape(8.dp),
                   )
       ) {
-        TimeColumn(times, rowHeight, Modifier.width(64.dp))
+        TimeColumn(times, rowHeight, Modifier.width(SECTION_COLUMN_WIDTH))
         WeeklyScheduleGrid(
             schedule,
             onCourseClick,
@@ -507,6 +507,12 @@ private fun WeeklyScheduleView(
 }
 
 internal data class ScheduleRowMetrics(val rowHeightDp: Float, val scrollable: Boolean)
+
+/** 左侧时间轴宽度：要放下「第 x 节 / 起始 / - / 结束」四行。 */
+private val SECTION_COLUMN_WIDTH = 76.dp
+
+/** 行高达到这个值才展开四行时间信息，否则只显示节次，避免文字被裁切。 */
+private val ROW_HEIGHT_FOR_TIME_LINES = 52.dp
 
 /** 根据可用高度计算课表行高；低于 40dp 时保持可读的最小行高并允许滚动。 */
 internal fun scheduleRowMetrics(availableHeightDp: Float, periods: Int): ScheduleRowMetrics {
@@ -523,7 +529,7 @@ internal fun scheduleRowMetrics(availableHeightDp: Float, periods: Int): Schedul
 @Composable
 private fun HeaderRow(dayLabels: List<ScheduleHeaderDayLabel>) {
   Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-    Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.width(SECTION_COLUMN_WIDTH), contentAlignment = Alignment.Center) {
       Text(
           text = "节次",
           fontSize = 10.sp,
@@ -561,31 +567,41 @@ private fun TimeColumn(
           modifier = Modifier.height(rowHeight).fillMaxWidth(),
           contentAlignment = Alignment.Center,
       ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // 左侧一列固定四行：第 x 节 / 起始时间 / - / 结束时间，行高不够时只保留节次。
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
           Text(
               text = "第${it.section}节",
               fontSize = 10.sp,
+              lineHeight = 11.sp,
               fontWeight = FontWeight.Medium,
               maxLines = 1,
           )
-          if (rowHeight >= 40.dp) {
+          if (rowHeight >= ROW_HEIGHT_FOR_TIME_LINES) {
             val label = sectionTimeLabel(it)
             Text(
                 text = label.primary,
-                fontSize = 10.sp,
-                lineHeight = 12.sp,
+                fontSize = 9.sp,
+                lineHeight = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
-            label.secondary?.let { end ->
-              Text(
-                  text = end,
-                  fontSize = 9.sp,
-                  lineHeight = 11.sp,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                  maxLines = 1,
-              )
-            }
+            Text(
+                text = "-",
+                fontSize = 9.sp,
+                lineHeight = 9.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                maxLines = 1,
+            )
+            Text(
+                text = label.secondary ?: label.primary,
+                fontSize = 9.sp,
+                lineHeight = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
           }
         }
       }
@@ -615,19 +631,26 @@ internal fun sectionTimeLabel(section: SectionTime): SectionTimeLabel {
   }
 }
 
-/** 与校方 01 方案一致的标准作息（08:00 起，午休后 14:00 起，晚上 19:00 起）。 */
+/**
+ * 校方标准作息，共 14 节。
+ *
+ * 上午 1-5 节 08:00 起，下午 6-10 节 14:00 起，晚上 11-14 节 19:00 起。上游作息表缺失节次时用它兜底， 保证课表左侧永远有具体时间可显示。
+ */
 internal fun standardSectionTimes(): List<Pair<String, String>> =
     listOf(
+        // 上午
         "08:00" to "08:45",
         "08:50" to "09:35",
         "09:50" to "10:35",
         "10:40" to "11:25",
         "11:30" to "12:15",
+        // 下午
         "14:00" to "14:45",
         "14:50" to "15:35",
         "15:50" to "16:35",
         "16:40" to "17:25",
         "17:30" to "18:15",
+        // 晚上
         "19:00" to "19:45",
         "19:50" to "20:35",
         "20:40" to "21:25",
