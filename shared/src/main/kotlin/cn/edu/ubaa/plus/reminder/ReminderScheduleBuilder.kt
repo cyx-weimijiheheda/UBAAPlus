@@ -4,6 +4,7 @@ import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
 import cn.edu.ubaa.plus.model.dto.SectionTime
 import cn.edu.ubaa.plus.model.dto.scheduleSectionTimes
+import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.model.format.formatUbaaTime
 import cn.edu.ubaa.plus.repository.SavedAgendaItem
 import cn.edu.ubaa.plus.repository.SemesterSchedule
@@ -49,8 +50,8 @@ object ReminderScheduleBuilder {
     val timeLabel =
         if (end != null) "${formatUbaaTime(begin)}-${formatUbaaTime(end)}"
         else formatUbaaTime(begin)
-    val detail =
-        listOfNotNull(timeLabel, course.placeName?.takeIf { it.isNotBlank() }).joinToString(" · ")
+    val place = course.placeName?.takeIf { it.isNotBlank() }
+    val detail = listOfNotNull(timeLabel, place).joinToString(" · ")
     val id = course.identityKey(begin)
     val courseName = course.courseName
 
@@ -60,15 +61,19 @@ object ReminderScheduleBuilder {
             kind = ReminderEventKind.COURSE_OPEN,
             fireAt = beginAt.shiftMinutes(-20),
             title = "$courseName 即将开课",
-            text = detail,
+            text =
+                buildString {
+                  append("上课时间 $detail")
+                  if (place == null) append(" · 地点待确认")
+                },
             route = AppNotificationRoute.Home,
         ),
         ReminderEvent(
             key = "iclass-sign:${item.date}:$id",
             kind = ReminderEventKind.ICLASS_SIGN_IN,
             fireAt = beginAt.shiftMinutes(-10),
-            title = "$courseName 可以签到",
-            text = "$detail · 点击前往主界面签到",
+            title = "$courseName 现在可以签到",
+            text = "$detail · 智慧教室签到已开放，点击前往首页签到",
             route = AppNotificationRoute.Home,
             courseName = courseName,
         ),
@@ -91,13 +96,25 @@ object ReminderScheduleBuilder {
       val events = mutableListOf<ReminderEvent>()
       val courseName = course.courseName
       val route = AppNotificationRoute.BykcCourse(course.courseId)
+      val signOutStart = course.signConfig?.signOutStartDate
+      val place = course.coursePosition?.takeIf { it.isNotBlank() }
+      val teacher = course.courseTeacher?.takeIf { it.isNotBlank() }
+      val header =
+          listOfNotNull(
+                  formatUbaaDate(signStart.date),
+                  "${formatUbaaTime(signStart.time)} 起可签到",
+                  place,
+                  teacher,
+              )
+              .joinToString(" · ")
+
       events +=
           ReminderEvent(
               key = "bykc-open:${course.courseId}:$signStart",
               kind = ReminderEventKind.COURSE_OPEN,
               fireAt = signStart.shiftMinutes(-10),
               title = "$courseName 即将开课",
-              text = "签到将于 ${formatUbaaTime(signStart.time)} 开始",
+              text = header,
               route = route,
           )
       if (course.checkin == 0) {
@@ -106,19 +123,27 @@ object ReminderScheduleBuilder {
                 key = "bykc-sign:${course.courseId}:$signStart",
                 kind = ReminderEventKind.BYKC_SIGN_IN,
                 fireAt = signStart,
-                title = "$courseName 可以签到",
-                text = "点击进入博雅课程签到",
+                title = "$courseName 现在可以签到",
+                text =
+                    listOfNotNull(header, signOutStart?.let { "签退 ${formatUbaaTime(it.time)} 开始" })
+                        .joinToString(" · "),
                 route = route,
             )
       }
-      course.signConfig?.signOutStartDate?.let { signOutStart ->
+      signOutStart?.let { signOut ->
         events +=
             ReminderEvent(
-                key = "bykc-signout:${course.courseId}:$signOutStart",
+                key = "bykc-signout:${course.courseId}:$signOut",
                 kind = ReminderEventKind.BYKC_SIGN_OUT,
-                fireAt = signOutStart,
-                title = "$courseName 可以签退",
-                text = "点击进入博雅课程签退",
+                fireAt = signOut,
+                title = "$courseName 现在可以签退",
+                text =
+                    listOfNotNull(
+                            formatUbaaDate(signOut.date),
+                            "${formatUbaaTime(signOut.time)} 起可签退",
+                            place,
+                        )
+                        .joinToString(" · "),
                 route = route,
             )
       }

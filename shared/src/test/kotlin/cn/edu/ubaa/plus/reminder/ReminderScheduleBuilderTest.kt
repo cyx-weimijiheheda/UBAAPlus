@@ -82,7 +82,11 @@ class ReminderScheduleBuilderTest {
     assertEquals(AppNotificationRoute.Home, open.route)
     assertEquals(AppNotificationRoute.Home, sign.route)
     assertEquals("高等数学 即将开课", open.title)
-    assertEquals("高等数学 可以签到", sign.title)
+    assertEquals("高等数学 现在可以签到", sign.title)
+    // 通知正文要带上时间与地点，点开通知就能知道是哪一节课。
+    assertTrue(open.text.contains("08:00"))
+    assertTrue(open.text.contains("主楼 101"))
+    assertTrue(sign.text.contains("主楼 101"))
     assertEquals(10.minutes, sign.fireAt.toKotlinInstant() - open.fireAt.toKotlinInstant())
   }
 

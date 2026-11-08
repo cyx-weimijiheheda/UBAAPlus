@@ -17,6 +17,7 @@ object ReminderNotifications {
   const val SERVICE_CHANNEL = "ubaa_reminder_service"
   const val ATTENDANCE_CHANNEL = "ubaa_attendance_reminders"
   const val HOMEWORK_CHANNEL = "ubaa_homework_reminders"
+  const val LIBBOOK_CHANNEL = "ubaa_libbook_results"
   const val SERVICE_NOTIFICATION_ID = 41001
 
   fun ensureChannels(context: Context) {
@@ -69,13 +70,26 @@ object ReminderNotifications {
               setSound(sound, audioAttributes)
             }
     manager.createNotificationChannel(homeworkChannel)
+
+    // 预约/签到结果属于一次性反馈，提示音比提醒类低一档，但失败同样需要被看到。
+    val libBookChannel =
+        NotificationChannel(
+                LIBBOOK_CHANNEL,
+                "图书馆座位结果",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            )
+            .apply {
+              description = "座位预约、签到、暂离、签退与取消的结果"
+              enableVibration(true)
+            }
+    manager.createNotificationChannel(libBookChannel)
   }
 
   fun buildServiceNotification(context: Context): Notification =
       NotificationCompat.Builder(context, SERVICE_CHANNEL)
           .setSmallIcon(R.drawable.ic_stat_ubaa)
           .setContentTitle("UBAAPlus 后台提醒已开启")
-          .setContentText("将在课程开始、签到与作业截止前提醒；可在设置中关闭")
+          .setContentText("有课程开课、需要签到或发布新作业时才会推送；可在设置中关闭")
           .setContentIntent(appPendingIntent(context, AppNotificationRoute.Home))
           .setOngoing(true)
           .setSilent(true)
@@ -111,6 +125,31 @@ object ReminderNotifications {
       text: String,
       route: AppNotificationRoute,
   ) {
+    postNow(
+        context = context,
+        key = key,
+        channel = channel,
+        title = title,
+        text = text,
+        route = route,
+        succeeded = null,
+    )
+  }
+
+  /**
+   * 直接投递一条通知，供前台服务之外的场景（预约结果、扫码签到结果）复用。
+   *
+   * [succeeded] 只在图书馆操作里有意义：失败时补一条文字提示并优先展示。
+   */
+  fun postNow(
+      context: Context,
+      key: String,
+      channel: String,
+      title: String,
+      text: String,
+      route: AppNotificationRoute,
+      succeeded: Boolean? = null,
+  ) {
     val notification =
         NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_stat_ubaa)
@@ -119,7 +158,10 @@ object ReminderNotifications {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(appPendingIntent(context, route))
             .setAutoCancel(true)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(
+                if (succeeded == false) NotificationCompat.CATEGORY_ERROR
+                else NotificationCompat.CATEGORY_REMINDER
+            )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE)
             .build()

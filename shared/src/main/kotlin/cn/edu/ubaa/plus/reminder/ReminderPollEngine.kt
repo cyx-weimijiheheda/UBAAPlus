@@ -14,12 +14,24 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
+/** 轮询得到的一条待发通知；与课表事件共用去重存储，所以自带 kind 与 text。 */
 data class ReminderCandidate(
     val key: String,
+    val kind: ReminderEventKind,
     val title: String,
     val text: String,
     val route: AppNotificationRoute,
-)
+) {
+  fun toEvent(fireAt: LocalDateTime): ReminderEvent =
+      ReminderEvent(
+          key = key,
+          kind = kind,
+          fireAt = fireAt,
+          title = title,
+          text = text,
+          route = route,
+      )
+}
 
 /** 作业提醒：新作业发布 + 截止前 24 小时；课程提醒由 [ReminderScheduleBuilder] 按课表生成。 */
 @OptIn(ExperimentalTime::class)
@@ -64,8 +76,10 @@ class ReminderPollEngine(
         out +=
             ReminderCandidate(
                 key = newKey,
-                title = "新作业：${assignment.courseName}",
-                text = assignment.title,
+                kind = ReminderEventKind.NEW_ASSIGNMENT,
+                title = "新作业：${assignment.title}",
+                text =
+                    assignmentSummary(assignment.courseName, assignment.title, assignment.dueTime),
                 route = AppNotificationRoute.SpocAssignment(assignment.assignmentId),
             )
       }
@@ -77,8 +91,10 @@ class ReminderPollEngine(
         out +=
             ReminderCandidate(
                 key = "spoc-due24:${assignment.assignmentId}",
+                kind = ReminderEventKind.ASSIGNMENT_DUE_SOON,
                 title = "作业即将截止：${assignment.title}",
-                text = "${assignment.courseName} · 截止 ${formatUbaaDateTime(assignment.dueTime)}",
+                text =
+                    assignmentSummary(assignment.courseName, assignment.title, assignment.dueTime),
                 route = AppNotificationRoute.SpocAssignment(assignment.assignmentId),
             )
       }
@@ -115,8 +131,10 @@ class ReminderPollEngine(
         out +=
             ReminderCandidate(
                 key = newKey,
-                title = "新作业：${assignment.courseName}",
-                text = assignment.title,
+                kind = ReminderEventKind.NEW_ASSIGNMENT,
+                title = "新作业：${assignment.title}",
+                text =
+                    assignmentSummary(assignment.courseName, assignment.title, assignment.dueTime),
                 route =
                     AppNotificationRoute.JudgeAssignment(
                         assignment.courseId,
@@ -132,8 +150,10 @@ class ReminderPollEngine(
         out +=
             ReminderCandidate(
                 key = "judge-due24:${assignment.courseId}:${assignment.assignmentId}",
+                kind = ReminderEventKind.ASSIGNMENT_DUE_SOON,
                 title = "作业即将截止：${assignment.title}",
-                text = "${assignment.courseName} · 截止 ${formatUbaaDateTime(assignment.dueTime)}",
+                text =
+                    assignmentSummary(assignment.courseName, assignment.title, assignment.dueTime),
                 route =
                     AppNotificationRoute.JudgeAssignment(
                         assignment.courseId,
@@ -144,3 +164,12 @@ class ReminderPollEngine(
     }
   }
 }
+
+/** 作业通知正文统一成「课程 · 标题 · 截止时间」，详情页里能看到的东西这里先给一遍。 */
+internal fun assignmentSummary(courseName: String, title: String, dueTime: String?): String =
+    listOfNotNull(
+            courseName.takeIf { it.isNotBlank() },
+            title.takeIf { it.isNotBlank() },
+            formatUbaaDateTime(dueTime).takeIf { it.isNotBlank() }?.let { "截止 $it" },
+        )
+        .joinToString(" · ")
