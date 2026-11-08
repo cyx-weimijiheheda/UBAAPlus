@@ -610,18 +610,12 @@ private fun TimeColumn(
               horizontalAlignment = Alignment.CenterHorizontally,
               verticalArrangement = Arrangement.Center,
           ) {
+            // 开始与结束直接上下两行，不加分隔线，窄列里更清爽。
             Text(
                 text = label.primary,
                 fontSize = 9.sp,
-                lineHeight = 10.sp,
+                lineHeight = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-            Text(
-                text = "-",
-                fontSize = 9.sp,
-                lineHeight = 9.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 maxLines = 1,
             )
             Text(
@@ -649,22 +643,26 @@ private fun TimeColumn(
 internal data class SectionTimeLabel(val primary: String, val secondary: String? = null)
 
 /**
- * 时间轴永远给具体时间，不用 `--:--` 占位。
+ * 时间轴一格里显示的时间：该节自己的开始与结束。
  *
- * 上游作息表当前方案已经覆盖全部节次时直接用；旧缓存只记录了课程首尾时间，缺的节次按标准作息补齐。 显示前统一规范成 `HH:mm`，避免上游回 `8:0`、`08:00:00`
- * 这类格式把一列撑歪。
+ * **一律用校方标准作息表，不采信上游算出来的节次时间。** 本科课表接口并不返回作息表，[SectionTime] 里的 边界是靠课程首尾时间拼出来的：连堂课（第 1-2 节
+ * 08:00-09:35）会让第 1 节的结束变成 09:35、第 2 节的开始 也是 09:35，于是每节都出现「09:35 - 09:50」这种把课间当成一节课的错位。标准作息每节固定 45
+ * 分钟，正确。
  */
 internal fun sectionTimeLabel(section: SectionTime): SectionTimeLabel {
-  val start = section.start.normalizeClock()
-  val end = section.end.normalizeClock()
-  if (start != null && end != null) return SectionTimeLabel(start, end)
-  if (start != null) return SectionTimeLabel(start, null)
-  if (end != null) return SectionTimeLabel(end, null)
-  val inferred = standardSectionTimes().getOrNull(section.section - 1)
-  return if (inferred == null) {
-    SectionTimeLabel("${section.section}", null)
+  val standard = standardSectionTimes().getOrNull(section.section - 1)
+  return if (standard != null) {
+    SectionTimeLabel(standard.first, standard.second)
   } else {
-    SectionTimeLabel(inferred.first, inferred.second)
+    // 超出 14 节的非常规排课才回退到上游值，至少不会显示空。
+    val start = section.start.normalizeClock()
+    val end = section.end.normalizeClock()
+    when {
+      start != null && end != null -> SectionTimeLabel(start, end)
+      start != null -> SectionTimeLabel(start, null)
+      end != null -> SectionTimeLabel(end, null)
+      else -> SectionTimeLabel("${section.section}", null)
+    }
   }
 }
 

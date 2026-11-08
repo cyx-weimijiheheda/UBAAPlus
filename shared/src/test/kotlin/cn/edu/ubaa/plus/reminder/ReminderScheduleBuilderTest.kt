@@ -91,7 +91,8 @@ class ReminderScheduleBuilderTest {
   }
 
   @Test
-  fun `没有具体时间时回退到节次作息表`() {
+  fun `没有具体时间时按校方标准作息推断`() {
+    // 上游 SectionTime 是按课程首尾拼出来的，不可信；第 1 节固定 08:00 开始，开课提醒提前 20 分钟。
     val events =
         ReminderScheduleBuilder.timetableEvents(
             listOf(
@@ -99,15 +100,29 @@ class ReminderScheduleBuilderTest {
                     course(begin = null, end = null),
                     sectionTimes =
                         listOf(
-                            SectionTime(1, "10:00", "10:45"),
-                            SectionTime(2, "10:50", "11:35"),
+                            SectionTime(1, "08:00", "09:35"),
+                            SectionTime(2, "09:35", "09:50"),
                         ),
                 )
             ),
             friday,
         )
 
-    assertEquals(LocalDateTime(2026, 11, 6, 9, 40), events.first().fireAt)
+    assertEquals(LocalDateTime(2026, 11, 6, 7, 40), events.first().fireAt)
+  }
+
+  @Test
+  fun `连堂课的第二节按标准作息而非上游边界`() {
+    // 第 1-2 节连堂：上游会把第 2 节开始算成 09:35，实际应为 08:50。
+    val course = course(begin = null, end = null).copy(beginSection = 2, endSection = 2)
+    val events =
+        ReminderScheduleBuilder.timetableEvents(
+            listOf(semester(course, sectionTimes = listOf(SectionTime(2, "09:35", "09:50")))),
+            friday,
+        )
+
+    // 08:50 开课，开课提醒提前 20 分钟 → 08:30。
+    assertEquals(LocalDateTime(2026, 11, 6, 8, 30), events.first().fireAt)
   }
 
   @Test

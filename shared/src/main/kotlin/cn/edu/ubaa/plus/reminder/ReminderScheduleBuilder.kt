@@ -9,6 +9,7 @@ import cn.edu.ubaa.plus.model.format.formatUbaaTime
 import cn.edu.ubaa.plus.repository.SavedAgendaItem
 import cn.edu.ubaa.plus.repository.SemesterSchedule
 import cn.edu.ubaa.plus.repository.savedAgenda
+import cn.edu.ubaa.plus.ui.screens.schedule.standardSectionTimes
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDateTime
@@ -165,12 +166,33 @@ internal fun LocalDateTime.shiftMinutes(minutes: Int): LocalDateTime =
         ReminderScheduleBuilder.zone
     )
 
+/**
+ * 解析上课开始时间。
+ *
+ * 课程自带的 beginTime 最可靠，直接用它；没有时按节次查**校方标准作息**。不能拿上游 SectionTime 的 start —— 那是按课程首尾拼出来的，连堂课会让第 2
+ * 节的开始变成第 1 节的结束，提醒会提前一节课响。
+ */
 private fun CourseClass.resolveBegin(sectionTimes: List<SectionTime>): LocalTime? =
-    parseHm(beginTime)
-        ?: sectionTimes.firstOrNull { it.section == beginSection }?.start?.let(::parseHm)
+    parseHm(beginTime) ?: standardBeginOfSection(beginSection) ?: fallbackBegin(sectionTimes)
 
 private fun CourseClass.resolveEnd(sectionTimes: List<SectionTime>): LocalTime? =
-    parseHm(endTime) ?: sectionTimes.firstOrNull { it.section == endSection }?.end?.let(::parseHm)
+    parseHm(endTime) ?: standardEndOfSection(endSection) ?: fallbackEnd(sectionTimes)
+
+private fun standardBeginOfSection(section: Int?): LocalTime? =
+    section?.let { standardSectionTimes().getOrNull(it - 1)?.first?.let(::parseHm) }
+
+private fun standardEndOfSection(section: Int?): LocalTime? =
+    section?.let { standardSectionTimes().getOrNull(it - 1)?.second?.let(::parseHm) }
+
+private fun fallbackBegin(sectionTimes: List<SectionTime>): LocalTime? =
+    lastResortSectionTime(sectionTimes)?.start?.let(::parseHm)
+
+private fun fallbackEnd(sectionTimes: List<SectionTime>): LocalTime? =
+    lastResortSectionTime(sectionTimes)?.end?.let(::parseHm)
+
+// 超出标准 14 节时只能回退上游值，保留这个唯一入口便于将来统一处理。
+private fun lastResortSectionTime(sectionTimes: List<SectionTime>): SectionTime? =
+    sectionTimes.lastOrNull()
 
 private fun CourseClass.identityKey(begin: LocalTime): String =
     "${courseCode}:${beginSection ?: begin.hour * 60 + begin.minute}"
