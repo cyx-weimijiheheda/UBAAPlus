@@ -26,7 +26,7 @@ class LibBookHomeRulesTest {
       )
 
   @Test
-  fun `只选今天的未结束预约并取最早开始`() {
+  fun `使用中的预约优先于待签到`() {
     val bookings =
         listOf(
             booking("in-use", begin = "10:00", status = "3", statusName = "使用中"),
@@ -35,7 +35,46 @@ class LibBookHomeRulesTest {
             booking("tomorrow", day = "2026-11-07"),
         )
 
+    assertEquals("in-use", selectHomeLibBookBooking(bookings, "2026-11-06")?.id)
+  }
+
+  @Test
+  fun `没有使用中的预约时取最早开始的待签到`() {
+    val bookings = listOf(booking("late", begin = "14:00"), booking("early", begin = "08:00"))
+
     assertEquals("early", selectHomeLibBookBooking(bookings, "2026-11-06")?.id)
+  }
+
+  @Test
+  fun `day 字段带时间或斜杠也能匹配今天`() {
+    assertEquals(
+        "with-time",
+        selectHomeLibBookBooking(
+                listOf(booking("with-time", day = "2026-11-06 00:00:00")),
+                "2026-11-06",
+            )
+            ?.id,
+    )
+    assertEquals(
+        "slashed",
+        selectHomeLibBookBooking(listOf(booking("slashed", day = "2026/11/06")), "2026-11-06")?.id,
+    )
+  }
+
+  @Test
+  fun `状态文案缺失时按可操作状态兜底`() {
+    assertEquals(
+        "待签到",
+        libBookHomeStatusLabel(booking("reserved", status = "", statusName = "")),
+    )
+    assertEquals(
+        "使用中",
+        libBookHomeStatusLabel(booking("in-use", status = "3", statusName = "")),
+    )
+    assertEquals(
+        "未签到",
+        libBookHomeStatusLabel(booking("reserved", status = "4", statusName = "未签到")),
+    )
   }
 
   @Test

@@ -79,6 +79,7 @@ internal fun HomeScreen(
     libBookBooking: LibBookBookingDto?,
     libBookSubmitting: Boolean,
     libBookCanceling: Boolean,
+    libBookLoading: Boolean,
     libBookNow: LocalDateTime,
     scoreUpdateNotice: GradeScoreUpdateNotice?,
     onRetrySchedule: () -> Unit,
@@ -88,6 +89,7 @@ internal fun HomeScreen(
     onTodoClick: (HomeTodoItem) -> Unit,
     onSigninClick: (String) -> Unit,
     onLibBookAction: (LibBookBookingDto, LibBookCardAction) -> Unit,
+    onOpenLibBookBookings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -231,6 +233,8 @@ internal fun HomeScreen(
               now = libBookNow,
               isCanceling = libBookCanceling,
               isSubmitting = libBookSubmitting,
+              isLoading = libBookLoading,
+              onOpenBookings = onOpenLibBookBookings,
               onAction = { action ->
                 if (
                     action == LibBookCardAction.CANCEL ||

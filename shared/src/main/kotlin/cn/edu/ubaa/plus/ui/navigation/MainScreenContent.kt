@@ -90,6 +90,7 @@ internal class MainScreenContentState(
     val homeLibBookBooking: LibBookBookingDto?,
     val homeLibBookSubmitting: Boolean,
     val homeLibBookCanceling: Boolean,
+    val homeLibBookLoading: Boolean,
     val homeNow: LocalDateTime,
     val gradeScoreWatchUiState: GradeScoreWatchUiState,
     val scheduleUiState: ScheduleUiState,
@@ -136,6 +137,7 @@ internal class MainScreenActions(
     val openScoresFromHomeNotice: () -> Unit,
     val handleHomeTodoClick: (HomeTodoItem) -> Unit,
     val handleHomeLibBookAction: (LibBookBookingDto, LibBookCardAction) -> Unit,
+    val openLibBookBookings: () -> Unit,
     val onConnectionModeSelected: (ConnectionMode) -> Unit,
     val onFeatureLongPressWeb: (FeatureItem) -> Unit,
     val onOpenUrl: (String) -> Unit,
@@ -173,6 +175,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 libBookBooking = homeLibBookBooking,
                 libBookSubmitting = homeLibBookSubmitting,
                 libBookCanceling = homeLibBookCanceling,
+                libBookLoading = homeLibBookLoading,
                 libBookNow = homeNow,
                 scoreUpdateNotice = gradeScoreWatchUiState.notice,
                 onRetrySchedule = { scheduleViewModel.loadTodaySchedule() },
@@ -182,6 +185,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onTodoClick = { todoItem -> handleHomeTodoClick(todoItem) },
                 onSigninClick = { courseId -> signinViewModel.performSignin(courseId) },
                 onLibBookAction = { booking, action -> handleHomeLibBookAction(booking, action) },
+                onOpenLibBookBookings = { openLibBookBookings() },
             )
         AppScreen.REGULAR ->
             RegularFeaturesScreen(

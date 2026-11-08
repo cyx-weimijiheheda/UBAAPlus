@@ -4,7 +4,9 @@ import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.canCancelBooking
 import cn.edu.ubaa.plus.model.dto.canCheckout
 import cn.edu.ubaa.plus.model.dto.canReturnSignIn
+import cn.edu.ubaa.plus.model.dto.canSignIn
 import cn.edu.ubaa.plus.model.dto.canTemporaryLeave
+import cn.edu.ubaa.plus.model.dto.isInUseBooking
 import cn.edu.ubaa.plus.model.dto.isTerminalBooking
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.LocalDateTime
@@ -39,14 +41,39 @@ fun LibBookBookingDto.cardActions(): List<LibBookCardAction> =
       }
     }
 
-/** 首页只显示今天的、未结束的预约；有多条时取开始最早的一条。 */
+/**
+ * 首页只显示今天的、未结束的预约。
+ *
+ * 优先选正在使用的（含临时离开），其次选待签到的，再按开始时间最早的；这样同一天有多段预约时， 首页显示的是当下真正要处理的那一张。
+ */
 fun selectHomeLibBookBooking(
     bookings: List<LibBookBookingDto>,
     today: String,
-): LibBookBookingDto? =
-    bookings
-        .filter { !it.isTerminalBooking() && it.day.take(10) == today }
-        .minByOrNull { it.beginTime.ifBlank { "99:99" } }
+): LibBookBookingDto? {
+  val candidates =
+      bookings.filter {
+        !it.isTerminalBooking() && it.day.normalizeBookingDay() == today.normalizeBookingDay()
+      }
+  if (candidates.isEmpty()) return null
+  return candidates.minWithOrNull(
+      compareBy(
+          { if (it.isInUseBooking()) 0 else if (it.canSignIn()) 1 else 2 },
+          { it.beginTime.ifBlank { "99:99" } },
+      )
+  )
+}
+
+/** 接口返回的 day 可能带时间或用斜杠分隔，统一成 `yyyy-MM-dd` 再比较。 */
+internal fun String.normalizeBookingDay(): String {
+  val text = trim()
+  val dashed = text.take(10)
+  if (dashed.length == 10 && dashed[4] == '-' && dashed[7] == '-') return dashed
+  val parts = text.split('/', '-', '.', ' ')
+  val year = parts.getOrNull(0)?.toIntOrNull() ?: return text
+  val month = parts.getOrNull(1)?.toIntOrNull() ?: return text
+  val day = parts.getOrNull(2)?.toIntOrNull() ?: return text
+  return "$year-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
+}
 
 /** 座位使用规则；客户端只提示，最终以服务端校验为准。 */
 internal val LIB_BOOK_RULES: List<String> =
