@@ -123,9 +123,10 @@ class AuthViewModel(
   }
 
   /** 仅刷新验证码图片，不重置其他表单状态。 */
-  fun refreshCaptcha() {
+  fun refreshCaptcha(clearInput: Boolean = false) {
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isRefreshingCaptcha = true, error = null)
+      if (clearInput) _loginForm.value = _loginForm.value.copy(captcha = "")
       authService
           .preloadLoginState()
           .onSuccess { response ->
@@ -187,8 +188,13 @@ class AuthViewModel(
                       execution = exception.execution,
                   )
             } else {
-              _uiState.value =
-                  _uiState.value.copy(isLoading = false, error = exception.message ?: "登录失败")
+              val message = exception.message ?: "登录失败"
+              _uiState.value = _uiState.value.copy(isLoading = false, error = message)
+              // 输错验证码时上游只回一句 "Invalid parameter" 或"登录失败"，验证码图片已经换了，
+              // 必须自动刷新，否则用户对着旧图重试只会一直失败。
+              if (state.captchaRequired && isCaptchaFailure(message)) {
+                refreshCaptcha(clearInput = true)
+              }
             }
           }
     }
@@ -344,3 +350,28 @@ data class LoginFormState(
     val rememberPassword: Boolean = false,
     val autoLogin: Boolean = false,
 )
+
+/**
+ * 判断失败信息是否与验证码有关。
+ *
+ * WebVPN 模式下输错验证码时，上游不会给出明确文案，只会回 "Invalid parameter" / "登录失败" 之类， 或者干脆 401。
+ * 只要当前登录确实需要验证码，这些情况都视为需要换一张验证码。
+ */
+internal fun isCaptchaFailure(message: String?): Boolean {
+  val text = message?.trim()?.lowercase().orEmpty()
+  if (text.isEmpty()) return true
+  return captchaFailureKeywords.any { text.contains(it) }
+}
+
+private val captchaFailureKeywords =
+    listOf(
+        "invalid parameter",
+        "invalid_parameter",
+        "验证码",
+        "captcha",
+        "登录失败",
+        "账号或密码错误",
+        "unauthorized",
+        "参数不正确",
+        "参数错误",
+    )

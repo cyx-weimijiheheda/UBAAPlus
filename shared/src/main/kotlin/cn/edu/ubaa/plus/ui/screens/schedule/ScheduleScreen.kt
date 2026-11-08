@@ -493,7 +493,9 @@ private fun WeeklyScheduleView(
                       RoundedCornerShape(8.dp),
                   )
       ) {
-        TimeColumn(times, rowHeight, Modifier.width(SECTION_COLUMN_WIDTH))
+        // 两列分开：先只放节次序号，再放每节的起止时间，避免文字挤在一起。
+        SectionColumn(times, rowHeight, Modifier.width(SECTION_COLUMN_WIDTH))
+        TimeColumn(times, rowHeight, Modifier.width(TIME_COLUMN_WIDTH))
         WeeklyScheduleGrid(
             schedule,
             onCourseClick,
@@ -508,11 +510,14 @@ private fun WeeklyScheduleView(
 
 internal data class ScheduleRowMetrics(val rowHeightDp: Float, val scrollable: Boolean)
 
-/** 左侧时间轴宽度：要放下「第 x 节 / 起始 / - / 结束」四行。 */
-private val SECTION_COLUMN_WIDTH = 76.dp
+/** 节次列宽度：只放 1-14 的序号。 */
+private val SECTION_COLUMN_WIDTH = 30.dp
 
-/** 行高达到这个值才展开四行时间信息，否则只显示节次，避免文字被裁切。 */
-private val ROW_HEIGHT_FOR_TIME_LINES = 52.dp
+/** 时间列宽度：放「08:00 / - / 08:45」三行。 */
+private val TIME_COLUMN_WIDTH = 44.dp
+
+/** 行高达到这个值才展开起止时间，否则只显示节次，避免文字被裁切。 */
+private val ROW_HEIGHT_FOR_TIME_LINES = 44.dp
 
 /** 根据可用高度计算课表行高；低于 40dp 时保持可读的最小行高并允许滚动。 */
 internal fun scheduleRowMetrics(availableHeightDp: Float, periods: Int): ScheduleRowMetrics {
@@ -531,7 +536,14 @@ private fun HeaderRow(dayLabels: List<ScheduleHeaderDayLabel>) {
   Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
     Box(modifier = Modifier.width(SECTION_COLUMN_WIDTH), contentAlignment = Alignment.Center) {
       Text(
-          text = "节次",
+          text = "节",
+          fontSize = 10.sp,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+    Box(modifier = Modifier.width(TIME_COLUMN_WIDTH), contentAlignment = Alignment.Center) {
+      Text(
+          text = "时间",
           fontSize = 10.sp,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -554,7 +566,32 @@ private fun HeaderRow(dayLabels: List<ScheduleHeaderDayLabel>) {
   }
 }
 
-/** 时间轴列。 */
+/** 节次列：只标 1、2 … 14，不掺时间。 */
+@Composable
+private fun SectionColumn(
+    timeLabels: List<SectionTime>,
+    rowHeight: Dp,
+    modifier: Modifier = Modifier,
+) {
+  Column(modifier = modifier) {
+    timeLabels.forEach { slot ->
+      Box(
+          modifier = Modifier.height(rowHeight).fillMaxWidth(),
+          contentAlignment = Alignment.Center,
+      ) {
+        Text(
+            text = slot.section.toString(),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+      }
+    }
+  }
+}
+
+/** 时间列：每节显示「开始 / - / 结束」三行，行高不够时退化为一行「开始」。 */
 @Composable
 private fun TimeColumn(
     timeLabels: List<SectionTime>,
@@ -562,25 +599,17 @@ private fun TimeColumn(
     modifier: Modifier = Modifier,
 ) {
   Column(modifier = modifier) {
-    timeLabels.forEach {
+    timeLabels.forEach { slot ->
+      val label = sectionTimeLabel(slot)
       Box(
           modifier = Modifier.height(rowHeight).fillMaxWidth(),
           contentAlignment = Alignment.Center,
       ) {
-        // 左侧一列固定四行：第 x 节 / 起始时间 / - / 结束时间，行高不够时只保留节次。
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-          Text(
-              text = "第${it.section}节",
-              fontSize = 10.sp,
-              lineHeight = 11.sp,
-              fontWeight = FontWeight.Medium,
-              maxLines = 1,
-          )
-          if (rowHeight >= ROW_HEIGHT_FOR_TIME_LINES) {
-            val label = sectionTimeLabel(it)
+        if (rowHeight >= ROW_HEIGHT_FOR_TIME_LINES) {
+          Column(
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.Center,
+          ) {
             Text(
                 text = label.primary,
                 fontSize = 9.sp,
@@ -592,7 +621,7 @@ private fun TimeColumn(
                 text = "-",
                 fontSize = 9.sp,
                 lineHeight = 9.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 maxLines = 1,
             )
             Text(
@@ -603,6 +632,13 @@ private fun TimeColumn(
                 maxLines = 1,
             )
           }
+        } else {
+          Text(
+              text = label.primary,
+              fontSize = 9.sp,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              maxLines = 1,
+          )
         }
       }
     }
@@ -615,11 +651,12 @@ internal data class SectionTimeLabel(val primary: String, val secondary: String?
 /**
  * 时间轴永远给具体时间，不用 `--:--` 占位。
  *
- * 上游作息表当前方案已经覆盖全部节次时直接用；旧缓存只记录了课程首尾时间，缺的节次按标准作息补齐， 避免左侧一列出现空的灰杠。
+ * 上游作息表当前方案已经覆盖全部节次时直接用；旧缓存只记录了课程首尾时间，缺的节次按标准作息补齐。 显示前统一规范成 `HH:mm`，避免上游回 `8:0`、`08:00:00`
+ * 这类格式把一列撑歪。
  */
 internal fun sectionTimeLabel(section: SectionTime): SectionTimeLabel {
-  val start = section.start?.takeIf { it.isNotBlank() }
-  val end = section.end?.takeIf { it.isNotBlank() }
+  val start = section.start.normalizeClock()
+  val end = section.end.normalizeClock()
   if (start != null && end != null) return SectionTimeLabel(start, end)
   if (start != null) return SectionTimeLabel(start, null)
   if (end != null) return SectionTimeLabel(end, null)
@@ -629,6 +666,26 @@ internal fun sectionTimeLabel(section: SectionTime): SectionTimeLabel {
   } else {
     SectionTimeLabel(inferred.first, inferred.second)
   }
+}
+
+/** 把 `8:0`、`08:00:00`、`0800` 之类的上游时间统一成 `HH:mm`，解析不了返回 null。 */
+internal fun String?.normalizeClock(): String? {
+  val raw = this?.trim().orEmpty()
+  if (raw.isEmpty()) return null
+  val parts = raw.split(':', '.').filter { it.isNotBlank() }
+  val hour: Int?
+  val minute: Int?
+  if (parts.size >= 2) {
+    hour = parts[0].toIntOrNull()
+    minute = parts[1].toIntOrNull()
+  } else if (raw.length == 4 && raw.all { it.isDigit() }) {
+    hour = raw.take(2).toIntOrNull()
+    minute = raw.takeLast(2).toIntOrNull()
+  } else {
+    return null
+  }
+  if (hour == null || minute == null || hour !in 0..23 || minute !in 0..59) return null
+  return "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
 }
 
 /**
