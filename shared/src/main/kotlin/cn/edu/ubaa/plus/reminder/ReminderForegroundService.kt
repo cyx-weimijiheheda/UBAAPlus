@@ -119,8 +119,11 @@ class ReminderForegroundService : Service() {
   private suspend fun fireIfDue(userKey: String, event: ReminderEvent, nowInstant: Instant) {
     val elapsed = nowInstant - event.fireAt.toInstant(ReminderScheduleBuilder.zone)
     if (elapsed < Duration.ZERO || elapsed > event.kind.catchUpWindow()) return
-    val shouldNotify = runCatching { verifier.shouldNotify(event) }.getOrDefault(true)
-    if (!shouldNotify) {
+    val decision =
+        runCatching { verifier.decide(event) }.getOrDefault(ReminderSigninDecision.NOTIFY)
+    if (decision != ReminderSigninDecision.NOTIFY) {
+      // 已签到、或这门课根本不在可签到名单里：只记已处理，不发签到提醒。
+      // 开课提醒是另一条 key，不受影响，照常发出。
       ReminderSeenStore.markIfNew(userKey, event.key)
       return
     }

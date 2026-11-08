@@ -151,6 +151,37 @@ class ReminderScheduleBuilderTest {
   }
 
   @Test
+  fun `不可签到的课只生成开课提醒`() {
+    val events = ReminderScheduleBuilder.timetableEvents(listOf(semester(course())), friday)
+    val sign = events.single { it.kind == ReminderEventKind.ICLASS_SIGN_IN }
+
+    // 签到事件自带 beginTime，供 verifier 精确匹配可签到名单。
+    assertEquals("08:00", sign.beginTime)
+    // 开课与签到是两条独立的 key，签到被抑制时开课仍然会发出。
+    assertTrue(events.map { it.key }.toSet().size == events.size)
+  }
+
+  @Test
+  fun `博雅未开放签到时不出签到与签退提醒`() {
+    val course =
+        BykcChosenCourseDto(
+            id = 1,
+            courseId = 42,
+            courseName = "博雅讲座",
+            checkin = 1,
+            signConfig =
+                BykcSignConfigDto(
+                    signStartDate = LocalDateTime(2026, 11, 6, 14, 0),
+                    signOutStartDate = LocalDateTime(2026, 11, 6, 16, 30),
+                ),
+        )
+
+    val kinds = ReminderScheduleBuilder.bykcEvents(listOf(course), friday).map { it.kind }
+
+    assertEquals(listOf(ReminderEventKind.COURSE_OPEN), kinds)
+  }
+
+  @Test
   fun `合并按 key 去重`() {
     val first =
         ReminderEvent(

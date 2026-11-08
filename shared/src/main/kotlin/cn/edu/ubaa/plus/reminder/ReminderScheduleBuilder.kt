@@ -76,6 +76,7 @@ object ReminderScheduleBuilder {
             text = "$detail · 智慧教室签到已开放，点击前往首页签到",
             route = AppNotificationRoute.Home,
             courseName = courseName,
+            beginTime = formatUbaaTime(begin),
         ),
     )
   }
@@ -130,23 +131,26 @@ object ReminderScheduleBuilder {
                 route = route,
             )
       }
-      signOutStart?.let { signOut ->
-        events +=
-            ReminderEvent(
-                key = "bykc-signout:${course.courseId}:$signOut",
-                kind = ReminderEventKind.BYKC_SIGN_OUT,
-                fireAt = signOut,
-                title = "$courseName 现在可以签退",
-                text =
-                    listOfNotNull(
-                            formatUbaaDate(signOut.date),
-                            "${formatUbaaTime(signOut.time)} 起可签退",
-                            place,
-                        )
-                        .joinToString(" · "),
-                route = route,
-            )
-      }
+      // 不开放签到的博雅课程同样不该提醒签退：签到和签退是同一套签到配置。
+      signOutStart
+          ?.takeIf { course.checkin == 0 }
+          ?.let { signOut ->
+            events +=
+                ReminderEvent(
+                    key = "bykc-signout:${course.courseId}:$signOut",
+                    kind = ReminderEventKind.BYKC_SIGN_OUT,
+                    fireAt = signOut,
+                    title = "$courseName 现在可以签退",
+                    text =
+                        listOfNotNull(
+                                formatUbaaDate(signOut.date),
+                                "${formatUbaaTime(signOut.time)} 起可签退",
+                                place,
+                            )
+                            .joinToString(" · "),
+                    route = route,
+                )
+          }
       events
     }
   }

@@ -35,6 +35,8 @@ data class ReminderEvent(
     val text: String,
     val route: AppNotificationRoute,
     val courseName: String? = null,
+    /** 上课开始时间（HH:mm），同名课程一天多段时用于区分是否可签到。 */
+    val beginTime: String? = null,
 )
 
 /** 服务晚醒时仍然补发的时间窗口，超过就不再打扰。 */
