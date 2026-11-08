@@ -16,6 +16,7 @@ import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
 import cn.edu.ubaa.plus.model.format.formatUbaaWeekdayLabel
 import cn.edu.ubaa.plus.repository.SavedAgendaItem
+import cn.edu.ubaa.plus.ui.screens.schedule.sectionTimeLabel
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
@@ -77,8 +78,10 @@ internal fun renderScheduleWidget(
     text.textSize = 8f
     canvas.drawText(slot.section.toString(), 5f, y + row * 0.6f, text)
     text.textSize = 7f
-    canvas.drawText(slot.start ?: "--:--", 25f, y + row * 0.42f, text)
-    canvas.drawText(slot.end ?: "--:--", 25f, y + row * 0.92f, text)
+    // 与课表页保持一致：始终给出具体时间，不画 "--:--" 占位。
+    val label = sectionTimeLabel(slot)
+    canvas.drawText(label.primary, 25f, y + row * 0.42f, text)
+    label.secondary?.let { canvas.drawText(it, 25f, y + row * 0.92f, text) }
   }
   text.textSize = 10f
   text.textAlign = Paint.Align.LEFT

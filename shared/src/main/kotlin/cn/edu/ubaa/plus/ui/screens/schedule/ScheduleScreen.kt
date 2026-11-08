@@ -569,19 +569,70 @@ private fun TimeColumn(
               maxLines = 1,
           )
           if (rowHeight >= 40.dp) {
+            val label = sectionTimeLabel(it)
             Text(
-                text = it.start ?: "--:--",
+                text = label.primary,
                 fontSize = 10.sp,
                 lineHeight = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
+            label.secondary?.let { end ->
+              Text(
+                  text = end,
+                  fontSize = 9.sp,
+                  lineHeight = 11.sp,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                  maxLines = 1,
+              )
+            }
           }
         }
       }
     }
   }
 }
+
+/** 时间轴一格里显示的两行时间：开始与结束。 */
+internal data class SectionTimeLabel(val primary: String, val secondary: String? = null)
+
+/**
+ * 时间轴永远给具体时间，不用 `--:--` 占位。
+ *
+ * 上游作息表当前方案已经覆盖全部节次时直接用；旧缓存只记录了课程首尾时间，缺的节次按标准作息补齐， 避免左侧一列出现空的灰杠。
+ */
+internal fun sectionTimeLabel(section: SectionTime): SectionTimeLabel {
+  val start = section.start?.takeIf { it.isNotBlank() }
+  val end = section.end?.takeIf { it.isNotBlank() }
+  if (start != null && end != null) return SectionTimeLabel(start, end)
+  if (start != null) return SectionTimeLabel(start, null)
+  if (end != null) return SectionTimeLabel(end, null)
+  val inferred = standardSectionTimes().getOrNull(section.section - 1)
+  return if (inferred == null) {
+    SectionTimeLabel("${section.section}", null)
+  } else {
+    SectionTimeLabel(inferred.first, inferred.second)
+  }
+}
+
+/** 与校方 01 方案一致的标准作息（08:00 起，午休后 14:00 起，晚上 19:00 起）。 */
+internal fun standardSectionTimes(): List<Pair<String, String>> =
+    listOf(
+        "08:00" to "08:45",
+        "08:50" to "09:35",
+        "09:50" to "10:35",
+        "10:40" to "11:25",
+        "11:30" to "12:15",
+        "14:00" to "14:45",
+        "14:50" to "15:35",
+        "15:50" to "16:35",
+        "16:40" to "17:25",
+        "17:30" to "18:15",
+        "19:00" to "19:45",
+        "19:50" to "20:35",
+        "20:40" to "21:25",
+        "21:30" to "22:15",
+    )
 
 /** 课程表网格。负责绘制背景辅助线和摆放课程单元格。 */
 @Composable
