@@ -18,6 +18,11 @@ internal data class HomeBootstrapActions(
     val loadJudge: suspend (Boolean) -> Unit,
     val loadBykc: suspend (Boolean) -> Unit,
     val loadCgyy: suspend (Boolean) -> Unit,
+    /**
+     * 图书馆座位预约。
+     *
+     * 只用于首页展示当前座位状态，**不受「后台提醒」开关约束**：关掉提醒只停通知，首页依旧 显示正在使用或待签到的座位。
+     */
     val loadLibBook: suspend (Boolean) -> Unit,
     val loadYgdk: suspend (Boolean) -> Unit,
     val checkGradeScores: suspend (Boolean) -> Unit,

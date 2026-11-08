@@ -154,7 +154,9 @@ fun SettingsScreen(
           Column(modifier = Modifier.weight(1f)) {
             Text("后台提醒", style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = "登录后在后台待命，只在课程开课、签到/签退开启、新作业发布或作业将截止时推送，启动时不打扰；关闭后停止前台服务。",
+                text =
+                    "登录后在后台待命，只在课程开课、签到/签退开启、新作业发布或作业将截止时推送，启动时不打扰。" +
+                        "关闭只停止通知与前台服务，首页的课程、考勤与图书馆座位照常显示。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
