@@ -2,8 +2,6 @@ package cn.edu.ubaa.plus.reminder
 
 import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
-import cn.edu.ubaa.plus.model.dto.SectionTime
-import cn.edu.ubaa.plus.model.dto.scheduleSectionTimes
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.model.format.formatUbaaTime
 import cn.edu.ubaa.plus.repository.SavedAgendaItem
@@ -34,19 +32,16 @@ object ReminderScheduleBuilder {
       now: LocalDateTime,
       horizonDays: Int = 2,
   ): List<ReminderEvent> {
-    val sectionTimes = scheduleSectionTimes(semesters.flatMap { it.schedules.values })
+    // 不读取上游节次时间：本科接口给的是按课程首尾拼出来的边界，会把提醒推早或推晚一节课。
     return savedAgenda(semesters, now.date, horizonDays).flatMap { item ->
-      timetableEventsFor(item, sectionTimes)
+      timetableEventsFor(item)
     }
   }
 
-  private fun timetableEventsFor(
-      item: SavedAgendaItem,
-      sectionTimes: List<SectionTime>,
-  ): List<ReminderEvent> {
+  private fun timetableEventsFor(item: SavedAgendaItem): List<ReminderEvent> {
     val course = item.course
-    val begin = course.resolveBegin(sectionTimes) ?: return emptyList()
-    val end = course.resolveEnd(sectionTimes)
+    val begin = course.resolveBegin() ?: return emptyList()
+    val end = course.resolveEnd()
     val beginAt = LocalDateTime(item.date, begin)
     val timeLabel =
         if (end != null) "${formatUbaaTime(begin)}-${formatUbaaTime(end)}"
@@ -172,27 +167,17 @@ internal fun LocalDateTime.shiftMinutes(minutes: Int): LocalDateTime =
  * 课程自带的 beginTime 最可靠，直接用它；没有时按节次查**校方标准作息**。不能拿上游 SectionTime 的 start —— 那是按课程首尾拼出来的，连堂课会让第 2
  * 节的开始变成第 1 节的结束，提醒会提前一节课响。
  */
-private fun CourseClass.resolveBegin(sectionTimes: List<SectionTime>): LocalTime? =
-    parseHm(beginTime) ?: standardBeginOfSection(beginSection) ?: fallbackBegin(sectionTimes)
+private fun CourseClass.resolveBegin(): LocalTime? =
+    parseHm(beginTime) ?: standardBeginOfSection(beginSection)
 
-private fun CourseClass.resolveEnd(sectionTimes: List<SectionTime>): LocalTime? =
-    parseHm(endTime) ?: standardEndOfSection(endSection) ?: fallbackEnd(sectionTimes)
+private fun CourseClass.resolveEnd(): LocalTime? =
+    parseHm(endTime) ?: standardEndOfSection(endSection)
 
 private fun standardBeginOfSection(section: Int?): LocalTime? =
     section?.let { standardSectionTimes().getOrNull(it - 1)?.first?.let(::parseHm) }
 
 private fun standardEndOfSection(section: Int?): LocalTime? =
     section?.let { standardSectionTimes().getOrNull(it - 1)?.second?.let(::parseHm) }
-
-private fun fallbackBegin(sectionTimes: List<SectionTime>): LocalTime? =
-    lastResortSectionTime(sectionTimes)?.start?.let(::parseHm)
-
-private fun fallbackEnd(sectionTimes: List<SectionTime>): LocalTime? =
-    lastResortSectionTime(sectionTimes)?.end?.let(::parseHm)
-
-// 超出标准 14 节时只能回退上游值，保留这个唯一入口便于将来统一处理。
-private fun lastResortSectionTime(sectionTimes: List<SectionTime>): SectionTime? =
-    sectionTimes.lastOrNull()
 
 private fun CourseClass.identityKey(begin: LocalTime): String =
     "${courseCode}:${beginSection ?: begin.hour * 60 + begin.minute}"

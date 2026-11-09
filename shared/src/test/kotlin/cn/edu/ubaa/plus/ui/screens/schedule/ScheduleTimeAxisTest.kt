@@ -1,9 +1,9 @@
 package cn.edu.ubaa.plus.ui.screens.schedule
 
-import cn.edu.ubaa.plus.model.dto.SectionTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ScheduleTimeAxisTest {
 
@@ -29,84 +29,35 @@ class ScheduleTimeAxisTest {
   @Test
   fun `标准作息与校方课程时间表一致`() {
     assertEquals(official, standardSectionTimes())
-    assertEquals(14, standardSectionTimes().size)
+  }
+
+  @Test
+  fun `时间轴固定十四节且顺序完整`() {
+    val slots = sectionSlots()
+    assertEquals(14, slots.size)
+    assertEquals((1..14).toList(), slots.map { it.section })
+    slots.forEachIndexed { index, slot ->
+      assertEquals(official[index].first, slot.start, "第 ${slot.section} 节开始时间错")
+      assertEquals(official[index].second, slot.end, "第 ${slot.section} 节结束时间错")
+    }
   }
 
   @Test
   fun `每节课都是四十五分钟`() {
-    for ((start, end) in standardSectionTimes()) {
-      val minutes = minutesOf(end) - minutesOf(start)
-      assertEquals(45, minutes, "$start-$end 不是 45 分钟")
+    sectionSlots().forEach { slot ->
+      assertEquals(
+          45,
+          minutesOf(slot.end) - minutesOf(slot.start),
+          "${slot.start}-${slot.end} 不是 45 分钟",
+      )
     }
   }
 
   @Test
-  fun `忽略上游算出来的错误节次时间`() {
-    // 连堂课 08:00-09:35 会让上游把第 1 节结束和第 2 节开始都算成 09:35。
-    val corrupted = SectionTime(1, "08:00", "09:35")
-    val label = sectionTimeLabel(corrupted)
-    assertEquals("08:00", label.primary)
-    assertEquals("08:45", label.secondary)
-  }
-
-  @Test
-  fun `课间不会被当成一节课`() {
-    // 上游可能给出「09:35 - 09:50」这种把课间当节次的错位值，必须被标准作息覆盖。
-    val corrupted = SectionTime(2, "09:35", "09:50")
-    val label = sectionTimeLabel(corrupted)
-    assertEquals("08:50", label.primary)
-    assertEquals("09:35", label.secondary)
-  }
-
-  @Test
-  fun `十四节全部给出正确起止`() {
-    for (section in 1..14) {
-      val label = sectionTimeLabel(SectionTime(section, null, null))
-      assertEquals(official[section - 1].first, label.primary, "第 $section 节开始时间错")
-      assertEquals(official[section - 1].second, label.secondary, "第 $section 节结束时间错")
-    }
-  }
-
-  @Test
-  fun `上游格式不规范也不影响显示`() {
-    assertEquals(official[0].first, sectionTimeLabel(SectionTime(1, "8:0", "080000")).primary)
-  }
-
-  @Test
-  fun `只认十四节标准作息`() {
-    // 第 20 节不在标准作息里，只给节次号，不会回退到不可信的上游时间。
-    val label = sectionTimeLabel(SectionTime(20, "23:00", "23:45"))
-    assertEquals("20", label.primary)
-    assertNull(label.secondary)
-  }
-
-  @Test
-  fun `节次列表补齐到十四节`() {
-    // 离线旧快照可能只到 12 节，时间轴必须补齐，否则末尾会缺行。
-    val short = (1..12).map { SectionTime(it, null, null) }
-    val full = fullSectionTimes(short)
-    assertEquals(14, full.size)
-    assertEquals((1..14).toList(), full.map { it.section })
-  }
-
-  @Test
-  fun `补齐时保留原有节次对象`() {
-    val existing = listOf(SectionTime(1, "08:00", "08:45"), SectionTime(14, "21:30", "22:15"))
-    val full = fullSectionTimes(existing)
-    assertEquals(14, full.size)
-    assertEquals("08:00", full[0].start)
-    assertEquals("22:15", full[13].end)
-  }
-
-  @Test
-  fun `补齐后每一节时间都来自标准作息`() {
-    val full = fullSectionTimes(emptyList())
-    assertEquals(official.size, full.size)
-    full.forEachIndexed { index, slot ->
-      val label = sectionTimeLabel(slot)
-      assertEquals(official[index].first, label.primary)
-      assertEquals(official[index].second, label.secondary)
-    }
+  fun `时间轴不读取上游数据`() {
+    // 没有任何参数来自上游：连续调用结果稳定，且一定是 14 节。
+    assertEquals(sectionSlots(), sectionSlots())
+    assertTrue(sectionSlots().all { it.start.matches(HH_MM) && it.end.matches(HH_MM) })
   }
 
   @Test
@@ -122,5 +73,9 @@ class ScheduleTimeAxisTest {
   private fun minutesOf(clock: String): Int {
     val parts = clock.split(":")
     return parts[0].toInt() * 60 + parts[1].toInt()
+  }
+
+  private companion object {
+    val HH_MM = Regex("^\\d{2}:\\d{2}$")
   }
 }

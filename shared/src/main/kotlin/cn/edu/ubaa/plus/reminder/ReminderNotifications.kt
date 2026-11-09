@@ -24,17 +24,19 @@ object ReminderNotifications {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val manager = context.getSystemService(NotificationManager::class.java) ?: return
 
+    // 占位通知的通道：IMPORTANCE_MIN 不会出现在状态栏、不发声、不震动，默认折叠。
     val serviceChannel =
         NotificationChannel(
                 SERVICE_CHANNEL,
                 "后台提醒服务",
-                NotificationManager.IMPORTANCE_LOW,
+                NotificationManager.IMPORTANCE_MIN,
             )
             .apply {
-              description = "UBAAPlus 后台签到与作业提醒服务"
+              description = "系统要求前台服务保留的占位通知，没有实际内容"
               setShowBadge(false)
               setSound(null, null)
               enableVibration(false)
+              lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
     manager.createNotificationChannel(serviceChannel)
 
@@ -91,17 +93,24 @@ object ReminderNotifications {
    *
    * 静默启动：不发声、不震动、不弹横幅，也不在启动时强调“后台已开启”。它只是 Android 对前台服务的硬性要求， 真正的提醒由课程开课、签到、作业事件触发。
    */
+  /**
+   * 前台服务必需的占位通知。
+   *
+   * 只要服务在前台运行，Android 就要求有一条常驻通知，这条删不掉。但用户不该在启动时看见一条"提醒服务已开启"，
+   * 所以这里把它做成**完全无内容**的占位：没有标题、没有正文、没有图标语义、不进锁屏，只有系统在通知栏 挤出一行最低优先级的空白。真正的提醒仍然按课程开课、签到、作业事件正常弹出。
+   */
   fun buildServiceNotification(context: Context): Notification =
       NotificationCompat.Builder(context, SERVICE_CHANNEL)
           .setSmallIcon(R.drawable.ic_stat_ubaa)
-          .setContentTitle("UBAAPlus 提醒服务")
-          .setContentText("有课要上、需要签到或有新作业时会通知你")
+          .setContentTitle("")
+          .setContentText("")
           .setContentIntent(appPendingIntent(context, AppNotificationRoute.Home))
           .setOngoing(true)
           .setSilent(true)
           .setShowWhen(false)
           .setOnlyAlertOnce(true)
           .setLocalOnly(true)
+          .setCategory(NotificationCompat.CATEGORY_SERVICE)
           .setPriority(NotificationCompat.PRIORITY_MIN)
           .setVisibility(NotificationCompat.VISIBILITY_SECRET)
           .build()

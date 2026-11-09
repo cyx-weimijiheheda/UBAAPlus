@@ -128,8 +128,8 @@ fun scheduleSectionTimes(schedules: Collection<WeeklySchedule>): List<SectionTim
           standard
       else emptyList()
   val times = explicit.ifEmpty { legacy }
-  // 固定 14 节：校方作息就是 14 节，少算会让时间轴缺行、课程格子错位。
   val count =
+      // 固定 14 节：校方作息就是 14 节，少算会让节次列表缺行、课程格子错位。
       maxOf(
           14,
           times.maxOfOrNull { it.section } ?: 0,

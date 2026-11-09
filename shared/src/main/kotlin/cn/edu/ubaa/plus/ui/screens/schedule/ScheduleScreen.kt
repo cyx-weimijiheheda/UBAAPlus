@@ -329,7 +329,6 @@ internal fun ScheduleWeekPager(
   val callback by rememberUpdatedState(onWeekSelected)
   val currentWeeks by rememberUpdatedState(weeks)
   val selected by rememberUpdatedState(selectedWeek)
-  val times = remember(schedules) { scheduleSectionTimes(schedules.values) }
   LaunchedEffect(index) { if (pager.currentPage != index) pager.animateScrollToPage(index) }
   LaunchedEffect(pager) {
     snapshotFlow { pager.isScrollInProgress to pager.settledPage }
@@ -355,7 +354,6 @@ internal fun ScheduleWeekPager(
             schedule,
             week.headerDayLabels(),
             { course -> onCourseClick(course, week.startDate) },
-            times = times,
             modifier = Modifier.fillMaxSize(),
         )
     else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("此周课表尚未加载") }
@@ -472,11 +470,10 @@ private fun WeeklyScheduleView(
     headerDayLabels: List<ScheduleHeaderDayLabel>,
     onCourseClick: (CourseClass) -> Unit,
     modifier: Modifier = Modifier,
-    times: List<SectionTime> = scheduleSectionTimes(listOf(schedule)),
 ) {
-  // 固定 14 节：离线快照里的节次数量可能不全（旧缓存只到 12），这里补齐，时间轴永远是完整的一列。
-  val periods = remember(times) { fullSectionTimes(times) }
-  val totalPeriods = periods.size
+  // 时间轴只认校方作息表，与上游返回的节次数据无关。
+  val slots = remember { sectionSlots() }
+  val totalPeriods = slots.size
   val scrollState = rememberScrollState()
 
   Column(modifier = modifier.padding(horizontal = 8.dp)) {
@@ -496,8 +493,8 @@ private fun WeeklyScheduleView(
                   )
       ) {
         // 两列分开：先只放节次序号，再放每节的起止时间，避免文字挤在一起。
-        SectionColumn(periods, rowHeight, Modifier.width(SECTION_COLUMN_WIDTH))
-        TimeColumn(periods, rowHeight, Modifier.width(TIME_COLUMN_WIDTH))
+        SectionColumn(slots, rowHeight, Modifier.width(SECTION_COLUMN_WIDTH))
+        TimeColumn(slots, rowHeight, Modifier.width(TIME_COLUMN_WIDTH))
         WeeklyScheduleGrid(
             schedule,
             onCourseClick,
@@ -571,12 +568,12 @@ private fun HeaderRow(dayLabels: List<ScheduleHeaderDayLabel>) {
 /** 节次列：只标 1、2 … 14，不掺时间。 */
 @Composable
 private fun SectionColumn(
-    timeLabels: List<SectionTime>,
+    slots: List<SectionSlot>,
     rowHeight: Dp,
     modifier: Modifier = Modifier,
 ) {
   Column(modifier = modifier) {
-    timeLabels.forEach { slot ->
+    slots.forEach { slot ->
       Box(
           modifier = Modifier.height(rowHeight).fillMaxWidth(),
           contentAlignment = Alignment.Center,
@@ -593,16 +590,15 @@ private fun SectionColumn(
   }
 }
 
-/** 时间列：每节显示「开始 / - / 结束」三行，行高不够时退化为一行「开始」。 */
+/** 时间列：每节显示「开始 / 结束」两行，行高不够时只显示开始时间。 */
 @Composable
 private fun TimeColumn(
-    timeLabels: List<SectionTime>,
+    slots: List<SectionSlot>,
     rowHeight: Dp,
     modifier: Modifier = Modifier,
 ) {
   Column(modifier = modifier) {
-    timeLabels.forEach { slot ->
-      val label = sectionTimeLabel(slot)
+    slots.forEach { slot ->
       Box(
           modifier = Modifier.height(rowHeight).fillMaxWidth(),
           contentAlignment = Alignment.Center,
@@ -614,14 +610,14 @@ private fun TimeColumn(
           ) {
             // 开始与结束直接上下两行，不加分隔线，窄列里更清爽。
             Text(
-                text = label.primary,
+                text = slot.start,
                 fontSize = 9.sp,
                 lineHeight = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
             Text(
-                text = label.secondary ?: label.primary,
+                text = slot.end,
                 fontSize = 9.sp,
                 lineHeight = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -630,7 +626,7 @@ private fun TimeColumn(
           }
         } else {
           Text(
-              text = label.primary,
+              text = slot.start,
               fontSize = 9.sp,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               maxLines = 1,
@@ -641,71 +637,24 @@ private fun TimeColumn(
   }
 }
 
-/** 时间轴一格里显示的两行时间：开始与结束。 */
-internal data class SectionTimeLabel(val primary: String, val secondary: String? = null)
-
 /**
- * 时间轴一格里显示的时间：该节自己的开始与结束。
+ * 时间轴的唯一来源：校方作息表。
  *
- * **一律用校方标准作息表，不采信上游算出来的节次时间。** 本科课表接口并不返回作息表，[SectionTime] 里的 边界是靠课程首尾时间拼出来的：连堂课（第 1-2 节
- * 08:00-09:35）会让第 1 节的结束变成 09:35、第 2 节的开始 也是 09:35，于是每节都出现「09:35 - 09:50」这种把课间当成一节课的错位。标准作息每节固定 45
- * 分钟，正确。
+ * **完全不依赖上游数据。** 本科课表接口根本不返回作息表，[SectionTime] 里的时间是按课程首尾拼出来的： 连堂课（第 1-2 节 08:00-09:35）会让第 1 节结束和第 2
+ * 节开始都变成 09:35，课间也被当成一节课。 所以时间轴这里直接用固定的 14 节作息，和接口返回什么无关，在线、离线、桌面小组件结果一致。
  */
-internal fun sectionTimeLabel(section: SectionTime): SectionTimeLabel =
-    sectionTimeLabel(section.section)
+internal data class SectionSlot(val section: Int, val start: String, val end: String)
 
-/** 标准课表的节次数。 */
-internal const val STANDARD_SECTION_COUNT = 14
-
-/**
- * 把节次列表补齐到完整 14 节。
- *
- * 在线接口与离线快照给的节次数量都可能不足（旧缓存下限是 12），时间轴必须始终是 1..14， 否则末尾几节会缺行、课程格子也会错位。
- */
-internal fun fullSectionTimes(times: List<SectionTime>): List<SectionTime> {
-  val maxSection = maxOf(STANDARD_SECTION_COUNT, times.maxOfOrNull { it.section } ?: 0)
-  return (1..maxSection).map { section ->
-    times.firstOrNull { it.section == section } ?: SectionTime(section, null, null)
-  }
-}
-
-/**
- * 按节次查标准作息。
- *
- * 只认 1..14 这 14 节，与列表长度无关——离线快照里的节次数量可能不足（旧缓存只到 12）， 但只要这一节存在，就一定能拿到正确时间。
- */
-internal fun sectionTimeLabel(section: Int): SectionTimeLabel {
-  standardSectionTimes().getOrNull(section - 1)?.let { (start, end) ->
-    return SectionTimeLabel(start, end)
-  }
-  // 超出 14 节的非常规排课才有这种情况，至少给个可读的节次号。
-  return SectionTimeLabel("$section", null)
-}
-
-/** 把 `8:0`、`08:00:00`、`0800` 之类的上游时间统一成 `HH:mm`，解析不了返回 null。 */
-internal fun String?.normalizeClock(): String? {
-  val raw = this?.trim().orEmpty()
-  if (raw.isEmpty()) return null
-  val parts = raw.split(':', '.').filter { it.isNotBlank() }
-  val hour: Int?
-  val minute: Int?
-  if (parts.size >= 2) {
-    hour = parts[0].toIntOrNull()
-    minute = parts[1].toIntOrNull()
-  } else if (raw.length == 4 && raw.all { it.isDigit() }) {
-    hour = raw.take(2).toIntOrNull()
-    minute = raw.takeLast(2).toIntOrNull()
-  } else {
-    return null
-  }
-  if (hour == null || minute == null || hour !in 0..23 || minute !in 0..59) return null
-  return "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
-}
+/** 固定 14 节的时间轴，顺序与作息表一致。 */
+internal fun sectionSlots(): List<SectionSlot> =
+    standardSectionTimes().mapIndexed { index, (start, end) ->
+      SectionSlot(section = index + 1, start = start, end = end)
+    }
 
 /**
  * 校方标准作息，共 14 节。
  *
- * 上午 1-5 节 08:00 起，下午 6-10 节 14:00 起，晚上 11-14 节 19:00 起。上游作息表缺失节次时用它兜底， 保证课表左侧永远有具体时间可显示。
+ * 上午 1-5 节 08:00 起，下午 6-10 节 14:00 起，晚上 11-14 节 19:00 起。每节固定 45 分钟。
  */
 internal fun standardSectionTimes(): List<Pair<String, String>> =
     listOf(
@@ -727,6 +676,26 @@ internal fun standardSectionTimes(): List<Pair<String, String>> =
         "20:40" to "21:25",
         "21:30" to "22:15",
     )
+
+/** 把 `8:0`、`08:00:00` 之类的上游时间统一成 `HH:mm`，解析不了返回 null。 */
+internal fun String?.normalizeClock(): String? {
+  val raw = this?.trim().orEmpty()
+  if (raw.isEmpty()) return null
+  val parts = raw.split(':', '.').filter { it.isNotBlank() }
+  val hour: Int?
+  val minute: Int?
+  if (parts.size >= 2) {
+    hour = parts[0].toIntOrNull()
+    minute = parts[1].toIntOrNull()
+  } else if (raw.length == 4 && raw.all { it.isDigit() }) {
+    hour = raw.take(2).toIntOrNull()
+    minute = raw.takeLast(2).toIntOrNull()
+  } else {
+    return null
+  }
+  if (hour == null || minute == null || hour !in 0..23 || minute !in 0..59) return null
+  return "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+}
 
 /** 课程表网格。负责绘制背景辅助线和摆放课程单元格。 */
 @Composable
