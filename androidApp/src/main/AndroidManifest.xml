@@ -55,9 +55,12 @@
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
             android:screenOrientation="portrait"
             tools:replace="android:screenOrientation" />
+        <!-- 课表按竖屏一屏铺满设计，不支持横屏 -->
         <activity
             android:exported="true"
             android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:name="cn.edu.ubaa.plus.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

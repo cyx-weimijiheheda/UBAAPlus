@@ -474,19 +474,18 @@ private fun WeeklyScheduleView(
   // 时间轴只认校方作息表，与上游返回的节次数据无关。
   val slots = remember { sectionSlots() }
   val totalPeriods = slots.size
-  val scrollState = rememberScrollState()
 
-  Column(modifier = modifier.padding(horizontal = 8.dp)) {
+  // 不滚动：整周课表必须在一屏内看全，行高由可用高度均分得出。
+  Column(modifier = modifier.padding(horizontal = 6.dp)) {
     HeaderRow(headerDayLabels)
-    Spacer(modifier = Modifier.height(4.dp))
+    Spacer(modifier = Modifier.height(2.dp))
     BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
-      val availableHeight = if (maxHeight.value.isFinite()) maxHeight.value else 64f * totalPeriods
+      val availableHeight = if (maxHeight.value.isFinite()) maxHeight.value else 40f * totalPeriods
       val metrics = scheduleRowMetrics(availableHeight, totalPeriods)
       val rowHeight = metrics.rowHeightDp.dp
       Row(
           modifier =
               Modifier.fillMaxSize()
-                  .verticalScroll(scrollState)
                   .background(
                       MaterialTheme.colorScheme.surfaceVariant.copy(0.3f),
                       RoundedCornerShape(8.dp),
@@ -515,18 +514,18 @@ private val SECTION_COLUMN_WIDTH = 30.dp
 /** 时间列宽度：放「08:00 / - / 08:45」三行。 */
 private val TIME_COLUMN_WIDTH = 44.dp
 
-/** 行高达到这个值才展开起止时间，否则只显示节次，避免文字被裁切。 */
-private val ROW_HEIGHT_FOR_TIME_LINES = 44.dp
-
 /** 根据可用高度计算课表行高；低于 40dp 时保持可读的最小行高并允许滚动。 */
+/**
+ * 按可用高度均分每行，**不滚动**。
+ *
+ * 14 节必须在一屏内看全，所以行高完全由屏幕高度除以节数决定：高度够就放宽到 64dp， 不够就压到最小可读的 30dp。缩小字号而不是滚动，是这里刻意的取舍。
+ */
+internal const val MIN_ROW_HEIGHT_DP = 30f
+
 internal fun scheduleRowMetrics(availableHeightDp: Float, periods: Int): ScheduleRowMetrics {
   if (periods <= 0) return ScheduleRowMetrics(64f, false)
   val perRow = availableHeightDp / periods
-  return if (perRow < 40f) {
-    ScheduleRowMetrics(40f, true)
-  } else {
-    ScheduleRowMetrics(perRow.coerceAtMost(64f), false)
-  }
+  return ScheduleRowMetrics(perRow.coerceIn(MIN_ROW_HEIGHT_DP, 64f), false)
 }
 
 /** 星期标题行。 */
@@ -580,7 +579,8 @@ private fun SectionColumn(
       ) {
         Text(
             text = slot.section.toString(),
-            fontSize = 11.sp,
+            fontSize = 10.sp,
+            lineHeight = 11.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -603,33 +603,26 @@ private fun TimeColumn(
           modifier = Modifier.height(rowHeight).fillMaxWidth(),
           contentAlignment = Alignment.Center,
       ) {
-        if (rowHeight >= ROW_HEIGHT_FOR_TIME_LINES) {
-          Column(
-              horizontalAlignment = Alignment.CenterHorizontally,
-              verticalArrangement = Arrangement.Center,
-          ) {
-            // 开始与结束直接上下两行，不加分隔线，窄列里更清爽。
-            Text(
-                text = slot.start,
-                fontSize = 9.sp,
-                lineHeight = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-            Text(
-                text = slot.end,
-                fontSize = 9.sp,
-                lineHeight = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-          }
-        } else {
+        // 每节固定显示「开始 / 结束」两行，行高小的时候也压缩字体而不是丢掉结束时间。
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
           Text(
               text = slot.start,
-              fontSize = 9.sp,
+              fontSize = 8.sp,
+              lineHeight = 9.sp,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               maxLines = 1,
+              softWrap = false,
+          )
+          Text(
+              text = slot.end,
+              fontSize = 8.sp,
+              lineHeight = 9.sp,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              maxLines = 1,
+              softWrap = false,
           )
         }
       }
