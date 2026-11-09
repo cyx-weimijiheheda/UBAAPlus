@@ -73,10 +73,40 @@ class ScheduleTimeAxisTest {
   }
 
   @Test
-  fun `超出十四节才回退上游值`() {
+  fun `只认十四节标准作息`() {
+    // 第 20 节不在标准作息里，只给节次号，不会回退到不可信的上游时间。
     val label = sectionTimeLabel(SectionTime(20, "23:00", "23:45"))
-    assertEquals("23:00", label.primary)
-    assertEquals("23:45", label.secondary)
+    assertEquals("20", label.primary)
+    assertNull(label.secondary)
+  }
+
+  @Test
+  fun `节次列表补齐到十四节`() {
+    // 离线旧快照可能只到 12 节，时间轴必须补齐，否则末尾会缺行。
+    val short = (1..12).map { SectionTime(it, null, null) }
+    val full = fullSectionTimes(short)
+    assertEquals(14, full.size)
+    assertEquals((1..14).toList(), full.map { it.section })
+  }
+
+  @Test
+  fun `补齐时保留原有节次对象`() {
+    val existing = listOf(SectionTime(1, "08:00", "08:45"), SectionTime(14, "21:30", "22:15"))
+    val full = fullSectionTimes(existing)
+    assertEquals(14, full.size)
+    assertEquals("08:00", full[0].start)
+    assertEquals("22:15", full[13].end)
+  }
+
+  @Test
+  fun `补齐后每一节时间都来自标准作息`() {
+    val full = fullSectionTimes(emptyList())
+    assertEquals(official.size, full.size)
+    full.forEachIndexed { index, slot ->
+      val label = sectionTimeLabel(slot)
+      assertEquals(official[index].first, label.primary)
+      assertEquals(official[index].second, label.secondary)
+    }
   }
 
   @Test

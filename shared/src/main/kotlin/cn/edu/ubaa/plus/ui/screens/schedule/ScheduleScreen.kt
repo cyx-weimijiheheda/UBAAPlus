@@ -474,7 +474,9 @@ private fun WeeklyScheduleView(
     modifier: Modifier = Modifier,
     times: List<SectionTime> = scheduleSectionTimes(listOf(schedule)),
 ) {
-  val totalPeriods = times.size
+  // 固定 14 节：离线快照里的节次数量可能不全（旧缓存只到 12），这里补齐，时间轴永远是完整的一列。
+  val periods = remember(times) { fullSectionTimes(times) }
+  val totalPeriods = periods.size
   val scrollState = rememberScrollState()
 
   Column(modifier = modifier.padding(horizontal = 8.dp)) {
@@ -494,8 +496,8 @@ private fun WeeklyScheduleView(
                   )
       ) {
         // 两列分开：先只放节次序号，再放每节的起止时间，避免文字挤在一起。
-        SectionColumn(times, rowHeight, Modifier.width(SECTION_COLUMN_WIDTH))
-        TimeColumn(times, rowHeight, Modifier.width(TIME_COLUMN_WIDTH))
+        SectionColumn(periods, rowHeight, Modifier.width(SECTION_COLUMN_WIDTH))
+        TimeColumn(periods, rowHeight, Modifier.width(TIME_COLUMN_WIDTH))
         WeeklyScheduleGrid(
             schedule,
             onCourseClick,
@@ -649,21 +651,35 @@ internal data class SectionTimeLabel(val primary: String, val secondary: String?
  * 08:00-09:35）会让第 1 节的结束变成 09:35、第 2 节的开始 也是 09:35，于是每节都出现「09:35 - 09:50」这种把课间当成一节课的错位。标准作息每节固定 45
  * 分钟，正确。
  */
-internal fun sectionTimeLabel(section: SectionTime): SectionTimeLabel {
-  val standard = standardSectionTimes().getOrNull(section.section - 1)
-  return if (standard != null) {
-    SectionTimeLabel(standard.first, standard.second)
-  } else {
-    // 超出 14 节的非常规排课才回退到上游值，至少不会显示空。
-    val start = section.start.normalizeClock()
-    val end = section.end.normalizeClock()
-    when {
-      start != null && end != null -> SectionTimeLabel(start, end)
-      start != null -> SectionTimeLabel(start, null)
-      end != null -> SectionTimeLabel(end, null)
-      else -> SectionTimeLabel("${section.section}", null)
-    }
+internal fun sectionTimeLabel(section: SectionTime): SectionTimeLabel =
+    sectionTimeLabel(section.section)
+
+/** 标准课表的节次数。 */
+internal const val STANDARD_SECTION_COUNT = 14
+
+/**
+ * 把节次列表补齐到完整 14 节。
+ *
+ * 在线接口与离线快照给的节次数量都可能不足（旧缓存下限是 12），时间轴必须始终是 1..14， 否则末尾几节会缺行、课程格子也会错位。
+ */
+internal fun fullSectionTimes(times: List<SectionTime>): List<SectionTime> {
+  val maxSection = maxOf(STANDARD_SECTION_COUNT, times.maxOfOrNull { it.section } ?: 0)
+  return (1..maxSection).map { section ->
+    times.firstOrNull { it.section == section } ?: SectionTime(section, null, null)
   }
+}
+
+/**
+ * 按节次查标准作息。
+ *
+ * 只认 1..14 这 14 节，与列表长度无关——离线快照里的节次数量可能不足（旧缓存只到 12）， 但只要这一节存在，就一定能拿到正确时间。
+ */
+internal fun sectionTimeLabel(section: Int): SectionTimeLabel {
+  standardSectionTimes().getOrNull(section - 1)?.let { (start, end) ->
+    return SectionTimeLabel(start, end)
+  }
+  // 超出 14 节的非常规排课才有这种情况，至少给个可读的节次号。
+  return SectionTimeLabel("$section", null)
 }
 
 /** 把 `8:0`、`08:00:00`、`0800` 之类的上游时间统一成 `HH:mm`，解析不了返回 null。 */
