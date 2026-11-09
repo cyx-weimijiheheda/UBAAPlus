@@ -8,8 +8,7 @@ import cn.edu.ubaa.plus.ui.screens.libbook.LibBookNotice
 /**
  * 图书馆座位操作结果通知。
  *
- * 预约、签到、暂离、签退、取消都由用户在前台触发，系统已经用 Toast/对话框给出即时反馈；这里额外落一条 通知栏记录，便于离开应用后回看结果。不依赖
- * [ReminderForegroundService]，关掉后台提醒也能收到。
+ * 预约、签到、暂离、签退、取消都由用户在前台触发，系统已经用 Toast/对话框给出即时反馈；这里额外落一条 通知栏记录，便于离开应用后回看结果。不依赖 提醒调度，关掉后台提醒也能收到。
  */
 object LibBookNotifications {
   /** 座位操作的结果，决定通知标题与点击后的目标页面。 */

@@ -7,9 +7,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 非精确闹钟：课程提醒提前 10-20 分钟，几分钟误差可接受，避免申请精确闹钟特殊权限 -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.location" android:required="false" />
 
@@ -46,15 +46,10 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/schedule_upcoming_widget_info" />
         </receiver>
         <activity android:name="cn.edu.ubaa.plus.widget.ScheduleWidgetActivity" android:exported="false" />
-        <service
-            android:name="cn.edu.ubaa.plus.reminder.ReminderForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:stopWithTask="false">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Periodic campus course attendance and homework reminders for the signed-in user" />
-        </service>
+        <!-- 提醒走 AlarmManager 定时唤醒，不需要前台服务与常驻通知 -->
+        <receiver
+            android:name="cn.edu.ubaa.plus.reminder.ReminderAlarmReceiver"
+            android:exported="false" />
         <!-- zxing 默认横屏，这里改成竖屏扫码 -->
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
