@@ -60,13 +60,14 @@ class ReminderSigninVerifierTest {
   }
 
   @Test
-  fun `接口失败时保守照常提醒`() = runTest {
+  fun `接口失败时判定为不可签到`() = runTest {
+    // 宁可漏一次签到提醒，也不要给不需要签到的课反复打扰。
     val verifier: ReminderSigninVerifier = ReminderSigninVerifier {
       Result.failure(IllegalStateException("boom"))
     }
 
-    assertEquals(ReminderSigninDecision.NOTIFY, verifier.decide(event))
-    assertTrue(verifier.shouldNotify(event))
+    assertEquals(ReminderSigninDecision.SUPPRESS_NOT_SIGNABLE, verifier.decide(event))
+    assertFalse(verifier.shouldNotify(event))
   }
 
   @Test

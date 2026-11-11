@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
@@ -61,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.shared.R
@@ -73,12 +75,22 @@ fun LibBookReserveScreen(
     viewModel: LibBookViewModel,
     onBookingsClick: () -> Unit,
     onSubmitSuccess: () -> Unit,
+    onScanRequest: () -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
   var showMapDialog by remember { mutableStateOf(false) }
+  var showRulesDialog by remember { mutableStateOf(false) }
+  var showConfirmDialog by remember { mutableStateOf(false) }
   val selectedMapResource = libBookAreaMapResource(uiState.selectedAreaId)
+  val currentBooking =
+      remember(uiState.bookings.bookings) { selectCurrentLibBookBooking(uiState.bookings.bookings) }
+  val confirmSummary = libBookReserveSummary(uiState)
 
-  LaunchedEffect(Unit) { viewModel.ensureInitialLoaded() }
+  LaunchedEffect(Unit) {
+    viewModel.ensureInitialLoaded()
+    // 主界面要显示当前预约，进入即刷新一次预约记录。
+    viewModel.loadBookings()
+  }
   LaunchedEffect(uiState.actionMessage) {
     val message = uiState.actionMessage ?: return@LaunchedEffect
     UbaaToast.show(message)
@@ -94,20 +106,64 @@ fun LibBookReserveScreen(
     )
   }
 
+  if (showRulesDialog) LibBookRulesDialog(onDismiss = { showRulesDialog = false })
+
+  if (showConfirmDialog) {
+    LibBookReserveConfirmDialog(
+        summary = confirmSummary,
+        submitting = uiState.isSubmitting,
+        onConfirm = {
+          showConfirmDialog = false
+          viewModel.submitReservation()
+        },
+        onDismiss = { showConfirmDialog = false },
+    )
+  }
+
+  LibBookSeatActionDialogs(
+      context = uiState.seatActionContext,
+      pendingAction = uiState.pendingSeatAction,
+      submitting = uiState.isSeatActionSubmitting,
+      locating = uiState.isLocatingForAction,
+      onDismiss = viewModel::dismissSeatAction,
+      onAction = { action ->
+        if (action == LibBookSeatAction.LEAVE || action == LibBookSeatAction.CHECKOUT) {
+          viewModel.requestSeatAction(action)
+        } else {
+          viewModel.requestLocatedSeatAction(action)
+        }
+      },
+      onConfirmLeave = { action -> viewModel.continueLocatedSeatAction(action) },
+  )
+
   Scaffold(
       containerColor = androidx.compose.ui.graphics.Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { paddingValues ->
     Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+      // 历史预约入口：点进去只看已结束/已取消的记录。
       Row(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+          modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
           horizontalArrangement = Arrangement.spacedBy(8.dp),
       ) {
         AssistChip(
             onClick = onBookingsClick,
-            label = { Text("我的预约") },
+            label = { Text("历史预约") },
             leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
+        )
+      }
+
+      // 当前预约卡片：在历史预约下方、楼馆选择上方。
+      currentBooking?.let { booking ->
+        LibBookCurrentBookingCard(
+            booking = booking,
+            now = uiState.now,
+            isCanceling = uiState.cancelingBookingId == booking.id,
+            isSubmitting = uiState.isSeatActionSubmitting,
+            onAction = viewModel::handleCurrentCardAction,
+            onShowRules = { showRulesDialog = true },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
       }
 
@@ -127,11 +183,10 @@ fun LibBookReserveScreen(
           else ->
               LazyColumn(
                   modifier = Modifier.fillMaxSize(),
-                  contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                  verticalArrangement = Arrangement.spacedBy(10.dp),
+                  contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                  verticalArrangement = Arrangement.spacedBy(8.dp),
               ) {
                 item {
-                  SectionTitle(title = "楼馆")
                   LibBookDropdown(
                       label = "楼馆",
                       selectedText =
@@ -151,7 +206,6 @@ fun LibBookReserveScreen(
                     ?.takeIf { it.isNotEmpty() }
                     ?.let { storeys ->
                       item {
-                        SectionTitle("楼层")
                         LibBookDropdown(
                             label = "楼层",
                             selectedText =
@@ -166,7 +220,6 @@ fun LibBookReserveScreen(
                     }
 
                 item {
-                  SectionTitle("分区")
                   when {
                     uiState.isAreasLoading -> InlineLoading("正在加载分区...")
                     uiState.areasError != null ->
@@ -194,17 +247,16 @@ fun LibBookReserveScreen(
                   SectionTitle(
                       title = "座位",
                       trailing = {
-                        OutlinedButton(
-                            enabled = mapAvailable,
-                            onClick = { showMapDialog = true },
-                        ) {
-                          Text("查看座位分布")
+                        if (mapAvailable) {
+                          OutlinedButton(
+                              onClick = { showMapDialog = true },
+                              shape = RoundedCornerShape(14.dp),
+                          ) {
+                            Text("座位分布")
+                          }
                         }
                       },
                   )
-                  if (!mapAvailable && uiState.selectedAreaId != null) {
-                    Text("当前分区暂无平面图", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                  }
                 }
 
                 item {
@@ -221,9 +273,11 @@ fun LibBookReserveScreen(
                     visibleSeats.isEmpty() ->
                         Text("当前分区暂无可预约座位", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     else ->
-                        SeatGrid(
+                        PagedSeatGrid(
                             seats = visibleSeats,
                             selectedSeatId = uiState.selectedSeatId,
+                            page = uiState.seatPage,
+                            onPageChange = viewModel::setSeatPage,
                             onSeatClick = viewModel::selectSeat,
                         )
                   }
@@ -237,15 +291,9 @@ fun LibBookReserveScreen(
                           uiState.selectedSeatId != null &&
                               uiState.selectedSlotId != null &&
                               !uiState.isSubmitting,
-                      onClick = viewModel::submitReservation,
+                      shape = RoundedCornerShape(14.dp),
+                      onClick = { showConfirmDialog = true },
                   ) {
-                    if (uiState.isSubmitting) {
-                      CircularProgressIndicator(
-                          modifier = Modifier.height(18.dp).width(18.dp),
-                          strokeWidth = 2.dp,
-                      )
-                      Spacer(Modifier.width(8.dp))
-                    }
                     Text("确认预约")
                   }
                 }
@@ -256,43 +304,181 @@ fun LibBookReserveScreen(
   }
 }
 
+/** 分页座位网格：一行 8 个、每页 4 行，避免列表长到翻不到底。 */
+@Composable
+private fun PagedSeatGrid(
+    seats: List<LibBookSeatDto>,
+    selectedSeatId: String?,
+    page: Int,
+    onPageChange: (Int) -> Unit,
+    onSeatClick: (String) -> Unit,
+) {
+  val pages = libBookSeatPages(seats)
+  val safePage = page.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+  Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    SeatGrid(seats = pages.getOrElse(safePage) { emptyList() }, selectedSeatId, onSeatClick)
+    if (pages.size > 1) {
+      Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.Center,
+          verticalAlignment = Alignment.CenterVertically,
+      ) {
+        TextButton(onClick = { onPageChange(safePage - 1) }, enabled = safePage > 0) { Text("上一页") }
+        Text(
+            "${safePage + 1} / ${pages.size}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(
+            onClick = { onPageChange(safePage + 1) },
+            enabled = safePage < pages.size - 1,
+        ) {
+          Text("下一页")
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun LoadingBox(text: String) {
+  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
+  }
+}
+
+@Composable
+private fun SectionTitle(title: String, trailing: @Composable (() -> Unit)? = null) {
+  Row(
+      modifier = Modifier.fillMaxWidth(),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.SpaceBetween,
+  ) {
+    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    trailing?.invoke()
+  }
+  Spacer(Modifier.height(4.dp))
+}
+
+@Composable
+private fun <T> LibBookDropdown(
+    label: String,
+    selectedText: String,
+    options: List<Pair<T, String>>,
+    enabled: Boolean = true,
+    onSelected: (T) -> Unit,
+) {
+  UbaaDropdownSelector(
+      selectedText = selectedText,
+      options = options.map { it.second },
+      label = label,
+      enabled = enabled,
+      onSelected = { index -> options.getOrNull(index)?.let { onSelected(it.first) } },
+  )
+}
+
+internal fun visibleLibBookSeats(seats: List<LibBookSeatDto>): List<LibBookSeatDto> =
+    seats.filter { it.isAvailable }
+
+internal data class LibBookMapViewerTransform(
+    val scale: Float = MinLibBookMapScale,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+)
+
+internal fun updateLibBookMapViewerTransform(
+    current: LibBookMapViewerTransform,
+    zoomChange: Float,
+    panChangeX: Float,
+    panChangeY: Float,
+): LibBookMapViewerTransform {
+  val nextScale = (current.scale * zoomChange).coerceIn(MinLibBookMapScale, MaxLibBookMapScale)
+  return if (nextScale == MinLibBookMapScale) {
+    LibBookMapViewerTransform()
+  } else {
+    current.copy(
+        scale = nextScale,
+        offsetX = current.offsetX + panChangeX,
+        offsetY = current.offsetY + panChangeY,
+    )
+  }
+}
+
+internal fun resetLibBookMapViewerTransform(
+    current: LibBookMapViewerTransform
+): LibBookMapViewerTransform = current.copy(scale = MinLibBookMapScale, offsetX = 0f, offsetY = 0f)
+
+internal fun libBookAreaMapResource(areaId: String?): Int? =
+    when (areaId) {
+      "6" -> R.drawable.area_6
+      "8" -> R.drawable.area_8
+      "16" -> R.drawable.area_16
+      "18" -> R.drawable.area_18
+      "19" -> R.drawable.area_19
+      "20" -> R.drawable.area_20
+      "21" -> R.drawable.area_21
+      "22" -> R.drawable.area_22
+      "23" -> R.drawable.area_23
+      "24" -> R.drawable.area_24
+      "25" -> R.drawable.area_25
+      "26" -> R.drawable.area_26
+      "27" -> R.drawable.area_27
+      "28" -> R.drawable.area_28
+      "29" -> R.drawable.area_29
+      "52" -> R.drawable.area_52
+      "53" -> R.drawable.area_53
+      "63" -> R.drawable.area_63
+      "64" -> R.drawable.area_64
+      "65" -> R.drawable.area_65
+      "67" -> R.drawable.area_67
+      "68" -> R.drawable.area_68
+      "69" -> R.drawable.area_69
+      "71" -> R.drawable.area_71
+      "72" -> R.drawable.area_72
+      "73" -> R.drawable.area_73
+      "82" -> R.drawable.area_82
+      "83" -> R.drawable.area_83
+      "117" -> R.drawable.area_117
+      else -> null
+    }
+
+private const val MinLibBookMapScale = 1f
+private const val MaxLibBookMapScale = 5f
+
 @Composable
 private fun SeatGrid(
     seats: List<LibBookSeatDto>,
     selectedSeatId: String?,
     onSeatClick: (String) -> Unit,
 ) {
-  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-    seats.chunked(4).forEach { rowSeats ->
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+  val perRow = LIB_BOOK_SEATS_PER_ROW
+  Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    seats.chunked(perRow).forEach { rowSeats ->
+      Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
         rowSeats.forEach { seat ->
           val selected = seat.id == selectedSeatId
           ElevatedCard(
-              modifier = Modifier.weight(1f).height(72.dp).clickable { onSeatClick(seat.id) },
+              modifier = Modifier.weight(1f).height(44.dp).clickable { onSeatClick(seat.id) },
+              shape = RoundedCornerShape(8.dp),
+              colors =
+                  CardDefaults.elevatedCardColors(
+                      containerColor =
+                          if (selected) MaterialTheme.colorScheme.primaryContainer
+                          else MaterialTheme.colorScheme.surfaceVariant
+                  ),
           ) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
               Text(
                   text = seat.no.ifBlank { seat.name.ifBlank { seat.id } },
-                  style = MaterialTheme.typography.titleSmall,
+                  style = MaterialTheme.typography.labelMedium,
                   fontWeight = FontWeight.Bold,
                   maxLines = 1,
                   overflow = TextOverflow.Ellipsis,
               )
-              Text(
-                  text = if (selected) "已选" else "可预约",
-                  style = MaterialTheme.typography.bodySmall,
-                  color =
-                      if (selected) MaterialTheme.colorScheme.primary
-                      else MaterialTheme.colorScheme.onSurfaceVariant,
-              )
             }
           }
         }
-        repeat(4 - rowSeats.size) { Spacer(modifier = Modifier.weight(1f)) }
+        repeat(perRow - rowSeats.size) { Spacer(modifier = Modifier.weight(1f)) }
       }
     }
   }
@@ -438,108 +624,3 @@ private fun InlineLoading(text: String) {
     Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
   }
 }
-
-@Composable
-private fun LoadingBox(text: String) {
-  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-    Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
-  }
-}
-
-@Composable
-private fun SectionTitle(title: String, trailing: @Composable (() -> Unit)? = null) {
-  Row(
-      modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.SpaceBetween,
-  ) {
-    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    trailing?.invoke()
-  }
-  Spacer(Modifier.height(4.dp))
-}
-
-@Composable
-private fun <T> LibBookDropdown(
-    label: String,
-    selectedText: String,
-    options: List<Pair<T, String>>,
-    enabled: Boolean = true,
-    onSelected: (T) -> Unit,
-) {
-  UbaaDropdownSelector(
-      selectedText = selectedText,
-      options = options.map { it.second },
-      label = label,
-      enabled = enabled,
-      onSelected = { index -> options.getOrNull(index)?.let { onSelected(it.first) } },
-  )
-}
-
-internal fun visibleLibBookSeats(seats: List<LibBookSeatDto>): List<LibBookSeatDto> =
-    seats.filter { it.isAvailable }
-
-internal data class LibBookMapViewerTransform(
-    val scale: Float = MinLibBookMapScale,
-    val offsetX: Float = 0f,
-    val offsetY: Float = 0f,
-)
-
-internal fun updateLibBookMapViewerTransform(
-    current: LibBookMapViewerTransform,
-    zoomChange: Float,
-    panChangeX: Float,
-    panChangeY: Float,
-): LibBookMapViewerTransform {
-  val nextScale = (current.scale * zoomChange).coerceIn(MinLibBookMapScale, MaxLibBookMapScale)
-  return if (nextScale == MinLibBookMapScale) {
-    LibBookMapViewerTransform()
-  } else {
-    current.copy(
-        scale = nextScale,
-        offsetX = current.offsetX + panChangeX,
-        offsetY = current.offsetY + panChangeY,
-    )
-  }
-}
-
-internal fun resetLibBookMapViewerTransform(
-    current: LibBookMapViewerTransform
-): LibBookMapViewerTransform = current.copy(scale = MinLibBookMapScale, offsetX = 0f, offsetY = 0f)
-
-internal fun libBookAreaMapResource(areaId: String?): Int? =
-    when (areaId) {
-      "6" -> R.drawable.area_6
-      "8" -> R.drawable.area_8
-      "16" -> R.drawable.area_16
-      "18" -> R.drawable.area_18
-      "19" -> R.drawable.area_19
-      "20" -> R.drawable.area_20
-      "21" -> R.drawable.area_21
-      "22" -> R.drawable.area_22
-      "23" -> R.drawable.area_23
-      "24" -> R.drawable.area_24
-      "25" -> R.drawable.area_25
-      "26" -> R.drawable.area_26
-      "27" -> R.drawable.area_27
-      "28" -> R.drawable.area_28
-      "29" -> R.drawable.area_29
-      "52" -> R.drawable.area_52
-      "53" -> R.drawable.area_53
-      "63" -> R.drawable.area_63
-      "64" -> R.drawable.area_64
-      "65" -> R.drawable.area_65
-      "67" -> R.drawable.area_67
-      "68" -> R.drawable.area_68
-      "69" -> R.drawable.area_69
-      "71" -> R.drawable.area_71
-      "72" -> R.drawable.area_72
-      "73" -> R.drawable.area_73
-      "82" -> R.drawable.area_82
-      "83" -> R.drawable.area_83
-      "117" -> R.drawable.area_117
-      else -> null
-    }
-
-private const val MinLibBookMapScale = 1f
-private const val MaxLibBookMapScale = 5f

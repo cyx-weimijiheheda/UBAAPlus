@@ -1,6 +1,7 @@
 package cn.edu.ubaa.plus.ui.screens.libbook
 
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
+import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.canCancelBooking
 import cn.edu.ubaa.plus.model.dto.canCheckout
 import cn.edu.ubaa.plus.model.dto.canReturnSignIn
@@ -116,4 +117,45 @@ internal fun parseLibBookDateTime(raw: String): LocalDateTime? {
         else -> text
       }
   return runCatching { LocalDateTime.parse(normalized) }.getOrNull()
+}
+
+/** 座位网格每行个数与每页行数：一行 8 个、每页 4 行，避免长列表翻不到确认按钮。 */
+internal const val LIB_BOOK_SEATS_PER_ROW = 8
+internal const val LIB_BOOK_SEAT_ROWS_PER_PAGE = 4
+
+/** 按 8×4 分页；最后一页不足也保留为独立的一页。 */
+internal fun libBookSeatPages(seats: List<LibBookSeatDto>): List<List<LibBookSeatDto>> {
+  val pageSize = LIB_BOOK_SEATS_PER_ROW * LIB_BOOK_SEAT_ROWS_PER_PAGE
+  if (seats.isEmpty()) return listOf(emptyList())
+  return seats.chunked(pageSize)
+}
+
+/**
+ * 主界面顶部的「当前预约」：优先正在使用的，其次未签到的，再按开始时间最早。
+ *
+ * 不限定必须是今天——预约可能跨天，只要还没结束就该在顶部提示。
+ */
+fun selectCurrentLibBookBooking(bookings: List<LibBookBookingDto>): LibBookBookingDto? =
+    bookings
+        .filter { !it.isTerminalBooking() }
+        .minWithOrNull(
+            compareBy(
+                { if (it.isInUseBooking()) 0 else if (it.canSignIn()) 1 else 2 },
+                { it.day.ifBlank { "9999-99-99" } },
+                { it.beginTime.ifBlank { "99:99" } },
+            )
+        )
+
+/** 确认预约对话框里的一句话摘要。 */
+internal fun libBookReserveSummary(state: LibBookUiState): String {
+  val place =
+      listOfNotNull(
+              state.selectedArea?.name?.takeIf { it.isNotBlank() },
+              state.selectedSeat?.no?.takeIf { it.isNotBlank() },
+          )
+          .joinToString(" / ")
+          .ifBlank { "未选择座位" }
+  val slot = state.selectedSlot
+  val time = slot?.let { "${it.start}-${it.end}" } ?: "未选择时段"
+  return listOf(place, state.selectedDay, time).filter { it.isNotBlank() }.joinToString(" · ")
 }

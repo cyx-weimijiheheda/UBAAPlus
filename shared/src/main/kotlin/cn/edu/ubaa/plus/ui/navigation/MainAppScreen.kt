@@ -29,6 +29,7 @@ import cn.edu.ubaa.plus.api.storage.BykcCourseFilterStore
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
+import cn.edu.ubaa.plus.model.dto.LibBookGeoPoint
 import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
@@ -56,7 +57,7 @@ import cn.edu.ubaa.plus.ui.screens.grade.GradeViewModel
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeViewModel
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookCardAction
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
-import cn.edu.ubaa.plus.ui.screens.libbook.selectHomeLibBookBooking
+import cn.edu.ubaa.plus.ui.screens.libbook.selectCurrentLibBookBooking
 import cn.edu.ubaa.plus.ui.screens.library.LibraryBorrowViewModel
 import cn.edu.ubaa.plus.ui.screens.menu.*
 import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel
@@ -247,15 +248,41 @@ fun MainAppScreen(
   val libBookViewModel: LibBookViewModel =
       viewModel(key = "libbook-${userData.schoolid}") {
         LibBookViewModel(
-            notifyResult = { notice -> LibBookNotifications.notifyResult(appContext, notice) }
+            notifyResult = { notice -> LibBookNotifications.notifyResult(appContext, notice) },
+            locationProvider = {
+              if (hasLocationPermission(appContext)) currentLocationPoint(appContext) else null
+            },
         )
       }
   val libBookUiState by libBookViewModel.uiState.collectAsState()
+  // 首页展示「当前预约」：不再限定必须是今天，跨天未结束的预约也要能一眼看到。
   val homeLibBookBooking =
       remember(libBookUiState.bookings.bookings, homeNow) {
-        val today = Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai")).date.toString()
-        selectHomeLibBookBooking(libBookUiState.bookings.bookings, today)
+        selectCurrentLibBookBooking(libBookUiState.bookings.bookings)
       }
+  // 图书馆座位扫码：与「我的座位预约」一致，先取定位再扫码，结果交给 ViewModel 识别座位。
+  val libBookScanOptions = remember {
+    ScanOptions()
+        .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+        .setPrompt("将座位二维码放入框内")
+        .setBeepEnabled(false)
+        .setOrientationLocked(true)
+  }
+  var libBookScanPoint by remember { mutableStateOf<LibBookGeoPoint?>(null) }
+  val libBookScanLauncher =
+      rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents
+            ?.takeIf { it.isNotBlank() }
+            ?.let { raw -> libBookViewModel.handleSeatQrScan(raw, libBookScanPoint) }
+      }
+  val libBookScanRequest: () -> Unit = {
+    scope.launch {
+      libBookScanPoint =
+          if (hasLocationPermission(appContext)) currentLocationPoint(appContext) else null
+      libBookScanLauncher.launch(libBookScanOptions)
+    }
+  }
+
   val classroomViewModel: ClassroomViewModel? =
       if (currentScreen == AppScreen.CLASSROOM_QUERY) {
         viewModel(key = "classroom") { ClassroomViewModel() }
@@ -914,6 +941,13 @@ fun MainAppScreen(
                 IconButton(onClick = { showVenueMembershipCodeDialog = true }) {
                   Icon(Icons.Default.QrCode2, contentDescription = "会员预约码")
                 }
+              } else if (currentScreen == AppScreen.LIBBOOK_RESERVE) {
+                IconButton(
+                    onClick = libBookScanRequest,
+                    enabled = !libBookUiState.isSeatActionSubmitting,
+                ) {
+                  Icon(Icons.Default.QrCodeScanner, contentDescription = "扫码操作")
+                }
               } else if (currentScreen == AppScreen.HOME || currentScreen == AppScreen.REGULAR) {
                 IconButton(onClick = { genericScanLauncher.launch(genericScanOptions) }) {
                   Icon(Icons.Default.QrCodeScanner, contentDescription = "扫一扫")
@@ -1008,6 +1042,7 @@ fun MainAppScreen(
                 libBookViewModel.ensureBookingsLoaded()
                 navigateTo(AppScreen.LIBBOOK_BOOKINGS)
               },
+              onLibBookScanRequest = libBookScanRequest,
               onConnectionModeSelected = onConnectionModeSelected,
               onFeatureLongPressWeb = { feature -> feature.webUrl?.let(::openUrl) },
               onOpenUrl = { openUrl(it) },

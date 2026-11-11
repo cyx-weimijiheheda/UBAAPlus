@@ -18,28 +18,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -65,13 +59,10 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalTime::class)
 @Composable
@@ -79,8 +70,6 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
   val uiState by viewModel.uiState.collectAsState()
   val context = LocalContext.current
   val coroutineScope = rememberCoroutineScope()
-  var selectedTab by remember { mutableIntStateOf(0) }
-  var showRules by remember { mutableStateOf(false) }
   var pendingCancel by remember { mutableStateOf<LibBookBookingDto?>(null) }
   var now by remember { mutableStateOf(currentLibBookNow()) }
   var pendingScanPoint by remember { mutableStateOf<LibBookGeoPoint?>(null) }
@@ -175,9 +164,9 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
   UbaaToastEffect(uiState.actionMessage) { viewModel.clearActionMessage() }
   UbaaToastEffect(uiState.bookingsError) {}
 
-  val current = uiState.bookings.bookings.filter { !it.isTerminalBooking() }
+  // 这页只看历史：进行中的预约在座位主界面顶部的当前预约卡片里。
   val history = uiState.bookings.bookings.filter { it.isTerminalBooking() }
-  val shown = if (selectedTab == 0) current else history
+  val shown = history
 
   Scaffold(
       containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -202,35 +191,11 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
           item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Text(
-                  "预约记录",
-                  style = MaterialTheme.typography.titleMedium,
-                  fontWeight = FontWeight.Bold,
-              )
-              Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = { showRules = true }) { Text("座位规则") }
-                AssistChip(onClick = { launchScan() }, label = { Text("扫码操作") })
-              }
-            }
-          }
-          item {
-            TabRow(selectedTabIndex = selectedTab) {
-              Tab(
-                  selected = selectedTab == 0,
-                  onClick = { selectedTab = 0 },
-                  text = { Text("当前预约（${current.size}）") },
-              )
-              Tab(
-                  selected = selectedTab == 1,
-                  onClick = { selectedTab = 1 },
-                  text = { Text("历史记录（${history.size}）") },
-              )
-            }
+            Text(
+                "历史预约（${history.size}）",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
           }
           if (uiState.bookingsError != null && uiState.bookings.bookings.isEmpty()) {
             item {
@@ -242,7 +207,7 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
           } else if (shown.isEmpty()) {
             item {
               Text(
-                  text = if (selectedTab == 0) "当前暂无图书馆座位预约" else "暂无历史预约记录",
+                  text = "暂无历史预约记录",
                   color = MaterialTheme.colorScheme.onSurfaceVariant,
               )
             }
@@ -273,24 +238,6 @@ fun LibBookBookingsScreen(viewModel: LibBookViewModel) {
         }
       }
     }
-  }
-
-  if (showRules) {
-    AlertDialog(
-        onDismissRequest = { showRules = false },
-        title = { Text("图书馆座位使用规则") },
-        text = {
-          Column(
-              modifier = Modifier.verticalScroll(rememberScrollState()),
-              verticalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            LIB_BOOK_RULES.forEachIndexed { index, rule ->
-              Text("${index + 1}. $rule", style = MaterialTheme.typography.bodyMedium)
-            }
-          }
-        },
-        confirmButton = { TextButton(onClick = { showRules = false }) { Text("知道了") } },
-    )
   }
 
   pendingCancel?.let { booking ->
@@ -530,10 +477,6 @@ private fun LibBookBookingCard(
     }
   }
 }
-
-@OptIn(ExperimentalTime::class)
-private fun currentLibBookNow(): LocalDateTime =
-    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
 private val LIB_BOOK_LOCATION_PERMISSIONS =
     arrayOf(

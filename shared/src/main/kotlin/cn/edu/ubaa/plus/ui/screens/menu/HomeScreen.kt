@@ -114,25 +114,26 @@ internal fun HomeScreen(
     ) {
       item {
         Column(modifier = Modifier.padding(top = 16.dp)) {
+          // 标题字号与「今日课程考勤」「待办区」保持一致，并与下方日期底部对齐。
           Row(
               horizontalArrangement = Arrangement.spacedBy(8.dp),
-              verticalAlignment = Alignment.CenterVertically,
+              verticalAlignment = Alignment.Bottom,
           ) {
             Text(
                 text = "今日课表",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
             if (isLoading && sortedClasses.isEmpty()) {
               HomeSectionLoadingChip(text = "加载中")
             }
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = formatUbaaDate(today),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
           }
-          Spacer(modifier = Modifier.height(4.dp))
-          Text(
-              text = formatUbaaDate(today),
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
         }
       }
 
@@ -212,16 +213,13 @@ internal fun HomeScreen(
                 HomeSectionLoadingChip(text = "后台加载中")
               }
             }
-            Text(
-                text =
-                    if (todoLoadingSummary.isNotBlank()) {
-                      "正在加载 $todoLoadingSummary"
-                    } else {
-                      "聚合近期需要处理的课程和任务"
-                    },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (todoLoadingSummary.isNotBlank()) {
+              Text(
+                  text = "正在加载 $todoLoadingSummary",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
           }
         }
       }

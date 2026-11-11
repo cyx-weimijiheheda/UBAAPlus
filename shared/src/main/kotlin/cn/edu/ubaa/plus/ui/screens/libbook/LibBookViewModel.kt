@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -53,6 +54,12 @@ data class LibBookUiState(
     val seatActionContext: LibBookQrScanResultDto? = null,
     val pendingSeatAction: LibBookSeatAction? = null,
     val isSeatActionSubmitting: Boolean = false,
+    /** 座位网格当前页（8 列 × 4 行）。 */
+    val seatPage: Int = 0,
+    /** 首页/顶部卡片计算倒计时用的当前时间。 */
+    val now: LocalDateTime = currentLibBookNow(),
+    /** 正在为座位操作获取定位。 */
+    val isLocatingForAction: Boolean = false,
 )
 
 /**
@@ -70,6 +77,8 @@ data class LibBookNotice(
 class LibBookViewModel(
     private val libBookApi: LibBookApi = LibBookApi(),
     private val notifyResult: (LibBookNotice) -> Unit = {},
+    /** 定位提供者由界面层注入，ViewModel 不直接依赖 Android 定位 API。 */
+    private val locationProvider: suspend () -> LibBookGeoPoint? = { null },
     private val currentDateProvider: () -> String = {
       val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
       val month = (now.month.ordinal + 1).toString().padStart(2, '0')
@@ -633,6 +642,47 @@ class LibBookViewModel(
     }
   }
 
+  /** 切换座位页；同时清掉跨页仍保留的选中项，避免误提交看不到的座位。 */
+  fun setSeatPage(page: Int) {
+    _uiState.value = _uiState.value.copy(seatPage = page, selectedSeatId = null)
+  }
+
+  /** 顶部当前预约卡片上的操作。扫码签到统一走主界面右上角入口。 */
+  fun handleCurrentCardAction(action: LibBookCardAction, bookingId: String?) {
+    val booking = _uiState.value.bookings.bookings.firstOrNull { it.id == bookingId } ?: return
+    when (action) {
+      LibBookCardAction.CANCEL -> cancelBooking(booking.id)
+      LibBookCardAction.RETURN_SIGN_IN -> {
+        if (prepareReturnSignIn(booking)) requestLocatedSeatAction(LibBookSeatAction.RETURN_SIGN_IN)
+      }
+      LibBookCardAction.LEAVE -> {
+        requestSeatActionForBooking(booking, LibBookSeatAction.LEAVE)
+        continueLocatedSeatAction(LibBookSeatAction.LEAVE)
+      }
+      LibBookCardAction.CHECKOUT -> {
+        requestSeatActionForBooking(booking, LibBookSeatAction.CHECKOUT)
+        continueLocatedSeatAction(LibBookSeatAction.CHECKOUT)
+      }
+      LibBookCardAction.SIGN_IN -> Unit
+    }
+  }
+
+  /** 直接提交需要定位的操作；定位由界面层注入 [locationProvider]。 */
+  fun continueLocatedSeatAction(action: LibBookSeatAction) {
+    if (_uiState.value.isLocatingForAction) return
+    _uiState.value = _uiState.value.copy(isLocatingForAction = true)
+    viewModelScope.launch {
+      val point = runCatching { locationProvider() }.getOrNull()
+      _uiState.value = _uiState.value.copy(isLocatingForAction = false)
+      submitSeatAction(action, point)
+    }
+  }
+
+  /** 需要定位的操作入口（返回签到 / 扫码签到）。 */
+  fun requestLocatedSeatAction(action: LibBookSeatAction) {
+    continueLocatedSeatAction(action)
+  }
+
   private fun seatActionOutcome(
       action: LibBookSeatAction,
       succeeded: Boolean,
@@ -666,6 +716,10 @@ class LibBookViewModel(
     return preferredStoreyId?.takeIf { id -> storeys.any { it.id == id } } ?: storeys.first().id
   }
 }
+
+/** ViewModel 与界面共用的当前时间。 */
+internal fun currentLibBookNow(): LocalDateTime =
+    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
 val LibBookUiState.selectedLibrary: LibBookLibraryDto?
   get() = libraries.firstOrNull { it.id == selectedLibraryId }
