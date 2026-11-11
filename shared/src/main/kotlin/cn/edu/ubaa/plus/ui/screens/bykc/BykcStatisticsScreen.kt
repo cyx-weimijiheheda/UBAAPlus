@@ -19,6 +19,8 @@ import cn.edu.ubaa.plus.model.dto.BykcCategoryStatisticsDto
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun BykcStatisticsScreen(viewModel: BykcViewModel) {
@@ -53,10 +55,12 @@ fun BykcStatisticsScreen(viewModel: BykcViewModel) {
           // 累计有效计数卡片
           item {
             Card(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                // 外边距在前，磨砂在后；主色底用半透明以保留磨砂质感。
+                modifier = Modifier.padding(bottom = 16.dp).ubaaGlassSurface().fillMaxWidth(),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                        containerColor =
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.86f)
                     ),
             ) {
               Column(
@@ -81,7 +85,8 @@ fun BykcStatisticsScreen(viewModel: BykcViewModel) {
           // 统计报表
           item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                colors = ubaaGlassCardColors(),
+                modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             ) {
               Column {

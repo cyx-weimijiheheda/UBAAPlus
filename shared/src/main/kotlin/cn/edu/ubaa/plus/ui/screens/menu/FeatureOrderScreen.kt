@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /**
  * 功能排序与显示。
@@ -185,7 +186,7 @@ private fun FeatureOrderRow(
     onVisibilityChange: (Boolean) -> Unit,
 ) {
   Card(
-      modifier = Modifier.fillMaxWidth().height(RowHeight),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth().height(RowHeight),
       colors =
           CardDefaults.cardColors(
               containerColor =

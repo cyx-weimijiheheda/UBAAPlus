@@ -23,6 +23,8 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun BykcChosenCoursesScreen(
@@ -82,7 +84,8 @@ fun BykcChosenCourseCard(
     modifier: Modifier = Modifier,
 ) {
   Card(
-      modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+      colors = ubaaGlassCardColors(),
+      modifier = modifier.ubaaGlassSurface().fillMaxWidth().clickable(onClick = onClick),
       shape = RoundedCornerShape(12.dp),
       elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 data class FeatureItem(
     val id: String,
@@ -273,8 +274,10 @@ private fun FeatureCard(
 ) {
   var cardPosition by remember { mutableStateOf(Offset.Zero) }
   Card(
+      colors = ubaaGlassCardColors(),
       modifier =
           modifier
+              .ubaaGlassSurface()
               .fillMaxWidth()
               .heightIn(min = 160.dp)
               .onGloballyPositioned { cardPosition = it.positionInRoot() }
@@ -284,7 +287,6 @@ private fun FeatureCard(
                     onLongPress = { offset -> onLongPress(cardPosition + offset) },
                 )
               },
-      colors = ubaaGlassCardColors(),
       elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
   ) {
     Column(
@@ -330,8 +332,10 @@ private fun FeatureCompactRow(
 ) {
   var rowPosition by remember { mutableStateOf(Offset.Zero) }
   Card(
+      colors = ubaaGlassCardColors(),
       modifier =
           modifier
+              .ubaaGlassSurface()
               .fillMaxWidth()
               .onGloballyPositioned { rowPosition = it.positionInRoot() }
               .pointerInput(feature.id) {
@@ -340,7 +344,6 @@ private fun FeatureCompactRow(
                     onLongPress = { offset -> onLongPress(rowPosition + offset) },
                 )
               },
-      colors = ubaaGlassCardColors(),
   ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),

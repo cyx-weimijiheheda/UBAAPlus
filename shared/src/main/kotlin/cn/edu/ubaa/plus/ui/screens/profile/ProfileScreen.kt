@@ -27,6 +27,7 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.random.Random
 import kotlinx.coroutines.delay
 
@@ -64,7 +65,7 @@ fun ProfileScreen(
   ) {
     item {
       Card(
-          modifier = Modifier.fillMaxWidth(),
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
           colors =
               CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
       ) {
@@ -103,7 +104,7 @@ fun ProfileScreen(
 
     item {
       Card(
-          modifier = Modifier.fillMaxWidth().clickable { nextQuip() },
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth().clickable { nextQuip() },
           colors =
               CardDefaults.cardColors(
                   containerColor = MaterialTheme.colorScheme.secondaryContainer

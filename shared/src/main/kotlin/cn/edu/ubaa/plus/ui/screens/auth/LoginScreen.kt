@@ -222,9 +222,13 @@ fun LoginScreen(
 
       error?.let { msg ->
         Card(
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            // 外边距放在磨砂层之前，否则玻璃会把 16dp 间距一起画上。
+            modifier = Modifier.padding(top = 16.dp).ubaaGlassSurface().fillMaxWidth(),
+            // 语义色（错误提示）保留，但用半透明让磨砂透出来。
             colors =
-                CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.86f)
+                ),
         ) {
           Text(
               text = msg,

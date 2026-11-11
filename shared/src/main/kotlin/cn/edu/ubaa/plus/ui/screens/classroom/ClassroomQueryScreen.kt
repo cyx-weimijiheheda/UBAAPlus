@@ -22,8 +22,11 @@ import cn.edu.ubaa.plus.model.dto.ClassroomInfo
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -82,13 +85,13 @@ fun ClassroomQueryScreen(
   }
 
   Column(modifier = modifier.fillMaxSize()) {
-    Surface(tonalElevation = 2.dp, shadowElevation = 1.dp) {
-      Row(Modifier.fillMaxWidth().padding(8.dp), Arrangement.SpaceEvenly) {
-        CampusButton("学院路", 1, xqid == 1) { viewModel.setXqid(1) }
-        CampusButton("沙河", 2, xqid == 2) { viewModel.setXqid(2) }
-        CampusButton("杭州", 3, xqid == 3) { viewModel.setXqid(3) }
-      }
-    }
+    // 校区切换改用圆角分段选择器，与图书借阅的栏目切换保持一致。
+    UbaaSegmentedTabs(
+        labels = listOf("学院路", "沙河", "杭州"),
+        selectedIndex = (xqid - 1).coerceIn(0, 2),
+        onSelected = { index -> viewModel.setXqid(index + 1) },
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+    )
 
     Row(
         Modifier.fillMaxWidth().padding(16.dp, 8.dp),
@@ -97,7 +100,8 @@ fun ClassroomQueryScreen(
     ) {
       OutlinedCard(
           onClick = { showDatePicker = true },
-          Modifier.weight(1f),
+          modifier = Modifier.ubaaGlassSurface().weight(1f),
+          colors = ubaaGlassCardColors(),
           shape = RoundedCornerShape(12.dp),
       ) {
         Row(

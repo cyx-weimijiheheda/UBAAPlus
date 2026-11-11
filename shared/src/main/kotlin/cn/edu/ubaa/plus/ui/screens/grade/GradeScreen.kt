@@ -35,6 +35,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun GradeScreen(viewModel: GradeViewModel) {
@@ -117,7 +118,7 @@ private fun GradeSummaryCard(
     isLoading: Boolean = false,
 ) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
   ) {
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -230,8 +231,9 @@ internal fun gradeDetailRows(grade: Grade): List<GradeDetailRow> =
 @Composable
 private fun GradeBadge(score: String?) {
   Card(
+      modifier = Modifier.ubaaGlassSurface(),
       colors =
-          CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+          CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
   ) {
     Row(
         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.ui.common.components.GrabConfirmDialog
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.datetime.LocalDateTime
 
 /**
@@ -67,7 +68,7 @@ fun BykcGrabPanel(
       }
 
   Card(
-      modifier = modifier.fillMaxWidth(),
+      modifier = modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
           CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
   ) {

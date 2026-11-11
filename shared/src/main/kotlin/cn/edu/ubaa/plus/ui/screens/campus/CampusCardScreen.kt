@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import java.util.Locale
 
 @Composable
@@ -74,10 +75,11 @@ fun CampusCardScreen(
         state.error?.let { error ->
           item {
             Card(
+                modifier = Modifier.ubaaGlassSurface(),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                    ),
             ) {
               Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                 Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
@@ -90,7 +92,7 @@ fun CampusCardScreen(
         state.balance?.let { balance ->
           item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer

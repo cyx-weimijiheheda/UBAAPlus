@@ -34,6 +34,7 @@ import cn.edu.ubaa.plus.api.feature.CampusTrafficDto
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import java.util.Locale
 
 @Composable
@@ -86,10 +87,11 @@ fun CampusNetworkScreen(
         state.error?.let { error ->
           item {
             Card(
+                modifier = Modifier.ubaaGlassSurface(),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                    ),
             ) {
               Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                 Text(error, color = MaterialTheme.colorScheme.onErrorContainer)

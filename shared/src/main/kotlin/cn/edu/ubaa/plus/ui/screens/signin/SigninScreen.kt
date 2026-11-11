@@ -18,6 +18,7 @@ import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.model.format.formatUbaaTime
 import cn.edu.ubaa.plus.model.format.parseUbaaDate
 import cn.edu.ubaa.plus.model.format.parseUbaaTime
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /** 课堂签到主界面。 展示今日课程列表并提供一键签到按钮。 */
 @Composable
@@ -92,7 +93,7 @@ internal fun formatSigninTimeRange(beginRaw: String, endRaw: String): String {
 fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningIn: Boolean) {
   val isSigned = clazz.signStatus == 1
   Card(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
           CardDefaults.cardColors(
               containerColor =

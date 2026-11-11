@@ -123,7 +123,12 @@ Card(
 
 - **`.ubaaGlassSurface()` 必须排在 modifier 链最前面。** Compose 的背景按节点最终尺寸绘制，
   排在 `padding()` 之后只会覆盖内边距以内，看起来像「磨砂比卡片小一圈、居中」。
+  只有当 `padding()` 是**外边距**（卡片之间的间距）时才放在磨砂之前，例如
+  `Modifier.padding(top = 16.dp).ubaaGlassSurface().fillMaxWidth()`；
+  作为内容内边距的 padding 一律放磨砂之后。
 - **卡片不要再加 `BorderStroke`**，磨砂层自带描边，叠加会出现双线。
+  语义色卡片（错误提示、主色高亮）保留底色，但把 `containerColor` 设为半透明（如 `.copy(alpha = 0.86f)`），
+  否则不透明底会把磨砂完全盖住。
   反之，`OutlinedButton` 这类会自绘描边的控件不要把磨砂直接挂上去（描边内缩会让玻璃显得偏大），
   应把磨砂挂在外层容器，控件本身设 `border = null`、`containerColor = Color.Transparent`。
 

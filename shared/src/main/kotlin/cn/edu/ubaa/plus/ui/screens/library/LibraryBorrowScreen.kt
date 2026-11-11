@@ -90,10 +90,11 @@ fun LibraryBorrowScreen(
                 item {
                   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Card(
+                        modifier = Modifier.ubaaGlassSurface(),
                         colors =
                             CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer
-                            )
+                            ),
                     ) {
                       Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                         Text(

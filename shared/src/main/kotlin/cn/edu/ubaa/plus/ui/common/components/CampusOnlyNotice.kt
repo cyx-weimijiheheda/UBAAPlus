@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /** 提示某项服务只能在校园网环境使用。 */
 @Composable
@@ -26,7 +27,7 @@ fun CampusOnlyNotice(
     modifier: Modifier = Modifier,
 ) {
   Card(
-      modifier = modifier.fillMaxWidth(),
+      modifier = modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
           CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
   ) {

@@ -5,9 +5,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -149,16 +155,22 @@ fun CourseDetailDialog(info: CourseDetailInfo, onDismiss: () -> Unit) {
         }
       },
       confirmButton = {
+        // 与其他卡片一致：复制与添加到日历都用图标，不再占文字按钮的位置。
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-          TextButton(
+          IconButton(
               onClick = {
                 clipboard.setText(AnnotatedString(info.toClipboardText()))
                 UbaaToast.show("课程信息已复制")
-              }
+              },
+              modifier = Modifier.size(32.dp),
           ) {
-            Text("复制详细信息")
+            Icon(
+                imageVector = Icons.Default.ContentCopy,
+                contentDescription = "复制详细信息",
+                modifier = Modifier.size(18.dp),
+            )
           }
-          TextButton(
+          IconButton(
               onClick = {
                 val ok =
                     addCourseToCalendar(
@@ -171,9 +183,14 @@ fun CourseDetailDialog(info: CourseDetailInfo, onDismiss: () -> Unit) {
                         endTime = info.endTime,
                     )
                 UbaaToast.show(if (ok) "已打开日历" else "未找到可用的日历应用")
-              }
+              },
+              modifier = Modifier.size(32.dp),
           ) {
-            Text("添加到日历")
+            Icon(
+                imageVector = Icons.Default.Event,
+                contentDescription = "添加到日历",
+                modifier = Modifier.size(18.dp),
+            )
           }
         }
       },

@@ -69,6 +69,7 @@ import cn.edu.ubaa.plus.shared.R
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun LibBookReserveScreen(
@@ -458,7 +459,10 @@ private fun SeatGrid(
         rowSeats.forEach { seat ->
           val selected = seat.id == selectedSeatId
           ElevatedCard(
-              modifier = Modifier.weight(1f).height(44.dp).clickable { onSeatClick(seat.id) },
+              modifier =
+                  Modifier.ubaaGlassSurface().weight(1f).height(44.dp).clickable {
+                    onSeatClick(seat.id)
+                  },
               shape = RoundedCornerShape(8.dp),
               colors =
                   CardDefaults.elevatedCardColors(

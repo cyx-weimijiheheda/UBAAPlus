@@ -66,7 +66,7 @@ fun VenueGrabPanel(
           grabState.phase == VenueGrabPhase.NEEDS_CAPTCHA
 
   Card(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
           CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
   ) {

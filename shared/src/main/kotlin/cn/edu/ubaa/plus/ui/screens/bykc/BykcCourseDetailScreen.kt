@@ -20,6 +20,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
@@ -131,7 +132,7 @@ fun BykcCourseDetailScreen(
           ) {
             item {
               Card(
-                  modifier = Modifier.fillMaxWidth(),
+                  modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                   colors =
                       CardDefaults.cardColors(
                           containerColor = MaterialTheme.colorScheme.primaryContainer

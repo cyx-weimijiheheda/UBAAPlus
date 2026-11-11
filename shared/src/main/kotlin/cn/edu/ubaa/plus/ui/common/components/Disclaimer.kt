@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /** 抢课/抢场地确认弹窗中反复使用的简短免责声明。 */
 const val GRAB_DISCLAIMER =
@@ -88,7 +89,7 @@ fun GrabConfirmDialog(
           }
           Spacer(modifier = Modifier.height(12.dp))
           Card(
-              modifier = Modifier.fillMaxWidth(),
+              modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
               colors =
                   CardDefaults.cardColors(
                       containerColor = MaterialTheme.colorScheme.errorContainer

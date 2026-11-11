@@ -45,6 +45,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /** 智慧教室：今日课程一键签到 + 本学期考勤查询。扫码入口在标题栏。 */
 @Composable
@@ -74,7 +75,7 @@ fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode)
         if (connectionMode != ConnectionMode.WEBVPN) {
           item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
@@ -245,7 +246,7 @@ private fun EmptyHint(text: String) {
 @Composable
 private fun RetryRow(message: String, onRetry: () -> Unit) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
@@ -263,7 +264,7 @@ private fun RetryRow(message: String, onRetry: () -> Unit) {
 private fun AttendanceRecordCard(record: IclassAttendanceRecordDto) {
   val signed = record.signStatus == 1
   Card(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
           CardDefaults.cardColors(
               containerColor =

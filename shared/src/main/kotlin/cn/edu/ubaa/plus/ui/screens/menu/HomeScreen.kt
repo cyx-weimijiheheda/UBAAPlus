@@ -499,7 +499,7 @@ private fun HomeTodoCard(item: HomeTodoItem, onClick: () -> Unit) {
 @Composable
 private fun HomeErrorCard(message: String, onRetry: () -> Unit) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
   ) {
     Column(

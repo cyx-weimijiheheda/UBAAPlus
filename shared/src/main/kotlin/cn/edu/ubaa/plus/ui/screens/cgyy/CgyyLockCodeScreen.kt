@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -62,7 +63,7 @@ fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
                 color = MaterialTheme.colorScheme.primary,
             )
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer

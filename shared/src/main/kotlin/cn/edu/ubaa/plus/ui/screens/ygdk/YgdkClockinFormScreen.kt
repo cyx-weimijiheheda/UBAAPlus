@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.YgdkItemDto
 import cn.edu.ubaa.plus.ui.common.util.PlatformImagePicker
 import cn.edu.ubaa.plus.ui.common.util.formatImageSize
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.math.abs
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -142,7 +143,7 @@ fun YgdkClockinFormScreen(
       Card(
           colors =
               CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-          modifier = Modifier.fillMaxWidth(),
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       ) {
         Text(
             text = YGDK_FORM_HINT,
@@ -155,7 +156,7 @@ fun YgdkClockinFormScreen(
         Card(
             colors =
                 CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
         ) {
           Text(
               text = it,
@@ -269,7 +270,7 @@ fun YgdkClockinFormScreen(
           uiState.form.photo?.let { photo ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
             ) {
               Row(
                   modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -480,7 +481,7 @@ private fun YgdkWheelPicker(
         contentAlignment = Alignment.Center,
     ) {
       Card(
-          modifier = Modifier.fillMaxWidth().height(rowHeight),
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth().height(rowHeight),
           colors =
               CardDefaults.cardColors(
                   containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)

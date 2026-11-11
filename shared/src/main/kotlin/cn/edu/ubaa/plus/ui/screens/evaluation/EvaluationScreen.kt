@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.evaluation.EvaluationCourse
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /**
  * 自动评教功能的主屏幕组件。 展示待评教课程列表，允许用户选择部分课程并一键执行自动评教。 在评教过程中展示进度条，完成后展示结果汇总。
@@ -263,7 +264,7 @@ fun EvaluationProgressCard(
     modifier: Modifier = Modifier,
 ) {
   Card(
-      modifier = modifier.fillMaxWidth(),
+      modifier = modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
           CardDefaults.cardColors(
               containerColor =

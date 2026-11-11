@@ -134,10 +134,11 @@ fun DormElectricityScreen(
         state.queryError?.let { error ->
           item {
             Card(
+                modifier = Modifier.ubaaGlassSurface(),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                    ),
             ) {
               Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                 Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
