@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
@@ -137,6 +138,7 @@ fun VenueGrabPanel(
 
         if (!alreadyReleased && state.useSchedule) {
           OutlinedTextField(
+              shape = RoundedCornerShape(14.dp),
               value = state.grabAtText,
               onValueChange = onGrabAtChange,
               label = { Text("开抢时间 HH:mm[:ss]") },
@@ -146,6 +148,7 @@ fun VenueGrabPanel(
         }
 
         OutlinedTextField(
+            shape = RoundedCornerShape(14.dp),
             value = state.pollIntervalText,
             onValueChange = { value ->
               if (value.isEmpty() || value.matches(Regex("^\\d{0,2}(\\.\\d{0,2})?$"))) {

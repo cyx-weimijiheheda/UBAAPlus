@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -121,6 +122,7 @@ fun LoginScreen(
       }
 
       OutlinedTextField(
+          shape = RoundedCornerShape(14.dp),
           value = loginFormState.username,
           onValueChange = onUsernameChange,
           label = { Text("学号") },
@@ -130,6 +132,7 @@ fun LoginScreen(
       )
 
       OutlinedTextField(
+          shape = RoundedCornerShape(14.dp),
           value = loginFormState.password,
           onValueChange = onPasswordChange,
           label = { Text("密码") },
@@ -146,6 +149,7 @@ fun LoginScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
           OutlinedTextField(
+              shape = RoundedCornerShape(14.dp),
               value = loginFormState.captcha,
               onValueChange = onCaptchaChange,
               label = { Text("验证码") },

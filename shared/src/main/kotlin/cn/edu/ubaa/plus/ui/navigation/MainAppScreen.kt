@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus.ui.navigation
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -64,6 +65,7 @@ import cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel
 import cn.edu.ubaa.plus.ui.screens.signin.SigninViewModel
 import cn.edu.ubaa.plus.ui.screens.spoc.SpocViewModel
 import cn.edu.ubaa.plus.ui.screens.venue.VenueMembershipCodeDialog
+import cn.edu.ubaa.plus.ui.screens.venue.VenueOrderHistoryUiState
 import cn.edu.ubaa.plus.ui.screens.venue.VenueViewModel
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkUiState
 import cn.edu.ubaa.plus.ui.screens.ygdk.YgdkViewModel
@@ -168,7 +170,9 @@ fun MainAppScreen(
   var hasVisitedVenue by remember { mutableStateOf(false) }
   val shouldKeepCgyyViewModel =
       currentScreen == AppScreen.HOME || hasVisitedCgyy || currentScreen in cgyyScreens
-  val shouldKeepVenueViewModel = hasVisitedVenue || currentScreen == AppScreen.VENUE_HOME
+  // 首页待办要展示已预约的运动场地，所以 HOME 页面也需要保留这个 ViewModel。
+  val shouldKeepVenueViewModel =
+      hasVisitedVenue || currentScreen == AppScreen.VENUE_HOME || currentScreen == AppScreen.HOME
 
   // 初始化各模块 ViewModel
   val scheduleViewModel: ScheduleViewModel = viewModel { ScheduleViewModel() }
@@ -327,6 +331,9 @@ fun MainAppScreen(
       } else {
         null
       }
+  val venueOrderHistoryState =
+      venueViewModel?.orderHistoryState?.collectAsState()?.value ?: VenueOrderHistoryUiState()
+  val venueOrders = venueOrderHistoryState.records
   val bykcCoursesState by bykcViewModel.coursesState.collectAsState()
   val bykcDetailState by bykcViewModel.courseDetailState.collectAsState()
   val bykcChosenState by bykcViewModel.chosenCoursesState.collectAsState()
@@ -429,6 +436,7 @@ fun MainAppScreen(
             spocAssignments = spocUiState.assignmentsResponse?.assignments.orEmpty(),
             judgeAssignments = judgeUiState.assignmentsResponse?.assignments.orEmpty(),
             cgyyOrders = cgyyUiState.orders.content,
+            venueOrders = venueOrders,
             ygdkOverview = ygdkUiState.overview,
             currentWeek = currentWeek,
             ygdkReminderEnabled = ygdkUiState.homeReminderEnabled,
@@ -484,6 +492,7 @@ fun MainAppScreen(
             loadJudge = { force -> judgeViewModel.ensureAssignmentsLoaded(forceRefresh = force) },
             loadBykc = { force -> bykcViewModel.ensureChosenCoursesLoaded(forceRefresh = force) },
             loadCgyy = { force -> cgyyViewModel?.ensureOrdersLoaded(forceRefresh = force) },
+            loadVenueOrders = { _ -> venueViewModel?.refreshOrdersForHome() },
             loadLibBook = { force -> libBookViewModel.ensureBookingsLoaded(forceRefresh = force) },
             loadYgdk = { force ->
               scheduleViewModel.ensureCurrentWeekLoaded(forceRefresh = force)
@@ -585,6 +594,7 @@ fun MainAppScreen(
         cgyyViewModel?.ensureOrdersLoaded()
         navigateTo(AppScreen.CGYY_ORDERS)
       }
+      HomeTodoAction.OpenVenueHome -> navigateTo(AppScreen.VENUE_HOME)
       HomeTodoAction.OpenYgdkHome -> navigateTo(AppScreen.YGDK_HOME)
     }
   }
@@ -877,6 +887,7 @@ fun MainAppScreen(
                 Box {
                   TextButton(
                       onClick = { showExamTermMenu = true },
+                      shape = RoundedCornerShape(14.dp),
                       colors =
                           ButtonDefaults.textButtonColors(
                               contentColor = MaterialTheme.colorScheme.primary

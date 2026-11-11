@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -143,6 +144,7 @@ private fun SearchJudgeAssignmentsDialog(
       title = { Text("搜索作业") },
       text = {
         OutlinedTextField(
+            shape = RoundedCornerShape(14.dp),
             value = query,
             onValueChange = { query = it },
             label = { Text("课程名称或作业标题") },

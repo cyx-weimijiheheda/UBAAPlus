@@ -139,21 +139,21 @@ data class VenuePayResult(
 
 /** 一条运动场地预约记录。字段可能缺失，展示时按空值降级。 */
 data class VenueOrderRecord(
-    val id: Long?,
-    val tradeNo: String?,
-    val campusName: String?,
-    val venueName: String?,
-    val siteName: String?,
-    val spaceName: String?,
-    val reservationDate: String?,
-    val reservationDateDetail: String?,
-    val reservationStartDate: String?,
-    val reservationEndDate: String?,
-    val amountFee: Double?,
-    val payStatus: Int?,
-    val orderStatus: Int?,
-    val orderType: Int?,
-    val createDate: String?,
+    val id: Long? = null,
+    val tradeNo: String? = null,
+    val campusName: String? = null,
+    val venueName: String? = null,
+    val siteName: String? = null,
+    val spaceName: String? = null,
+    val reservationDate: String? = null,
+    val reservationDateDetail: String? = null,
+    val reservationStartDate: String? = null,
+    val reservationEndDate: String? = null,
+    val amountFee: Double? = null,
+    val payStatus: Int? = null,
+    val orderStatus: Int? = null,
+    val orderType: Int? = null,
+    val createDate: String? = null,
 )
 
 /** 预约记录分页结果。 */

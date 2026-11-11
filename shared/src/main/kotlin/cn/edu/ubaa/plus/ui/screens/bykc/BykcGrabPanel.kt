@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Stop
@@ -139,6 +140,7 @@ fun BykcGrabPanel(
           verticalAlignment = Alignment.CenterVertically,
       ) {
         OutlinedTextField(
+            shape = RoundedCornerShape(14.dp),
             value = retrySeconds,
             onValueChange = { value ->
               if (value.isEmpty() || value.matches(Regex("^\\d{0,2}(\\.\\d{0,2})?$"))) {

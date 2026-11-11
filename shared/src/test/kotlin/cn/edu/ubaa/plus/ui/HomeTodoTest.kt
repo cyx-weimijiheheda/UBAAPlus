@@ -1,5 +1,6 @@
 package cn.edu.ubaa.plus.ui
 
+import cn.edu.ubaa.plus.api.venue.VenueOrderRecord
 import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
@@ -18,6 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.datetime.LocalDateTime
 
 class HomeTodoTest {
@@ -338,5 +340,107 @@ class HomeTodoTest {
             serialNumber = serialNumber,
             name = "第${serialNumber}周",
         )
+  }
+
+  @Test
+  fun `已预约的运动场地进入待办`() {
+    val now = LocalDateTime.parse("2026-03-24T09:00:00")
+    val items =
+        buildHomeTodoItems(
+            bykcCourses = emptyList(),
+            spocAssignments = emptyList(),
+            judgeAssignments = emptyList(),
+            cgyyOrders = emptyList(),
+            venueOrders =
+                listOf(
+                    VenueOrderRecord(
+                        id = 7,
+                        tradeNo = "T7",
+                        campusName = "学院路",
+                        venueName = "体育馆",
+                        siteName = "羽毛球1号场",
+                        spaceName = "羽毛球",
+                        reservationStartDate = "2026-03-24 14:00:00",
+                        reservationEndDate = "2026-03-24 15:00:00",
+                        payStatus = 2,
+                        orderStatus = 1,
+                    )
+                ),
+            now = now,
+        )
+
+    val item = items.single { it.source == HomeTodoSource.VENUE }
+    assertEquals("体育馆 / 羽毛球1号场", item.title)
+    assertEquals("待使用", item.statusLabel)
+    assertIs<HomeTodoAction.OpenVenueHome>(item.action)
+  }
+
+  @Test
+  fun `运动场地未支付显示待支付`() {
+    val now = LocalDateTime.parse("2026-03-24T09:00:00")
+    val item =
+        buildHomeTodoItems(
+                bykcCourses = emptyList(),
+                spocAssignments = emptyList(),
+                judgeAssignments = emptyList(),
+                cgyyOrders = emptyList(),
+                venueOrders =
+                    listOf(
+                        VenueOrderRecord(
+                            id = 8,
+                            venueName = "体育馆",
+                            siteName = "篮球场",
+                            reservationStartDate = "2026-03-24 16:00:00",
+                            reservationEndDate = "2026-03-24 17:00:00",
+                            payStatus = 1,
+                            orderStatus = 1,
+                        )
+                    ),
+                now = now,
+            )
+            .single { it.source == HomeTodoSource.VENUE }
+    assertEquals("待支付", item.statusLabel)
+  }
+
+  @Test
+  fun `已取消或已结束的运动场地不出现在待办`() {
+    val now = LocalDateTime.parse("2026-03-24T09:00:00")
+    val items =
+        buildHomeTodoItems(
+            bykcCourses = emptyList(),
+            spocAssignments = emptyList(),
+            judgeAssignments = emptyList(),
+            cgyyOrders = emptyList(),
+            venueOrders =
+                listOf(
+                    VenueOrderRecord(
+                        id = 1,
+                        venueName = "已取消",
+                        reservationStartDate = "2026-03-24 14:00:00",
+                        reservationEndDate = "2026-03-24 15:00:00",
+                        payStatus = 2,
+                        orderStatus = 2,
+                    ),
+                    VenueOrderRecord(
+                        id = 2,
+                        venueName = "已结束",
+                        reservationStartDate = "2026-03-23 14:00:00",
+                        reservationEndDate = "2026-03-23 15:00:00",
+                        payStatus = 2,
+                        orderStatus = 1,
+                    ),
+                    VenueOrderRecord(
+                        id = 3,
+                        venueName = "已退款",
+                        reservationStartDate = "2026-03-24 18:00:00",
+                        reservationEndDate = "2026-03-24 19:00:00",
+                        payStatus = 4,
+                        orderStatus = 1,
+                    ),
+                ),
+            now = now,
+        )
+
+    assertTrue(items.none { it.source == HomeTodoSource.VENUE })
   }
 }

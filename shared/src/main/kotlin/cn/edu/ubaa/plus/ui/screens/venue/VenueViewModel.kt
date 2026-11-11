@@ -541,6 +541,12 @@ class VenueViewModel(
     _membershipCodeState.value = VenueMembershipCodeUiState()
   }
 
+  /** 首页待办用：已就绪时静默刷新预约记录，未登录/未就绪时不做任何事。 */
+  fun refreshOrdersForHome() {
+    if (_state.value.authPhase != VenueAuthPhase.READY) return
+    loadOrderHistory(refresh = true)
+  }
+
   /** 加载第一页预约记录。 */
   fun loadOrderHistory(refresh: Boolean = true) {
     if (_state.value.authPhase != VenueAuthPhase.READY) {

@@ -17,17 +17,13 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -54,6 +50,7 @@ import cn.edu.ubaa.plus.model.dto.DormMeterInfoDto
 import cn.edu.ubaa.plus.model.dto.DormTopUpDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
+import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
@@ -301,6 +298,7 @@ private fun DormRechargeCard(
     ) {
       Text("购电", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
       OutlinedTextField(
+          shape = RoundedCornerShape(14.dp),
           value = state.rechargePowerText,
           onValueChange = onPowerChange,
           label = { Text("购电量（度）") },
@@ -399,33 +397,12 @@ private fun <T> DormDropdown(
     options: List<Pair<T, String>>,
     onSelected: (T) -> Unit,
 ) {
-  var expanded by remember { mutableStateOf(false) }
-  Box(modifier = Modifier.fillMaxWidth()) {
-    OutlinedButton(
-        onClick = { expanded = true },
-        enabled = options.isNotEmpty(),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-      Text(
-          text = "$label：$selectedText",
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.weight(1f),
-      )
-      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-      options.forEach { (value, text) ->
-        DropdownMenuItem(
-            text = { Text(text) },
-            onClick = {
-              expanded = false
-              onSelected(value)
-            },
-        )
-      }
-    }
-  }
+  UbaaDropdownSelector(
+      selectedText = selectedText,
+      label = label,
+      options = options.map { it.second },
+      onSelected = { index -> options.getOrNull(index)?.let { onSelected(it.first) } },
+  )
 }
 
 private fun formatNumber(value: Double): String =

@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chair
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -62,7 +61,6 @@ fun LibBookHomeSeatCard(
       // 磨砂层已经自带描边，这里不再加第二层 border，避免出现双线。
       modifier = modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
-      elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),

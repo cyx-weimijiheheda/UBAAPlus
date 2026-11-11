@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,6 +37,7 @@ import cn.edu.ubaa.plus.api.venue.venueOptionLabel
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.model.format.formatUbaaFlexibleRange
+import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
@@ -258,6 +258,7 @@ private fun VenueLoginCard(
     )
 
     OutlinedTextField(
+        shape = RoundedCornerShape(14.dp),
         value = form.username,
         onValueChange = onUsernameChange,
         label = { Text("学号") },
@@ -265,6 +266,7 @@ private fun VenueLoginCard(
         modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(
+        shape = RoundedCornerShape(14.dp),
         value = form.password,
         onValueChange = onPasswordChange,
         label = { Text("密码") },
@@ -282,6 +284,7 @@ private fun VenueLoginCard(
         )
       }
       OutlinedTextField(
+          shape = RoundedCornerShape(14.dp),
           value = form.captcha,
           onValueChange = onCaptchaChange,
           label = { Text("验证码") },
@@ -598,43 +601,13 @@ private fun <T> VenueFilterDropdown(
     enabled: Boolean = true,
     onSelected: (T) -> Unit,
 ) {
-  var expanded by remember { mutableStateOf(false) }
-  Box(modifier = Modifier.fillMaxWidth()) {
-    OutlinedButton(
-        onClick = { expanded = true },
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-      Text(
-          text = "$label：$selectedText",
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.weight(1f),
-      )
-      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-    }
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = { expanded = false },
-        modifier = Modifier.heightIn(max = 320.dp),
-    ) {
-      options.forEach { (value, text) ->
-        DropdownMenuItem(
-            text = {
-              Text(
-                  text = text,
-                  maxLines = 2,
-                  overflow = TextOverflow.Ellipsis,
-              )
-            },
-            onClick = {
-              expanded = false
-              onSelected(value)
-            },
-        )
-      }
-    }
-  }
+  UbaaDropdownSelector(
+      selectedText = selectedText,
+      label = label,
+      enabled = enabled,
+      options = options.map { it.second },
+      onSelected = { index -> options.getOrNull(index)?.let { onSelected(it.first) } },
+  )
 }
 
 @Composable
@@ -689,31 +662,13 @@ private fun VenueSlotDropdown(
     selectedLabel: String,
     onSlotSelected: (VenueTimeSlot) -> Unit,
 ) {
-  var expanded by remember { mutableStateOf(false) }
   Box {
-    OutlinedButton(
-        onClick = { expanded = true },
+    UbaaDropdownSelector(
+        selectedText = selectedLabel.ifBlank { if (slots.isEmpty()) "暂无可用时段" else "选择时段" },
+        options = slots.map { it.label },
         enabled = slots.isNotEmpty(),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-      Text(
-          text = selectedLabel.ifBlank { if (slots.isEmpty()) "暂无可用时段" else "选择时段" },
-          maxLines = 1,
-          modifier = Modifier.weight(1f),
-      )
-      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-      slots.forEach { slot ->
-        DropdownMenuItem(
-            text = { Text(slot.label) },
-            onClick = {
-              expanded = false
-              onSlotSelected(slot)
-            },
-        )
-      }
-    }
+        onSelected = { index -> slots.getOrNull(index)?.let(onSlotSelected) },
+    )
   }
 }
 

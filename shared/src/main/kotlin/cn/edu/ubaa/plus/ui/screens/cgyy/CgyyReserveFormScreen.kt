@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -120,6 +121,7 @@ fun CgyyReserveFormScreen(
       CgyySectionCard(title = "填写预约信息") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
           OutlinedTextField(
+              shape = RoundedCornerShape(14.dp),
               value = uiState.phone,
               onValueChange = viewModel::updatePhone,
               label = { Text("联系电话 *") },
@@ -129,6 +131,7 @@ fun CgyyReserveFormScreen(
               supportingText = { if (phoneError) Text("请填写联系电话") },
           )
           OutlinedTextField(
+              shape = RoundedCornerShape(14.dp),
               value = uiState.theme,
               onValueChange = viewModel::updateTheme,
               label = { Text("活动主题 *") },
@@ -146,6 +149,7 @@ fun CgyyReserveFormScreen(
             )
           }
           OutlinedTextField(
+              shape = RoundedCornerShape(14.dp),
               value = uiState.joinerNum,
               onValueChange = viewModel::updateJoinerNum,
               label = { Text("参与人数 *") },
@@ -155,6 +159,7 @@ fun CgyyReserveFormScreen(
               supportingText = { if (joinerNumError) Text("参与人数必须大于 0") },
           )
           OutlinedTextField(
+              shape = RoundedCornerShape(14.dp),
               value = uiState.activityContent,
               onValueChange = viewModel::updateActivityContent,
               label = { Text("活动内容 *") },
@@ -164,6 +169,7 @@ fun CgyyReserveFormScreen(
               supportingText = { if (activityContentError) Text("请填写活动内容") },
           )
           OutlinedTextField(
+              shape = RoundedCornerShape(14.dp),
               value = uiState.joiners,
               onValueChange = viewModel::updateJoiners,
               label = { Text("参与人说明 *") },

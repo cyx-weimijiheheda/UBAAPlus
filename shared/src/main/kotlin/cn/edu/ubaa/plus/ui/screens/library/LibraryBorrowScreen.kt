@@ -18,8 +18,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +31,7 @@ import cn.edu.ubaa.plus.api.feature.LibraryLoanDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -58,15 +57,15 @@ fun LibraryBorrowScreen(
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { padding ->
     Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-      TabRow(selectedTabIndex = state.selectedTab.ordinal) {
-        LibraryBorrowTab.entries.forEach { tab ->
-          Tab(
-              selected = state.selectedTab == tab,
-              onClick = { viewModel.selectTab(tab) },
-              text = { Text(tab.label) },
-          )
-        }
-      }
+      // 圆角分段选择器，替代默认的方角 TabRow。
+      UbaaSegmentedTabs(
+          labels = LibraryBorrowTab.entries.map { it.label },
+          selectedIndex = state.selectedTab.ordinal,
+          onSelected = { index ->
+            LibraryBorrowTab.entries.getOrNull(index)?.let(viewModel::selectTab)
+          },
+          modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+      )
 
       UbaaPullToRefresh(
           refreshing = state.isLoading,

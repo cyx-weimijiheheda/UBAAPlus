@@ -18,6 +18,8 @@ internal data class HomeBootstrapActions(
     val loadJudge: suspend (Boolean) -> Unit,
     val loadBykc: suspend (Boolean) -> Unit,
     val loadCgyy: suspend (Boolean) -> Unit,
+    /** 运动场地预约：只有场地子系统已就绪时才会真正拉取，否则静默跳过。 */
+    val loadVenueOrders: suspend (Boolean) -> Unit,
     /**
      * 图书馆座位预约。
      *
@@ -53,6 +55,7 @@ internal class HomeBootstrapCoordinator(private val scope: CoroutineScope) {
                       launch { actions.loadJudge(forceRefresh) },
                       launch { actions.loadBykc(forceRefresh) },
                       launch { actions.loadCgyy(forceRefresh) },
+                      launch { actions.loadVenueOrders(forceRefresh) },
                       launch { actions.loadLibBook(forceRefresh) },
                       launch { actions.loadYgdk(forceRefresh) },
                       launch { actions.checkGradeScores(forceRefresh) },

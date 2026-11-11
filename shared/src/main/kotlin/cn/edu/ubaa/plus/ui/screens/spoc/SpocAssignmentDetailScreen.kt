@@ -3,7 +3,6 @@ package cn.edu.ubaa.plus.ui.screens.spoc
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -171,34 +170,35 @@ private fun DetailInfoCard(
     onAddToCalendar: (() -> Unit)? = null,
 ) {
   val clipboard = LocalClipboardManager.current
-  UbaaSectionCard(title = title, modifier = Modifier.fillMaxWidth()) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-      if (onAddToCalendar != null) {
-        IconButton(onClick = onAddToCalendar) {
+  UbaaSectionCard(
+      title = title,
+      modifier = Modifier.fillMaxWidth(),
+      // 按钮放在标题行右侧，与标题齐平，而不是另起一行占掉卡片顶部。
+      trailing = {
+        if (onAddToCalendar != null) {
+          IconButton(onClick = onAddToCalendar, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Default.Event,
+                contentDescription = "添加到日程",
+                modifier = Modifier.size(18.dp),
+            )
+          }
+        }
+        IconButton(
+            onClick = {
+              clipboard.setText(AnnotatedString("${title}\n" + lines.joinToString("\n")))
+              UbaaToast.show("已复制$title")
+            },
+            modifier = Modifier.size(32.dp),
+        ) {
           Icon(
-              imageVector = Icons.Default.Event,
-              contentDescription = "添加到日程",
+              imageVector = Icons.Default.ContentCopy,
+              contentDescription = "复制$title",
               modifier = Modifier.size(18.dp),
           )
         }
-      }
-      IconButton(
-          onClick = {
-            clipboard.setText(AnnotatedString("${title}\n" + lines.joinToString("\n")))
-            UbaaToast.show("已复制${title}")
-          }
-      ) {
-        Icon(
-            imageVector = Icons.Default.ContentCopy,
-            contentDescription = "复制${title}",
-            modifier = Modifier.size(18.dp),
-        )
-      }
-    }
+      },
+  ) {
     lines.forEach {
       Text(
           text = it,

@@ -97,6 +97,7 @@ fun CustomBrandColorDialog(
               onValueChange = { updateHsv(hue, saturation, it) },
           )
           OutlinedTextField(
+              shape = RoundedCornerShape(14.dp),
               value = hexText,
               onValueChange = { input ->
                 hexText = input

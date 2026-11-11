@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SportsBasketball
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -424,7 +425,6 @@ private fun HomeTodoCard(item: HomeTodoItem, onClick: () -> Unit) {
   Card(
       modifier = Modifier.ubaaGlassSurface().fillMaxWidth().clickable(onClick = onClick),
       colors = ubaaGlassCardColors(),
-      elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -625,6 +625,7 @@ private fun sourceContainerColor(source: HomeTodoSource): Color =
       HomeTodoSource.SPOC -> MaterialTheme.colorScheme.tertiaryContainer
       HomeTodoSource.JUDGE -> MaterialTheme.colorScheme.primaryContainer
       HomeTodoSource.CGYY -> MaterialTheme.colorScheme.secondaryContainer
+      HomeTodoSource.VENUE -> MaterialTheme.colorScheme.secondaryContainer
       HomeTodoSource.YGDK -> MaterialTheme.colorScheme.tertiaryContainer
     }
 
@@ -635,6 +636,7 @@ private fun sourceContentColor(source: HomeTodoSource): Color =
       HomeTodoSource.SPOC -> MaterialTheme.colorScheme.onTertiaryContainer
       HomeTodoSource.JUDGE -> MaterialTheme.colorScheme.onPrimaryContainer
       HomeTodoSource.CGYY -> MaterialTheme.colorScheme.onSecondaryContainer
+      HomeTodoSource.VENUE -> MaterialTheme.colorScheme.onSecondaryContainer
       HomeTodoSource.YGDK -> MaterialTheme.colorScheme.onTertiaryContainer
     }
 
@@ -644,5 +646,6 @@ private fun sourceIcon(source: HomeTodoSource): ImageVector =
       HomeTodoSource.SPOC -> Icons.Default.AssignmentTurnedIn
       HomeTodoSource.JUDGE -> Icons.Default.Code
       HomeTodoSource.CGYY -> Icons.Default.MeetingRoom
+      HomeTodoSource.VENUE -> Icons.Default.SportsBasketball
       HomeTodoSource.YGDK -> Icons.AutoMirrored.Filled.DirectionsRun
     }

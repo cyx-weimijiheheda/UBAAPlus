@@ -20,25 +20,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.IclassAttendanceRecordDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
@@ -223,32 +218,13 @@ private fun AttendanceDropdown(
     enabled: Boolean,
     onSelected: (String) -> Unit,
 ) {
-  var expanded by remember { mutableStateOf(false) }
-  Box(modifier = Modifier.fillMaxWidth()) {
-    OutlinedButton(
-        onClick = { expanded = true },
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-      Text(
-          text = "$label：$selectedText",
-          maxLines = 1,
-          modifier = Modifier.weight(1f),
-      )
-      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-      options.forEach { (value, text) ->
-        DropdownMenuItem(
-            text = { Text(text) },
-            onClick = {
-              expanded = false
-              onSelected(value)
-            },
-        )
-      }
-    }
-  }
+  UbaaDropdownSelector(
+      selectedText = selectedText,
+      label = label,
+      options = options.map { it.second },
+      enabled = enabled,
+      onSelected = { index -> options.getOrNull(index)?.let { onSelected(it.first) } },
+  )
 }
 
 @Composable

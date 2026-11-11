@@ -184,34 +184,35 @@ private fun DetailInfoCard(
     onAddToCalendar: (() -> Unit)? = null,
 ) {
   val clipboard = LocalClipboardManager.current
-  UbaaSectionCard(title = title, modifier = Modifier.fillMaxWidth()) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-      if (onAddToCalendar != null) {
-        IconButton(onClick = onAddToCalendar) {
+  UbaaSectionCard(
+      title = title,
+      modifier = Modifier.fillMaxWidth(),
+      // 与标题同一行右对齐，避免按钮单独占一行。
+      trailing = {
+        if (onAddToCalendar != null) {
+          IconButton(onClick = onAddToCalendar, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Default.Event,
+                contentDescription = "添加到日程",
+                modifier = Modifier.size(18.dp),
+            )
+          }
+        }
+        IconButton(
+            onClick = {
+              clipboard.setText(AnnotatedString("${title}\n" + lines.joinToString("\n")))
+              UbaaToast.show("已复制$title")
+            },
+            modifier = Modifier.size(32.dp),
+        ) {
           Icon(
-              imageVector = Icons.Default.Event,
-              contentDescription = "添加到日程",
+              imageVector = Icons.Default.ContentCopy,
+              contentDescription = "复制$title",
               modifier = Modifier.size(18.dp),
           )
         }
-      }
-      IconButton(
-          onClick = {
-            clipboard.setText(AnnotatedString("${title}\n" + lines.joinToString("\n")))
-            UbaaToast.show("已复制$title")
-          }
-      ) {
-        Icon(
-            imageVector = Icons.Default.ContentCopy,
-            contentDescription = "复制$title",
-            modifier = Modifier.size(18.dp),
-        )
-      }
-    }
+      },
+  ) {
     lines.forEach {
       Text(
           text = it,

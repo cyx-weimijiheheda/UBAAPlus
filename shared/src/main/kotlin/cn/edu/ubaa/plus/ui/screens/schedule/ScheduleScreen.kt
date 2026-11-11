@@ -186,6 +186,7 @@ fun ScheduleScreen(
           TextButton(
               onClick = { showTermSelector = true },
               enabled = (terms.isNotEmpty() || onImportCurrentTerm != null) && !isUpdating,
+              shape = RoundedCornerShape(14.dp),
           ) {
             Text(selectedTerm?.itemName ?: "选择学期", maxLines = 2)
           }

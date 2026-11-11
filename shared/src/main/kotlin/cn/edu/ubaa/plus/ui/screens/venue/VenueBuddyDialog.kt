@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
@@ -56,6 +57,7 @@ fun VenueBuddyDialog(
               horizontalArrangement = Arrangement.spacedBy(8.dp),
           ) {
             OutlinedTextField(
+                shape = RoundedCornerShape(14.dp),
                 value = uid,
                 onValueChange = { uid = it.filter(Char::isLetterOrDigit) },
                 label = { Text("学工号") },

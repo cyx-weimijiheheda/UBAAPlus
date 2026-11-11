@@ -99,7 +99,6 @@ fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningI
                   if (isSigned) MaterialTheme.colorScheme.primaryContainer
                   else MaterialTheme.colorScheme.surfaceVariant
           ),
-      elevation = CardDefaults.cardElevation(2.dp),
   ) {
     Row(
         modifier = Modifier.padding(20.dp).fillMaxWidth(),

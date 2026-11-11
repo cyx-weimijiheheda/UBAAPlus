@@ -1,5 +1,6 @@
 package cn.edu.ubaa.plus.ui.screens.menu
 
+import cn.edu.ubaa.plus.api.venue.VenueOrderRecord
 import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
@@ -21,6 +22,7 @@ internal enum class HomeTodoSource(val label: String) {
   SPOC("SPOC"),
   JUDGE("希冀"),
   CGYY("研讨室"),
+  VENUE("运动场地"),
   YGDK("阳光打卡"),
 }
 
@@ -32,6 +34,8 @@ internal sealed interface HomeTodoAction {
   data class OpenJudgeAssignment(val courseId: String, val assignmentId: String) : HomeTodoAction
 
   data object OpenCgyyOrders : HomeTodoAction
+
+  data object OpenVenueHome : HomeTodoAction
 
   data object OpenYgdkHome : HomeTodoAction
 }
@@ -52,6 +56,7 @@ internal fun buildHomeTodoItems(
     spocAssignments: List<SpocAssignmentSummaryDto>,
     judgeAssignments: List<JudgeAssignmentSummaryDto>,
     cgyyOrders: List<CgyyOrderDto>,
+    venueOrders: List<VenueOrderRecord> = emptyList(),
     ygdkOverview: YgdkOverviewResponse? = null,
     currentWeek: Week? = null,
     ygdkReminderEnabled: Boolean = true,
@@ -64,6 +69,7 @@ internal fun buildHomeTodoItems(
         addAll(buildSpocTodoItems(spocAssignments, now))
         addAll(buildJudgeTodoItems(judgeAssignments, now))
         addAll(buildCgyyTodoItems(cgyyOrders, now))
+        addAll(buildVenueTodoItems(venueOrders, now))
         buildYgdkTodoItem(
                 overview = ygdkOverview,
                 currentWeek = currentWeek,
@@ -246,6 +252,60 @@ private fun buildCgyyTodoItems(
               },
           sortTime = start ?: end,
           action = HomeTodoAction.OpenCgyyOrders,
+      )
+    }
+
+/** 已预约的运动场地：只保留未取消、未结束的记录。 */
+private fun buildVenueTodoItems(
+    records: List<VenueOrderRecord>,
+    now: LocalDateTime,
+): List<HomeTodoItem> =
+    records.mapNotNull { record ->
+      // orderStatus: 2 已取消；退款中/已退款也不再作为待办。
+      if (record.orderStatus == 2) return@mapNotNull null
+      if (record.payStatus == 3 || record.payStatus == 4) return@mapNotNull null
+
+      val start = parseHomeDateTime(record.reservationStartDate)
+      val end = parseHomeDateTime(record.reservationEndDate)
+      if (start == null && end == null) return@mapNotNull null
+      if (end?.let { it <= now } == true) return@mapNotNull null
+
+      val title =
+          listOfNotNull(
+                  record.venueName?.takeIf { it.isNotBlank() },
+                  (record.siteName ?: record.spaceName)?.takeIf { it.isNotBlank() },
+              )
+              .joinToString(" / ")
+              .ifBlank { "运动场地预约" }
+      val subtitle =
+          listOfNotNull(
+                  record.campusName?.takeIf { it.isNotBlank() },
+                  record.spaceName?.takeIf { it != record.siteName && it.isNotBlank() },
+              )
+              .joinToString(" · ")
+              .ifBlank { "我的场地预约" }
+      val unpaid = record.payStatus == 1
+      val ongoing = start?.let { it <= now } == true && (end == null || now < end)
+
+      HomeTodoItem(
+          id = "venue:${record.id ?: record.tradeNo ?: title}",
+          source = HomeTodoSource.VENUE,
+          title = title,
+          subtitle = subtitle,
+          statusLabel =
+              when {
+                unpaid -> "待支付"
+                ongoing -> "使用中"
+                else -> "待使用"
+              },
+          timeLabel =
+              if (start != null && end != null) {
+                "${formatHomeDateTime(start)} - ${end.hour.toPaddedString()}:${end.minute.toPaddedString()}"
+              } else {
+                "开始 ${formatHomeDateTime(start)}"
+              },
+          sortTime = start ?: end,
+          action = HomeTodoAction.OpenVenueHome,
       )
     }
 

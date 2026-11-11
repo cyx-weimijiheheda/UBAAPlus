@@ -2,7 +2,6 @@ package cn.edu.ubaa.plus.ui.screens.menu
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,18 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -38,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.feature.DormElectricityApi
@@ -48,6 +43,7 @@ import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.model.dto.DormRoomDto
 import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
+import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 
 private sealed interface DormRoomsState {
@@ -228,6 +224,7 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedTextField(
+                shape = RoundedCornerShape(14.dp),
                 value = preferences.dormCampus,
                 onValueChange = {
                   AppPreferencesStore.setDormDefaults(
@@ -241,6 +238,7 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
+                shape = RoundedCornerShape(14.dp),
                 value = preferences.dormBuilding,
                 onValueChange = {
                   AppPreferencesStore.setDormDefaults(
@@ -254,6 +252,7 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
+                shape = RoundedCornerShape(14.dp),
                 value = preferences.dormRoom,
                 onValueChange = {
                   AppPreferencesStore.setDormDefaults(
@@ -416,33 +415,12 @@ private fun <T> SettingsDropdown(
     options: List<Pair<T, String>>,
     onSelected: (T) -> Unit,
 ) {
-  var expanded by remember { mutableStateOf(false) }
-  Box(modifier = Modifier.fillMaxWidth()) {
-    OutlinedButton(
-        onClick = { expanded = true },
-        enabled = options.isNotEmpty(),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-      Text(
-          text = "$label：$selectedText",
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.weight(1f),
-      )
-      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-      options.forEach { (value, text) ->
-        DropdownMenuItem(
-            text = { Text(text) },
-            onClick = {
-              expanded = false
-              onSelected(value)
-            },
-        )
-      }
-    }
-  }
+  UbaaDropdownSelector(
+      selectedText = selectedText,
+      label = label,
+      options = options.map { it.second },
+      onSelected = { index -> options.getOrNull(index)?.let { onSelected(it.first) } },
+  )
 }
 
 @Composable
