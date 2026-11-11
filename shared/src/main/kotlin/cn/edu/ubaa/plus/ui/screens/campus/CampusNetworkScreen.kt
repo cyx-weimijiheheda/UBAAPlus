@@ -34,6 +34,7 @@ import cn.edu.ubaa.plus.api.feature.CampusTrafficDto
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import java.util.Locale
 
@@ -127,7 +128,10 @@ fun CampusNetworkScreen(
 
 @Composable
 private fun SrunInfoCard(info: CampusNetworkInfoDto) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -153,7 +157,10 @@ private fun SrunInfoCard(info: CampusNetworkInfoDto) {
 
 @Composable
 private fun TrafficCard(traffic: CampusTrafficDto) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -172,7 +179,10 @@ private fun TrafficCard(traffic: CampusTrafficDto) {
 
 @Composable
 private fun StatCard(title: String, value: String, unit: String) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -188,7 +188,10 @@ private fun DormQueryCard(
     onReloadRooms: () -> Unit,
     onQuery: () -> Unit,
 ) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -259,7 +262,10 @@ private fun DormQueryCard(
 
 @Composable
 private fun DormMeterCard(info: DormMeterInfoDto, onContinuePay: () -> Unit) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -292,7 +298,10 @@ private fun DormRechargeCard(
     onPowerChange: (String) -> Unit,
     onRechargeClick: () -> Unit,
 ) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),

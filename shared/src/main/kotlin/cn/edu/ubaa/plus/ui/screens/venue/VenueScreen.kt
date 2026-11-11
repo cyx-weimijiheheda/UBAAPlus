@@ -328,7 +328,10 @@ private fun VenueSiteDateCard(
     onVenueSelected: (Int) -> Unit,
     onDateSelected: (LocalDate) -> Unit,
 ) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -397,7 +400,10 @@ private fun VenueSiteDateCard(
 
 @Composable
 private fun VenueOrderHistoryCard(onClick: () -> Unit) {
-  Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth().clickable(onClick = onClick),
+      colors = ubaaGlassCardColors(),
+  ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -437,7 +443,10 @@ private fun VenueOrderHistoryDialog(
     onDismiss: () -> Unit,
 ) {
   Dialog(onDismissRequest = onDismiss) {
-    Card(modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp)) {
+    Card(
+        modifier = Modifier.ubaaGlassSurface().fillMaxWidth().heightIn(max = 620.dp),
+        colors = ubaaGlassCardColors(),
+    ) {
       Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           Text(
@@ -617,7 +626,10 @@ private fun VenueAvailabilityCard(
     onTemplateSlotClick: (VenueTimeSlot) -> Unit,
 ) {
   val day = state.dayInfo
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Text(
           text = "可用时段",
@@ -794,7 +806,10 @@ private fun VenueTargetOptionsCard(
     onRandomChange: (Boolean) -> Unit,
     onFallbackChange: (Boolean) -> Unit,
 ) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Text(
           text = "抢场地设置",
@@ -885,7 +900,10 @@ private fun VenueBuddiesCard(
     onToggleBuddy: (Int) -> Unit,
     onManageClick: () -> Unit,
 ) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         Text(

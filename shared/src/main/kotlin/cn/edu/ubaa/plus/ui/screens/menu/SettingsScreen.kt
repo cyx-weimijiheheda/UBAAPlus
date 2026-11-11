@@ -45,6 +45,7 @@ import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 private sealed interface DormRoomsState {
   data object Loading : DormRoomsState
@@ -287,7 +288,7 @@ fun SettingsScreen(
         availableModes.forEach { mode ->
           Card(
               modifier =
-                  Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable {
+                  Modifier.padding(vertical = 6.dp).ubaaGlassSurface().fillMaxWidth().clickable {
                     if (mode != currentMode) pendingMode = mode
                   },
               colors =

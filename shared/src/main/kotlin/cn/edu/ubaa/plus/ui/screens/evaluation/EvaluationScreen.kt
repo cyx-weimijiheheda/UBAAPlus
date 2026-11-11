@@ -203,20 +203,25 @@ fun EvaluationScreen(viewModel: EvaluationViewModel) {
 fun EvaluationCourseItem(course: EvaluationCourse, isSelected: Boolean, onToggle: () -> Unit) {
   val isEvaluated = course.isEvaluated
 
+  // 选中/已评教状态用半透明语义色叠在磨砂上，避免不透明底盖住玻璃质感。
+  val tint =
+      when {
+        isEvaluated -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        else -> Color.Transparent
+      }
   Card(
+      // 外边距在前，磨砂在后。
       modifier =
-          Modifier.fillMaxWidth()
-              .padding(vertical = 4.dp)
+          Modifier.padding(vertical = 4.dp)
+              .ubaaGlassSurface()
+              .fillMaxWidth()
               .alpha(if (isEvaluated) 0.6f else 1f)
               .then(if (!isEvaluated) Modifier.clickable { onToggle() } else Modifier),
       colors =
           CardDefaults.cardColors(
-              containerColor =
-                  when {
-                    isEvaluated -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                    else -> MaterialTheme.colorScheme.surfaceVariant
-                  }
+              containerColor = tint,
+              contentColor = MaterialTheme.colorScheme.onSurface,
           ),
   ) {
     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -69,6 +69,7 @@ import cn.edu.ubaa.plus.shared.R
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
@@ -490,7 +491,10 @@ private fun SeatGrid(
 
 @Composable
 private fun ReserveSummary(uiState: LibBookUiState) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),

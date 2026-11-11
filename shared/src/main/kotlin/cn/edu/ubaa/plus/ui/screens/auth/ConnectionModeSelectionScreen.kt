@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun ConnectionModeSelectionScreen(
@@ -58,7 +59,9 @@ fun ConnectionModeSelectionScreen(
     availableModes.forEach { mode ->
       Card(
           modifier =
-              Modifier.fillMaxWidth().clickable { selectedMode = mode }.padding(vertical = 6.dp),
+              Modifier.padding(vertical = 6.dp).ubaaGlassSurface().fillMaxWidth().clickable {
+                selectedMode = mode
+              },
           colors =
               CardDefaults.cardColors(
                   containerColor =

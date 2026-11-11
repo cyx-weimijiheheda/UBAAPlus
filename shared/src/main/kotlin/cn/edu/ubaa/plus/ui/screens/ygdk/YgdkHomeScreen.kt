@@ -199,7 +199,10 @@ private fun YgdkSummaryCard(
 
 @Composable
 private fun YgdkRecordCard(record: YgdkRecordDto) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null)

@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.AppInfo
 import cn.edu.ubaa.plus.ui.common.components.FIRST_RUN_DISCLAIMER
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun AboutScreen(modifier: Modifier = Modifier) {
@@ -33,7 +35,10 @@ fun AboutScreen(modifier: Modifier = Modifier) {
       verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
     item {
-      Card(modifier = Modifier.fillMaxWidth()) {
+      Card(
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          colors = ubaaGlassCardColors(),
+      ) {
         Column(modifier = Modifier.padding(16.dp)) {
           Text(
               text = "UBAAPlus",
@@ -91,7 +96,10 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     }
 
     item {
-      Card(modifier = Modifier.fillMaxWidth()) {
+      Card(
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          colors = ubaaGlassCardColors(),
+      ) {
         Column(modifier = Modifier.padding(16.dp)) {
           AboutLink("开源项目（GitHub）") {
             uriHandler.openUri("https://github.com/cyx-weimijiheheda/UBAAPlus")
@@ -110,7 +118,10 @@ fun AboutScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun AboutSection(title: String, content: @Composable () -> Unit) {
-  Card(modifier = Modifier.fillMaxWidth()) {
+  Card(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(modifier = Modifier.padding(16.dp)) {
       Text(
           text = title,

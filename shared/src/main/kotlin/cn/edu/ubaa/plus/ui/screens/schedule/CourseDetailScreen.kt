@@ -9,6 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.CourseClass
 import cn.edu.ubaa.plus.model.format.formatUbaaWeekdayLabel
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
@@ -41,7 +42,10 @@ fun CourseDetailScreen(course: CourseClass, modifier: Modifier = Modifier) {
     }
 
     item {
-      Card(modifier = Modifier.fillMaxWidth()) {
+      Card(
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          colors = ubaaGlassCardColors(),
+      ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -81,7 +85,10 @@ fun CourseDetailScreen(course: CourseClass, modifier: Modifier = Modifier) {
 
     if (course.credit != null) {
       item {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+            colors = ubaaGlassCardColors(),
+        ) {
           Column(
               modifier = Modifier.padding(16.dp),
               verticalArrangement = Arrangement.spacedBy(12.dp),

@@ -35,6 +35,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
@@ -182,7 +183,10 @@ private fun SummaryValue(label: String, value: String, modifier: Modifier = Modi
 
 @Composable
 private fun GradeCard(grade: Grade) {
-  OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+  OutlinedCard(
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+  ) {
     Column(modifier = Modifier.padding(16.dp)) {
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Icon(

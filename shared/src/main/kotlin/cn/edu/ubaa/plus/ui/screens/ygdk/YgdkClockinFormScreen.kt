@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.YgdkItemDto
 import cn.edu.ubaa.plus.ui.common.util.PlatformImagePicker
 import cn.edu.ubaa.plus.ui.common.util.formatImageSize
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.math.abs
 import kotlin.time.Clock
@@ -166,7 +167,10 @@ fun YgdkClockinFormScreen(
         }
       }
 
-      Card(modifier = Modifier.fillMaxWidth()) {
+      Card(
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          colors = ubaaGlassCardColors(),
+      ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -187,7 +191,10 @@ fun YgdkClockinFormScreen(
         }
       }
 
-      Card(modifier = Modifier.fillMaxWidth()) {
+      Card(
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          colors = ubaaGlassCardColors(),
+      ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -217,7 +224,10 @@ fun YgdkClockinFormScreen(
         }
       }
 
-      Card(modifier = Modifier.fillMaxWidth()) {
+      Card(
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          colors = ubaaGlassCardColors(),
+      ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -240,7 +250,10 @@ fun YgdkClockinFormScreen(
         }
       }
 
-      Card(modifier = Modifier.fillMaxWidth()) {
+      Card(
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          colors = ubaaGlassCardColors(),
+      ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -298,7 +311,10 @@ fun YgdkClockinFormScreen(
         }
       }
 
-      Card(modifier = Modifier.fillMaxWidth()) {
+      Card(
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          colors = ubaaGlassCardColors(),
+      ) {
         Row(
             modifier =
                 Modifier.fillMaxWidth().padding(16.dp).clickable {
