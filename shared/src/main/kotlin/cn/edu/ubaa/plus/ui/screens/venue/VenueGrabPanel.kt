@@ -42,6 +42,8 @@ import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.GrabConfirmDialog
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /** 运动场地抢单面板：定时、轮询间隔、开始/停止、日志与结果。 */
 @Composable
@@ -166,8 +168,8 @@ fun VenueGrabPanel(
       grabState.success?.let { order ->
         Spacer(modifier = Modifier.height(12.dp))
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+            colors = ubaaGlassCardColors(),
         ) {
           Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Text(

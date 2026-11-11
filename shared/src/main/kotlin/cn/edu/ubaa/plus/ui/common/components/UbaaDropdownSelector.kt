@@ -47,7 +47,7 @@ fun UbaaDropdownSelector(
   // 磨砂层画在外层 Box 上，按钮本身完全透明且不画边框：
   // 直接把玻璃挂在 OutlinedButton 上时，按钮自带的 1dp 描边会内缩，视觉上比磨砂块小一圈。
   Row(
-      modifier = modifier.fillMaxWidth().ubaaGlassSurface(shape = UbaaSelectorShape),
+      modifier = modifier.ubaaGlassSurface(shape = UbaaSelectorShape).fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically,
   ) {
     OutlinedButton(

@@ -46,6 +46,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.common.util.addAssignmentDeadlineToCalendar
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /** 希冀作业详情页。 */
@@ -224,8 +225,8 @@ private fun DetailInfoCard(
 @Composable
 private fun JudgeProblemCard(problem: JudgeProblemDto) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),

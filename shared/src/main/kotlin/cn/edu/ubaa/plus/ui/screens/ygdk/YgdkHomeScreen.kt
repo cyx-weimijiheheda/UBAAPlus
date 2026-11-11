@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +44,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun YgdkHomeScreen(
@@ -152,8 +152,8 @@ private fun YgdkHomeReminderCard(
     onEnabledChange: (Boolean) -> Unit,
 ) {
   Card(
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-      modifier = Modifier.fillMaxWidth(),
+      colors = ubaaGlassCardColors(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
   ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -178,7 +178,7 @@ private fun YgdkSummaryCard(
 ) {
   Card(
       colors = ubaaGlassCardColors(),
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
   ) {
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(

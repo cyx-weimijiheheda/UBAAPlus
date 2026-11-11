@@ -1,6 +1,5 @@
 package cn.edu.ubaa.plus.ui.screens.bykc
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -32,6 +31,7 @@ import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
@@ -333,12 +333,11 @@ private fun BykcFilterSectionCard(
     supportingText: String,
     content: @Composable FlowRowScope.() -> Unit,
 ) {
+  // 与其他卡片一致：磨砂层负责底色与描边，Surface 本身透明，避免实色块 + 双描边。
   Surface(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.ubaaGlassSurface(shape = RoundedCornerShape(20.dp)).fillMaxWidth(),
       shape = RoundedCornerShape(20.dp),
-      tonalElevation = 2.dp,
-      color = MaterialTheme.colorScheme.surfaceContainerLow,
-      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+      color = Color.Transparent,
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Row(
