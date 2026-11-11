@@ -363,7 +363,7 @@ private fun DormRechargeConfirmDialog(
 @Composable
 private fun DormTopUpRow(topUp: DormTopUpDto) {
   Card(
-      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
   ) {
     Row(

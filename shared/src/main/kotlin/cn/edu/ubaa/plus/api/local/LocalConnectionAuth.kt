@@ -502,7 +502,25 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
             }
         val submitResponse =
             noRedirectClient.post(loginUrl()) { setBody(FormDataContent(parameters)) }
-        followRedirectsAndCheckError(submitResponse, noRedirectClient)
+        try {
+          followRedirectsAndCheckError(submitResponse, noRedirectClient)
+        } catch (error: Exception) {
+          // 带了验证码却仍然失败，几乎总是验证码错了：上游只会回 "Invalid parameter"/"登录失败"，
+          // 让人以为是密码问题。这里重新抓一张验证码，用标准异常告诉界面「换一张再试」。
+          if (!captcha.isNullOrBlank()) {
+            val refreshed = fetchFreshCaptcha()
+            if (refreshed != null) {
+              return Result.failure(
+                  CaptchaRequiredClientException(
+                      refreshed.first,
+                      refreshed.second ?: actualExecution,
+                      "验证码不正确，已为你换一张",
+                  )
+              )
+            }
+          }
+          throw error
+        }
         activateUcLogin()
       }
 
@@ -780,6 +798,22 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
       directClient.close()
     }
   }
+
+  /** 重新打开登录页并抓取最新的验证码与 execution；失败时返回 null 交给原错误路径处理。 */
+  private suspend fun fetchFreshCaptcha(): Pair<CaptchaInfo, String?>? =
+      runCatching {
+            val client = LocalUpstreamClientProvider.newNoRedirectClient()
+            try {
+              val response = client.get(loginUrl())
+              val html = response.bodyAsText()
+              val info = LocalCasParser.detectCaptcha(html, captchaUrl()) ?: return null
+              val execution = LocalCasParser.extractExecution(html).takeIf { it.isNotBlank() }
+              info.withBase64Image(fetchCaptchaImage(info.id)) to execution
+            } finally {
+              client.close()
+            }
+          }
+          .getOrNull()
 
   private fun loginUrl(): String = localUpstreamUrl("https://sso.buaa.edu.cn/login")
 

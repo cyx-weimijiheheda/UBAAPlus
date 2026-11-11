@@ -101,7 +101,7 @@ fun SpocAssignmentDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
               Card(
-                  modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+                  modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                   colors = CardDefaults.cardColors(containerColor = Color.Transparent),
               ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {

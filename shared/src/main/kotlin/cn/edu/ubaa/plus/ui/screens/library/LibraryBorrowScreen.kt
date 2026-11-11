@@ -139,7 +139,7 @@ fun LibraryBorrowScreen(
 @Composable
 private fun LibraryLoanCard(loan: LibraryLoanDto) {
   Card(
-      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
   ) {
     Column(

@@ -335,7 +335,7 @@ private fun HomeSectionLoadingChip(text: String) {
 @Composable
 private fun HomeLoadingCard(title: String, subtitle: String) {
   Card(
-      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
   ) {
     Row(
@@ -367,7 +367,7 @@ private fun TodayClassCard(
     onClick: () -> Unit = {},
 ) {
   Card(
-      modifier = modifier.fillMaxWidth().clickable(onClick = onClick).ubaaGlassSurface(),
+      modifier = modifier.ubaaGlassSurface().fillMaxWidth().clickable(onClick = onClick),
       colors = ubaaGlassCardColors(),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -422,7 +422,7 @@ private fun TodayClassCard(
 @Composable
 private fun HomeTodoCard(item: HomeTodoItem, onClick: () -> Unit) {
   Card(
-      modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).ubaaGlassSurface(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth().clickable(onClick = onClick),
       colors = ubaaGlassCardColors(),
       elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
@@ -526,7 +526,7 @@ private fun HomeErrorCard(message: String, onRetry: () -> Unit) {
 @Composable
 private fun HomeEmptyCard(title: String, subtitle: String) {
   Card(
-      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
   ) {
     Column(

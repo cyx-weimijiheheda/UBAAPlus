@@ -174,7 +174,7 @@ private fun JudgeAssignmentCard(
 ) {
   Card(
       onClick = onClick,
-      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {

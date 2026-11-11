@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -43,14 +44,20 @@ fun UbaaDropdownSelector(
   var expanded by remember { mutableStateOf(false) }
   val text = if (label.isNullOrBlank()) selectedText else "$label：$selectedText"
 
-  Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+  // 磨砂层画在外层 Box 上，按钮本身完全透明且不画边框：
+  // 直接把玻璃挂在 OutlinedButton 上时，按钮自带的 1dp 描边会内缩，视觉上比磨砂块小一圈。
+  Row(
+      modifier = modifier.fillMaxWidth().ubaaGlassSurface(shape = UbaaSelectorShape),
+      verticalAlignment = Alignment.CenterVertically,
+  ) {
     OutlinedButton(
         onClick = { expanded = true },
         enabled = enabled,
         shape = UbaaSelectorShape,
-        colors = ButtonDefaults.outlinedButtonColors(),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent),
+        border = null,
         contentPadding = ButtonDefaults.ContentPadding,
-        modifier = Modifier.fillMaxWidth().ubaaGlassSurface(shape = UbaaSelectorShape),
+        modifier = Modifier.fillMaxWidth(),
     ) {
       Text(
           text = text,

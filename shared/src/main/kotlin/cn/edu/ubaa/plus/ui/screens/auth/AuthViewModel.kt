@@ -190,9 +190,10 @@ class AuthViewModel(
             } else {
               val message = exception.message ?: "登录失败"
               _uiState.value = _uiState.value.copy(isLoading = false, error = message)
-              // 输错验证码时上游只回一句 "Invalid parameter" 或"登录失败"，验证码图片已经换了，
-              // 必须自动刷新，否则用户对着旧图重试只会一直失败。
-              if (state.captchaRequired && isCaptchaFailure(message)) {
+              // 输错验证码时上游只回一句 "Invalid parameter" 或"登录失败"。验证码是一次性的，失败后必须换一张，
+              // 否则用户对着旧图重试只会一直失败。这里只要本次提交带了验证码就刷新，不依赖 captchaRequired
+              // 是否仍为 true——WebVPN 失败后登录页会被重绘，那个标志并不可靠。
+              if (!captcha.isNullOrBlank() || isCaptchaFailure(message)) {
                 refreshCaptcha(clearInput = true)
               }
             }

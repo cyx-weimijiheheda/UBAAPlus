@@ -507,7 +507,7 @@ private fun VenueOrderHistoryDialog(
 @Composable
 private fun VenueOrderRecordCard(record: VenueOrderRecord) {
   Card(
-      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
   ) {
     Column(

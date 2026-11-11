@@ -1,6 +1,5 @@
 package cn.edu.ubaa.plus.ui.screens.libbook
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -60,9 +59,9 @@ fun LibBookHomeSeatCard(
   val statusText = libBookHomeStatusLabel(booking).ifBlank { booking.status.ifBlank { "已预约" } }
 
   Card(
-      modifier = modifier.fillMaxWidth().ubaaGlassSurface(),
+      // 磨砂层已经自带描边，这里不再加第二层 border，避免出现双线。
+      modifier = modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
-      border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
       elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
     Column(

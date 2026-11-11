@@ -310,7 +310,7 @@ private fun CaptchaImage(
       }
 
   Card(
-      modifier = modifier.clickable(enabled = !isRefreshing, onClick = onClick).ubaaGlassSurface(),
+      modifier = modifier.ubaaGlassSurface().clickable(enabled = !isRefreshing, onClick = onClick),
       colors = ubaaGlassCardColors(),
   ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
