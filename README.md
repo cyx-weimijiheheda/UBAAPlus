@@ -104,6 +104,67 @@ cp .env.sample .env    # 编辑其中的 JWT_SECRET、REDIS_URI 等
 
 API 地址在构建时通过 `.env` 或环境变量 `API_ENDPOINT` 注入，默认 `https://ubaa.mofrp.top`。
 
+## 界面风格约定
+
+整体视觉是**圆角 + 磨砂玻璃**。新增界面或控件请遵循以下规则，避免与既有页面风格割裂。
+
+### 卡片一律磨砂
+
+`Card` / `ElevatedCard` / `OutlinedCard` / 自定义 Surface 容器统一使用：
+
+```kotlin
+Card(
+    modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),   // 磨砂层放在链首
+    colors = ubaaGlassCardColors(),                          // 容器透明，由磨砂层画底色
+) { ... }
+```
+
+两个容易踩的坑：
+
+- **`.ubaaGlassSurface()` 必须排在 modifier 链最前面。** Compose 的背景按节点最终尺寸绘制，
+  排在 `padding()` 之后只会覆盖内边距以内，看起来像「磨砂比卡片小一圈、居中」。
+- **卡片不要再加 `BorderStroke`**，磨砂层自带描边，叠加会出现双线。
+  反之，`OutlinedButton` 这类会自绘描边的控件不要把磨砂直接挂上去（描边内缩会让玻璃显得偏大），
+  应把磨砂挂在外层容器，控件本身设 `border = null`、`containerColor = Color.Transparent`。
+
+### 选择类控件
+
+| 场景 | 使用 |
+| --- | --- |
+| 表单下拉（楼馆、校区、时段、学期等） | `UbaaDropdownSelector`（圆角 14dp + 磨砂） |
+| 平级栏目切换（借阅历史、校区切换等） | `UbaaSegmentedTabs` |
+| 文本输入 | `OutlinedTextField(shape = RoundedCornerShape(14.dp))` |
+
+不要手写 `OutlinedButton` + `DropdownMenu` 组合，也不要用 Material 默认的方角 `TabRow`。
+
+### 卡片内操作按钮
+
+「复制详情」「添加到日历」这类操作用**图标按钮**，放在卡片标题行右侧与标题齐平
+（`UbaaSectionCard` 的 `trailing` 槽位），不要另起一行。
+
+```kotlin
+UbaaSectionCard(
+    title = "提交信息",
+    trailing = {
+        IconButton(onClick = onAddToCalendar, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Default.Event, contentDescription = "添加到日程", modifier = Modifier.size(18.dp))
+        }
+        IconButton(onClick = copy, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Default.ContentCopy, contentDescription = "复制", modifier = Modifier.size(18.dp))
+        }
+    },
+) { ... }
+```
+
+### 自检
+
+```bash
+# 是否还有卡片用 Material 默认实色底（应无输出）
+grep -rn "cardColors(containerColor = MaterialTheme.colorScheme.surface" --include=*.kt shared/src/main/kotlin
+# 磨砂是否被 padding 排在前面影响（应无输出）
+grep -rn "\.ubaaGlassSurface" -B 2 --include=*.kt shared/src/main/kotlin | grep -E "padding\(|\.size\("
+```
+
 ## 许可
 
 [MIT](LICENSE)
