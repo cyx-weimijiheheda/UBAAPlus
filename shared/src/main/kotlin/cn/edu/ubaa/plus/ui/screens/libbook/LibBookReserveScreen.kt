@@ -27,15 +27,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -67,6 +64,7 @@ import androidx.compose.ui.window.DialogProperties
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.shared.R
+import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 
@@ -469,33 +467,13 @@ private fun <T> LibBookDropdown(
     enabled: Boolean = true,
     onSelected: (T) -> Unit,
 ) {
-  var expanded by remember { mutableStateOf(false) }
-  Box(modifier = Modifier.fillMaxWidth()) {
-    OutlinedButton(
-        onClick = { expanded = true },
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-      Text(
-          text = "$label：$selectedText",
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.weight(1f),
-      )
-      Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-      options.forEach { (value, text) ->
-        DropdownMenuItem(
-            text = { Text(text) },
-            onClick = {
-              expanded = false
-              onSelected(value)
-            },
-        )
-      }
-    }
-  }
+  UbaaDropdownSelector(
+      selectedText = selectedText,
+      options = options.map { it.second },
+      label = label,
+      enabled = enabled,
+      onSelected = { index -> options.getOrNull(index)?.let { onSelected(it.first) } },
+  )
 }
 
 internal fun visibleLibBookSeats(seats: List<LibBookSeatDto>): List<LibBookSeatDto> =

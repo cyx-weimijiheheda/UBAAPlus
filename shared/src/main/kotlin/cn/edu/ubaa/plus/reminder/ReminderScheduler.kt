@@ -21,7 +21,7 @@ import kotlinx.datetime.toLocalDateTime
  */
 object ReminderScheduler {
   private const val REQUEST_CODE = 42001
-  private val FALLBACK_INTERVAL = 30.minutes
+  private val FALLBACK_INTERVAL = 15.minutes
 
   fun scheduleNext(context: Context) {
     val nowInstant = Clock.System.now()
@@ -51,11 +51,15 @@ object ReminderScheduler {
     val triggerAt = Clock.System.now().plus(delay).toEpochMilliseconds()
     val pending = pendingIntent(context)
     runCatching {
-      // 非精确闹钟即可：课程提醒提前 10-20 分钟，几分钟的误差可以接受，也避开精确闹钟权限。
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
-      } else {
-        manager.set(AlarmManager.RTC_WAKEUP, triggerAt, pending)
+      // 签到窗口只有十几分钟，乱序的闹钟会让提醒明显迟到，所以优先用精确闹钟；
+      // 没有精确闹钟权限时退回 setAndAllowWhileIdle（Doze 下可能延迟，但不至于不响）。
+      val canExact =
+          Build.VERSION.SDK_INT < Build.VERSION_CODES.S || manager.canScheduleExactAlarms()
+      when {
+        canExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ->
+            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
+        canExact -> manager.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pending)
+        else -> manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
       }
     }
   }
