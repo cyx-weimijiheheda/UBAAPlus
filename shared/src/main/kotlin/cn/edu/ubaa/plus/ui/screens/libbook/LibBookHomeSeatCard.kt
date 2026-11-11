@@ -30,6 +30,8 @@ import cn.edu.ubaa.plus.model.dto.canSignIn
 import cn.edu.ubaa.plus.model.dto.isInUseBooking
 import cn.edu.ubaa.plus.model.dto.isTerminalBooking
 import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.datetime.LocalDateTime
 
 /**
@@ -58,8 +60,8 @@ fun LibBookHomeSeatCard(
   val statusText = libBookHomeStatusLabel(booking).ifBlank { booking.status.ifBlank { "已预约" } }
 
   Card(
-      modifier = modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = modifier.fillMaxWidth().ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
       border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
       elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {

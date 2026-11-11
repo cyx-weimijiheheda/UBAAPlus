@@ -40,6 +40,8 @@ import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.model.format.formatUbaaFlexibleRange
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
 
@@ -505,8 +507,8 @@ private fun VenueOrderHistoryDialog(
 @Composable
 private fun VenueOrderRecordCard(record: VenueOrderRecord) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(12.dp),

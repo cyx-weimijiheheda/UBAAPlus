@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 
 data class FeatureItem(
     val id: String,
@@ -283,7 +284,7 @@ private fun FeatureCard(
                     onLongPress = { offset -> onLongPress(cardPosition + offset) },
                 )
               },
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      colors = ubaaGlassCardColors(),
       elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
   ) {
     Column(
@@ -339,7 +340,7 @@ private fun FeatureCompactRow(
                     onLongPress = { offset -> onLongPress(rowPosition + offset) },
                 )
               },
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      colors = ubaaGlassCardColors(),
   ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),

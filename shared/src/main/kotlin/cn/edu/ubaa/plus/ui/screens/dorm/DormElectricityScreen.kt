@@ -56,6 +56,8 @@ import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun DormElectricityScreen(
@@ -361,8 +363,8 @@ private fun DormRechargeConfirmDialog(
 @Composable
 private fun DormTopUpRow(topUp: DormTopUpDto) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
   ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(12.dp),

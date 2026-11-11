@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus.ui.screens.spoc
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,10 +11,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -23,13 +30,20 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.common.util.addAssignmentDeadlineToCalendar
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /** SPOC 作业详情页。 */
 @Composable
@@ -39,6 +53,7 @@ fun SpocAssignmentDetailScreen(
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val detail = uiState.assignmentDetail
+  val context = LocalContext.current
 
   UbaaToastEffect(uiState.detailError) {}
 
@@ -86,11 +101,8 @@ fun SpocAssignmentDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
               Card(
-                  modifier = Modifier.fillMaxWidth(),
-                  colors =
-                      CardDefaults.cardColors(
-                          containerColor = MaterialTheme.colorScheme.surfaceVariant
-                      ),
+                  modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+                  colors = CardDefaults.cardColors(containerColor = Color.Transparent),
               ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                   Text(
@@ -115,6 +127,16 @@ fun SpocAssignmentDetailScreen(
 
               DetailInfoCard(
                   title = "提交信息",
+                  onAddToCalendar = {
+                    val ok =
+                        addAssignmentDeadlineToCalendar(
+                            context = context,
+                            title = detail.title,
+                            courseName = detail.courseName,
+                            dueTime = detail.dueTime,
+                        )
+                    UbaaToast.show(if (ok) "已打开日历" else "未找到可用的日历应用")
+                  },
                   lines =
                       buildList {
                         add("状态：${detail.submissionStatusText}")
@@ -137,9 +159,46 @@ fun SpocAssignmentDetailScreen(
   }
 }
 
+/**
+ * 作业详情里的信息卡片。
+ *
+ * 三个卡片都带复制按钮；[onAddToCalendar] 只在提交信息卡片上传入，用来把截止时间写进日历。
+ */
 @Composable
-private fun DetailInfoCard(title: String, lines: List<String>) {
+private fun DetailInfoCard(
+    title: String,
+    lines: List<String>,
+    onAddToCalendar: (() -> Unit)? = null,
+) {
+  val clipboard = LocalClipboardManager.current
   UbaaSectionCard(title = title, modifier = Modifier.fillMaxWidth()) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+      if (onAddToCalendar != null) {
+        IconButton(onClick = onAddToCalendar) {
+          Icon(
+              imageVector = Icons.Default.Event,
+              contentDescription = "添加到日程",
+              modifier = Modifier.size(18.dp),
+          )
+        }
+      }
+      IconButton(
+          onClick = {
+            clipboard.setText(AnnotatedString("${title}\n" + lines.joinToString("\n")))
+            UbaaToast.show("已复制${title}")
+          }
+      ) {
+        Icon(
+            imageVector = Icons.Default.ContentCopy,
+            contentDescription = "复制${title}",
+            modifier = Modifier.size(18.dp),
+        )
+      }
+    }
     lines.forEach {
       Text(
           text = it,

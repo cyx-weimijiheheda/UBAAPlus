@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.provider.CalendarContract
+import cn.edu.ubaa.plus.model.format.parseUbaaDateTime
 import cn.edu.ubaa.plus.model.format.parseUbaaTime
 import kotlin.time.ExperimentalTime
 import kotlinx.datetime.LocalDate
@@ -51,6 +52,44 @@ fun addCourseToCalendar(
           .putExtra(CalendarContract.Events.EVENT_TIMEZONE, zone.id)
           .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+  return try {
+    context.startActivity(intent)
+    true
+  } catch (_: ActivityNotFoundException) {
+    false
+  } catch (_: SecurityException) {
+    false
+  }
+}
+
+/**
+ * 把作业截止时间写进日历。
+ *
+ * 截止时间只有一个时刻，按「提前一小时提醒」的 30 分钟事件塞进日历，标题带上课程名便于识别。
+ */
+@OptIn(ExperimentalTime::class)
+fun addAssignmentDeadlineToCalendar(
+    context: Context,
+    title: String,
+    courseName: String,
+    dueTime: String?,
+): Boolean {
+  val due = parseUbaaDateTime(dueTime) ?: return false
+  val zone = TimeZone.currentSystemDefault()
+  val dueMillis = due.toInstant(zone).toEpochMilliseconds()
+  val beginMillis = (dueMillis - 60 * 60 * 1000L).coerceAtLeast(0L)
+  val eventTitle =
+      listOf(courseName.takeIf { it.isNotBlank() }, title).filterNotNull().joinToString(" · ")
+  val intent =
+      Intent(Intent.ACTION_INSERT)
+          .setData(CalendarContract.Events.CONTENT_URI)
+          .putExtra(CalendarContract.Events.TITLE, "作业截止：$eventTitle")
+          .putExtra(CalendarContract.Events.DESCRIPTION, "UBAAPlus 记于作业详情")
+          .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, beginMillis)
+          .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, dueMillis)
+          .putExtra(CalendarContract.Events.EVENT_TIMEZONE, zone.id)
+          .putExtra(CalendarContract.Events.HAS_ALARM, 1)
+          .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
   return try {
     context.startActivity(intent)
     true

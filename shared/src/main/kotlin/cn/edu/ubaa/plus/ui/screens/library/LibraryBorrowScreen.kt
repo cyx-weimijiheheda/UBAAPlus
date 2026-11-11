@@ -34,6 +34,8 @@ import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 @Composable
 fun LibraryBorrowScreen(
@@ -137,8 +139,8 @@ fun LibraryBorrowScreen(
 @Composable
 private fun LibraryLoanCard(loan: LibraryLoanDto) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(12.dp),

@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -108,3 +110,18 @@ fun UbaaAmbientBackground(modifier: Modifier = Modifier) {
     )
   }
 }
+
+/**
+ * 卡片统一磨砂背景。
+ *
+ * 之前各页面用 `CardDefaults.cardColors(containerColor = surfaceVariant)` 直接铺一块实色，和页面背景的
+ * 玻璃风格对不上。改用这个：卡片容器透明、由 [ubaaGlassSurface] 画磨砂层，边框/圆角/明暗都一致。
+ *
+ * 用法：`Card(colors = ubaaGlassCardColors(), modifier = Modifier.<布局>.ubaaGlassSurface())`
+ */
+@Composable
+fun ubaaGlassCardColors(): CardColors =
+    CardDefaults.cardColors(
+        containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    )

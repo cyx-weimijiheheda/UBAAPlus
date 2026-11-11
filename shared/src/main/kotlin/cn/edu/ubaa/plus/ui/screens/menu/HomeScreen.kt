@@ -55,6 +55,8 @@ import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailInfo
 import cn.edu.ubaa.plus.ui.screens.schedule.displayCourseName
 import cn.edu.ubaa.plus.ui.screens.schedule.toCourseDetailInfo
 import cn.edu.ubaa.plus.ui.screens.signin.SigninClassCard
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.datetime.LocalDateTime
@@ -333,8 +335,8 @@ private fun HomeSectionLoadingChip(text: String) {
 @Composable
 private fun HomeLoadingCard(title: String, subtitle: String) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
   ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
@@ -365,8 +367,8 @@ private fun TodayClassCard(
     onClick: () -> Unit = {},
 ) {
   Card(
-      modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = modifier.fillMaxWidth().clickable(onClick = onClick).ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Text(
@@ -420,8 +422,8 @@ private fun TodayClassCard(
 @Composable
 private fun HomeTodoCard(item: HomeTodoItem, onClick: () -> Unit) {
   Card(
-      modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
       elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
     Row(
@@ -524,8 +526,8 @@ private fun HomeErrorCard(message: String, onRetry: () -> Unit) {
 @Composable
 private fun HomeEmptyCard(title: String, subtitle: String) {
   Card(
-      modifier = Modifier.fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = Modifier.fillMaxWidth().ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(24.dp),

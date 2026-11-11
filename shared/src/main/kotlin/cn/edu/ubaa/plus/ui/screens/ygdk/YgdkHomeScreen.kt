@@ -44,6 +44,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 
 @Composable
 fun YgdkHomeScreen(
@@ -176,7 +177,7 @@ private fun YgdkSummaryCard(
     secondaryText: String?,
 ) {
   Card(
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      colors = ubaaGlassCardColors(),
       modifier = Modifier.fillMaxWidth(),
   ) {
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

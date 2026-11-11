@@ -47,6 +47,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.CaptchaInfo
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
+import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
@@ -308,8 +310,8 @@ private fun CaptchaImage(
       }
 
   Card(
-      modifier = modifier.clickable(enabled = !isRefreshing, onClick = onClick),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+      modifier = modifier.clickable(enabled = !isRefreshing, onClick = onClick).ubaaGlassSurface(),
+      colors = ubaaGlassCardColors(),
   ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
       if (isRefreshing)
