@@ -34,38 +34,40 @@ fun BottomNavigation(
           unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
       )
 
-  NavigationBar(
-      modifier =
-          modifier
-              .fillMaxWidth()
-              .padding(horizontal = 12.dp, vertical = 6.dp)
-              .ubaaLiquidGlass(shape = RoundedCornerShape(28.dp)),
-      containerColor = Color.Transparent,
-      contentColor = MaterialTheme.colorScheme.onSurface,
-      tonalElevation = 0.dp,
-  ) {
-    NavigationBarItem(
-        icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "主页") },
-        label = { Text("主页") },
-        selected = currentTab == BottomNavTab.HOME,
-        onClick = { onTabSelected(BottomNavTab.HOME) },
-        colors = itemColors,
-    )
+  Box(modifier = modifier.navigationBarsPadding()) {
+    NavigationBar(
+        windowInsets = WindowInsets(0, 0, 0, 0),
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .ubaaLiquidGlass(shape = RoundedCornerShape(28.dp)),
+        containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp,
+    ) {
+      NavigationBarItem(
+          icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "主页") },
+          label = { Text("主页") },
+          selected = currentTab == BottomNavTab.HOME,
+          onClick = { onTabSelected(BottomNavTab.HOME) },
+          colors = itemColors,
+      )
 
-    NavigationBarItem(
-        icon = { Icon(imageVector = Icons.AutoMirrored.Filled.List, contentDescription = "功能") },
-        label = { Text("功能") },
-        selected = currentTab == BottomNavTab.REGULAR,
-        onClick = { onTabSelected(BottomNavTab.REGULAR) },
-        colors = itemColors,
-    )
+      NavigationBarItem(
+          icon = { Icon(imageVector = Icons.AutoMirrored.Filled.List, contentDescription = "功能") },
+          label = { Text("功能") },
+          selected = currentTab == BottomNavTab.REGULAR,
+          onClick = { onTabSelected(BottomNavTab.REGULAR) },
+          colors = itemColors,
+      )
 
-    NavigationBarItem(
-        icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "个人中心") },
-        label = { Text("个人中心") },
-        selected = currentTab == BottomNavTab.PROFILE,
-        onClick = { onTabSelected(BottomNavTab.PROFILE) },
-        colors = itemColors,
-    )
+      NavigationBarItem(
+          icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "个人中心") },
+          label = { Text("个人中心") },
+          selected = currentTab == BottomNavTab.PROFILE,
+          onClick = { onTabSelected(BottomNavTab.PROFILE) },
+          colors = itemColors,
+      )
+    }
   }
 }

@@ -51,7 +51,9 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
   override fun onDeleted(context: Context, ids: IntArray) {
     val editor = context.getSharedPreferences("schedule_widgets", Context.MODE_PRIVATE).edit()
     ids.forEach { id ->
-      listOf("owner", "anchor", "term", "week").forEach { editor.remove("$id-$it") }
+      listOf("owner", "anchor", "term", "week", "page", "todo", "agenda-owner").forEach {
+        editor.remove("$id-$it")
+      }
     }
     editor.apply()
   }
@@ -266,49 +268,94 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
                       )
                     }
                     .getOrDefault(emptyList())
-        val lines = buildList {
-          if (!todoOnly) {
-            add("今日课程 · ${agenda.size} 门")
-            if (agenda.isEmpty()) add("暂无本地课程 · 打开应用本地化课表")
-            agenda.forEach {
-              add(
-                  "${it.course.beginTime.orEmpty()}–${it.course.endTime.orEmpty()} ${it.course.courseName}\n${it.course.placeName.orEmpty()}"
+        val showingTodo =
+            todoOnly ||
+                if (step == 0) !preferences.getBoolean("$id-todo", false)
+                else preferences.getBoolean("$id-todo", false)
+        val courseRows =
+            agenda.map {
+              WidgetAgendaRow(
+                  it.course.courseName,
+                  "${it.course.beginTime.orEmpty()}–${it.course.endTime.orEmpty()}\n${it.course.placeName.orEmpty()}",
+                  true,
               )
             }
-          }
-          add("待办 · ${snapshot?.items?.size ?: 0} 项")
-          if (snapshot == null) add("打开应用首页同步待办")
-          else if (snapshot.items.isEmpty())
-              add(if (snapshot.unavailable.isEmpty()) "暂无待办 · 点击打开首页更新" else "部分来源未更新 · 打开首页重试")
-          snapshot?.items?.forEach { add("${it.title}\n${it.detail}") }
-        }
-        // Share limited space between courses and todos so the todo section remains visible.
-        val rows = ((widgetHeight - 64) / 54).coerceAtLeast(1)
-        val display =
-            if (!todoOnly && rows >= 2 && snapshot?.items?.isNotEmpty() == true) {
-              val courseRows = (rows / 2).coerceAtLeast(1)
-              lines.take(courseRows) +
-                  listOf("待办 · ${snapshot.items.size} 项") +
-                  snapshot.items.map { "${it.title}\n${it.detail}" }
-            } else lines
+        val todoRows = snapshot?.items.orEmpty().map { WidgetAgendaRow(it.title, it.detail, false) }
+        val rows = if (showingTodo) todoRows else courseRows + todoRows
+        val emptyHint =
+            if (showingTodo) {
+              if (snapshot == null) "打开首页同步待办"
+              else if (snapshot.unavailable.isNotEmpty()) "部分来源未更新 · 打开首页重试" else "暂无待办"
+            } else "暂无课程与待办 · 打开首页同步"
+        val pageHeight = widgetHeight - 64
+        val previousPage =
+            if (preferences.getString("$id-agenda-owner", null) == owner && step != 0)
+                preferences.getInt("$id-page", 0)
+            else 0
+        val page =
+            widgetAgendaPage(
+                courseRows,
+                todoRows,
+                showingTodo,
+                pageHeight,
+                previousPage + if (step == -1 || step == 1) step else 0,
+            )
+        preferences
+            .edit()
+            .putInt("$id-page", page.page)
+            .putBoolean("$id-todo", showingTodo)
+            .putString("$id-agenda-owner", owner)
+            .apply()
+        val rendered =
+            if (rows.isEmpty())
+                page.copy(
+                    rows =
+                        listOf(
+                            WidgetAgendaRow(
+                                emptyHint,
+                                if (showingTodo) "点击打开应用" else "先本地化课表，再更新待办",
+                                false,
+                            )
+                        )
+                )
+            else page
         views.setViewVisibility(R.id.widget_grid, View.VISIBLE)
         views.setViewVisibility(R.id.widget_message, View.GONE)
         views.setImageViewBitmap(
             R.id.widget_grid,
-            renderWidgetLines(display, widgetWidth - 16, widgetHeight - 64, palette),
+            renderWidgetAgenda(rendered, widgetWidth - 16, pageHeight, palette),
         )
-        views.setTextViewText(R.id.widget_title, if (todoOnly) "待办" else "今日课程与待办")
+        views.setTextViewText(
+            R.id.widget_title,
+            (if (showingTodo) "待办 · ${todoRows.size} 项" else "今日课表 · ${courseRows.size} 门") +
+                "  ${page.page + 1}/${page.pageCount}",
+        )
+        views.setTextColor(R.id.widget_title, palette.accent)
         views.setTextViewText(
             R.id.widget_footer,
-            snapshot?.let {
-              "快照 ${formatUbaaCompactDateTime(it.updated)}" +
-                  if (it.unavailable.isEmpty()) " · 点击更新" else " · 部分来源未更新"
-            } ?: "点击打开应用同步",
+            snapshot?.let { "快照 ${formatUbaaCompactDateTime(it.updated)} · 打开应用更新" } ?: "点击打开应用同步",
         )
-        views.setContentDescription(R.id.widget_grid, lines.joinToString("；"))
-        listOf(R.id.widget_previous, R.id.widget_next, R.id.widget_current).forEach {
-          views.setViewVisibility(it, View.GONE)
+        views.setContentDescription(
+            R.id.widget_grid,
+            rows.joinToString("；") { "${it.title} ${it.detail}" },
+        )
+        listOf(R.id.widget_previous, R.id.widget_next).forEach {
+          views.setViewVisibility(it, View.VISIBLE)
         }
+        views.setBoolean(R.id.widget_previous, "setEnabled", page.page > 0)
+        views.setBoolean(R.id.widget_next, "setEnabled", page.page + 1 < page.pageCount)
+        views.setFloat(R.id.widget_previous, "setAlpha", if (page.page > 0) 1f else 0.35f)
+        views.setFloat(
+            R.id.widget_next,
+            "setAlpha",
+            if (page.page + 1 < page.pageCount) 1f else 0.35f,
+        )
+        views.setContentDescription(R.id.widget_previous, "上一页")
+        views.setContentDescription(R.id.widget_next, "下一页")
+        views.setViewVisibility(R.id.widget_current, if (todoOnly) View.GONE else View.VISIBLE)
+        views.setTextViewText(R.id.widget_current, if (showingTodo) "课表" else "待办")
+        views.setContentDescription(R.id.widget_current, if (showingTodo) "显示课表与待办" else "只显示待办")
+        views.setBoolean(R.id.widget_current, "setEnabled", true)
         val appIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)!!
         views.setOnClickPendingIntent(
             R.id.widget_root,

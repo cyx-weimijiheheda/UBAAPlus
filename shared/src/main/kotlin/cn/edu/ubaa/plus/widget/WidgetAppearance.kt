@@ -36,14 +36,14 @@ internal fun widgetPalette(context: Context): WidgetPalette {
   if (prefs.widgetColorMode == WidgetColorMode.WALLPAPER && Build.VERSION.SDK_INT >= 31) {
     val scheme = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     return WidgetPalette(
-        scheme.surface.toArgb(),
+        lerp(scheme.surface, scheme.primaryContainer, 0.40f).toArgb(),
         scheme.onSurface.toArgb(),
         scheme.primary.toArgb(),
         scheme.primaryContainer.toArgb(),
     )
   }
   val background =
-      lerp(if (dark) Color(0xFF14171C) else Color.White, brand, if (dark) 0.08f else 0.04f)
+      lerp(if (dark) Color(0xFF14171C) else Color.White, brand, if (dark) 0.18f else 0.10f)
   return WidgetPalette(
       background.toArgb(),
       (if (dark) Color(0xFFE8EDF5) else Color(0xFF18212D)).toArgb(),

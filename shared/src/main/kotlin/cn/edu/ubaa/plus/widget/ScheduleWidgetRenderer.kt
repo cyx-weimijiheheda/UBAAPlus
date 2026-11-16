@@ -258,21 +258,42 @@ internal fun renderAgendaWidget(
   return bitmap
 }
 
-internal fun renderWidgetLines(
-    lines: List<String>,
+internal fun renderWidgetAgenda(
+    page: WidgetAgendaPage,
     width: Int,
     height: Int,
     palette: WidgetPalette,
 ): Bitmap {
   val bitmap = Bitmap.createBitmap(width * 2, height * 2, Bitmap.Config.ARGB_8888)
   val canvas = Canvas(bitmap).apply { scale(2f, 2f) }
-  val rows = (height / 54).coerceAtLeast(1)
-  val visible =
-      if (lines.size > rows)
-          lines.take((rows - 1).coerceAtLeast(0)) + "另 ${lines.size - rows + 1} 项 · 点击打开应用"
-      else lines
-  visible.forEachIndexed { index, line ->
-    drawWidgetText(canvas, line, 4f, index * 54f, width - 8, 50, 12f, palette)
+  val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+  val rowHeight = (height.toFloat() / page.rows.size.coerceAtLeast(1)).coerceAtMost(68f)
+  page.rows.forEachIndexed { index, row ->
+    val y = index * rowHeight
+    paint.color = palette.cell
+    canvas.drawRoundRect(RectF(2f, y + 2, width - 2f, y + rowHeight - 2), 9f, 9f, paint)
+    paint.color = palette.accent
+    canvas.drawRoundRect(RectF(2f, y + 8, 5f, y + rowHeight - 8), 2f, 2f, paint)
+    drawWidgetText(
+        canvas,
+        row.title,
+        12f,
+        y + 5,
+        width - 24,
+        18,
+        13f,
+        palette.copy(text = palette.accent),
+    )
+    drawWidgetText(
+        canvas,
+        row.detail,
+        12f,
+        y + 24,
+        width - 24,
+        (rowHeight - 26).toInt().coerceAtLeast(14),
+        11f,
+        palette,
+    )
   }
   return bitmap
 }

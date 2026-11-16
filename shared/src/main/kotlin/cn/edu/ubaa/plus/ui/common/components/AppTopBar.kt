@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
-import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
+import cn.edu.ubaa.plus.ui.theme.ubaaLiquidGlass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,16 +22,7 @@ fun AppTopBar(
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-  Box(
-      modifier =
-          modifier
-              .fillMaxWidth()
-              .ubaaGlassSurface(
-                  shape = RectangleShape,
-                  chrome = true,
-                  solidColor = MaterialTheme.colorScheme.surfaceContainer,
-              )
-  ) {
+  Box(modifier = modifier.fillMaxWidth().ubaaLiquidGlass(shape = RectangleShape)) {
     CenterAlignedTopAppBar(
         expandedHeight = 56.dp,
         title = { Text(title) },
@@ -46,6 +37,7 @@ fun AppTopBar(
         colors =
             TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent,
+                scrolledContainerColor = Color.Transparent,
                 titleContentColor = MaterialTheme.colorScheme.onSurface,
                 navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,

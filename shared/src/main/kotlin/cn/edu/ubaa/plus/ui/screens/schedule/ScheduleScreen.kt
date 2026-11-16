@@ -43,6 +43,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
+import cn.edu.ubaa.plus.ui.theme.ubaaLiquidGlass
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -374,15 +375,7 @@ private fun ScheduleTopAppBar(
     isNextEnabled: Boolean,
     onTitleClick: () -> Unit,
 ) {
-  Box(
-      modifier =
-          Modifier.fillMaxWidth()
-              .ubaaGlassSurface(
-                  shape = RectangleShape,
-                  chrome = true,
-                  solidColor = MaterialTheme.colorScheme.surfaceContainer,
-              )
-  ) {
+  Box(modifier = Modifier.fillMaxWidth().ubaaLiquidGlass(shape = RectangleShape)) {
     CenterAlignedTopAppBar(
         expandedHeight = 56.dp,
         navigationIcon = {
@@ -412,6 +405,7 @@ private fun ScheduleTopAppBar(
         colors =
             TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent,
+                scrolledContainerColor = Color.Transparent,
                 titleContentColor = MaterialTheme.colorScheme.onSurface,
                 navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
