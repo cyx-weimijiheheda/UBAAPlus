@@ -50,20 +50,20 @@ fun Modifier.ubaaGlassSurface(
   val dark = scheme.surface.luminance() < 0.5f
   val container = if (chrome) scheme.surfaceContainer else scheme.surface
   val alpha = if (chrome) (if (dark) 0.76f else 0.86f) else (if (dark) 0.66f else 0.80f)
-  val tintAlpha = if (dark) 0.09f else 0.045f
+  val tintAlpha = if (dark) 0.12f else 0.07f
   val brush =
       Brush.linearGradient(
           listOf(
               container.copy(alpha = alpha),
+              scheme.surfaceContainerLow.copy(alpha = alpha * 0.96f),
               scheme.primary.copy(alpha = tintAlpha),
-              scheme.surfaceContainerLow.copy(alpha = alpha * 0.92f),
           )
       )
   return this.clip(shape)
       .background(brush, shape)
       .border(
           0.5.dp,
-          scheme.outlineVariant.copy(alpha = if (dark) 0.22f else 0.40f),
+          scheme.outlineVariant.copy(alpha = if (dark) 0.32f else 0.48f),
           shape,
       )
 }
