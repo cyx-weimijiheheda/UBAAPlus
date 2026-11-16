@@ -250,6 +250,7 @@ class AuthViewModel(
 
   /** 注销登录，清理所有本地状态。 */
   fun logout() {
+    cn.edu.ubaa.plus.widget.WidgetTodoStore.clear()
     ScheduleStore.forgetAccount()
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isLoading = true)

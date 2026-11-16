@@ -2,7 +2,6 @@ package cn.edu.ubaa.plus.widget
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.text.Layout
@@ -26,8 +25,9 @@ internal fun renderScheduleWidget(
     schedule: WeeklySchedule?,
     width: Int,
     height: Int,
+    palette: WidgetPalette,
 ): Bitmap {
-  if (height < 230 || width < 240) return renderCompactWeek(week, schedule, width, height)
+  if (height < 230 || width < 240) return renderCompactWeek(week, schedule, width, height, palette)
   val scale = 1.5f
   val bitmap =
       Bitmap.createBitmap(
@@ -40,7 +40,7 @@ internal fun renderScheduleWidget(
   val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   val text =
       TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(0, 91, 172)
+        color = palette.text
         textSize = 10f
       }
   val courses = schedule?.arrangedList.orEmpty()
@@ -64,7 +64,7 @@ internal fun renderScheduleWidget(
         text,
     )
   }
-  paint.color = Color.rgb(214, 227, 255)
+  paint.color = palette.cell
   for (i in 0..periods) canvas.drawLine(left, top + i * row, width.toFloat(), top + i * row, paint)
   for (i in 0..7) canvas.drawLine(
       left + i * column,
@@ -112,7 +112,7 @@ internal fun renderScheduleWidget(
                   left + (day - 1) * column + (lane + 1) * laneWidth - 1f,
                   top + end * row - 1f,
               )
-          paint.color = Color.rgb(214, 227, 255)
+          paint.color = palette.cell
           canvas.drawRoundRect(rect, 4f, 4f, paint)
           val label =
               "${course.courseName}\n${course.beginTime.orEmpty()}\n${course.placeName.orEmpty()}"
@@ -153,10 +153,11 @@ private fun drawWidgetText(
     width: Int,
     height: Int,
     size: Float,
+    palette: WidgetPalette,
 ) {
   val paint =
       TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(0, 48, 98)
+        color = palette.text
         textSize = size
       }
   val layout =
@@ -177,6 +178,7 @@ private fun renderCompactWeek(
     schedule: WeeklySchedule?,
     width: Int,
     height: Int,
+    palette: WidgetPalette,
 ): Bitmap {
   val bitmap = Bitmap.createBitmap(width * 2, height * 2, Bitmap.Config.ARGB_8888)
   val canvas = Canvas(bitmap).apply { scale(2f, 2f) }
@@ -200,6 +202,7 @@ private fun renderCompactWeek(
         column - 6,
         row - 2,
         10f,
+        palette,
     )
   }
   drawWidgetText(
@@ -210,15 +213,21 @@ private fun renderCompactWeek(
       column - 6,
       row - 2,
       10f,
+      palette,
   )
   return bitmap
 }
 
-internal fun renderAgendaWidget(items: List<SavedAgendaItem>, width: Int, height: Int): Bitmap {
+internal fun renderAgendaWidget(
+    items: List<SavedAgendaItem>,
+    width: Int,
+    height: Int,
+    palette: WidgetPalette,
+): Bitmap {
   val bitmap = Bitmap.createBitmap(width * 2, height * 2, Bitmap.Config.ARGB_8888)
   val canvas = Canvas(bitmap).apply { scale(2f, 2f) }
   if (items.isEmpty()) {
-    drawWidgetText(canvas, "没有已安排课程", 4f, 8f, width - 8, height - 8, 13f)
+    drawWidgetText(canvas, "没有已安排课程", 4f, 8f, width - 8, height - 8, 13f, palette)
     return bitmap
   }
   val rows = ((height - 16) / 44).coerceAtLeast(1)
@@ -232,6 +241,7 @@ internal fun renderAgendaWidget(items: List<SavedAgendaItem>, width: Int, height
         width - 8,
         42,
         12f,
+        palette,
     )
   }
   if (items.size > rows)
@@ -243,6 +253,33 @@ internal fun renderAgendaWidget(items: List<SavedAgendaItem>, width: Int, height
           width - 8,
           15,
           10f,
+          palette,
       )
+  return bitmap
+}
+
+internal fun renderWidgetLines(
+    lines: List<String>,
+    width: Int,
+    height: Int,
+    palette: WidgetPalette,
+): Bitmap {
+  val bitmap = Bitmap.createBitmap(width * 2, height * 2, Bitmap.Config.ARGB_8888)
+  val canvas = Canvas(bitmap).apply { scale(2f, 2f) }
+  val rows = (height / 54).coerceAtLeast(1)
+  val visible =
+      if (lines.size > rows)
+          lines.take((rows - 1).coerceAtLeast(0)) + "另 ${lines.size - rows + 1} 项 · 点击打开应用"
+      else lines
+  visible.forEachIndexed { index, line ->
+    drawWidgetText(canvas, line, 4f, index * 54f, width - 8, 50, 12f, palette)
+  }
+  return bitmap
+}
+
+internal fun widgetBackground(width: Int, height: Int, palette: WidgetPalette): Bitmap {
+  val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+  val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = palette.background }
+  Canvas(bitmap).drawRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), 20f, 20f, paint)
   return bitmap
 }

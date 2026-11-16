@@ -451,6 +451,7 @@ fun MainAppScreen(
         )
       }
   val homeTodoLoadingSources = buildList {
+    if (venueOrderHistoryState.isLoading) add(HomeTodoSource.VENUE)
     if (homeExamState.isLoading) add(HomeTodoSource.EXAM)
     if (bykcChosenState.isLoading) add(HomeTodoSource.BYKC)
     if (spocUiState.isLoading || spocUiState.isRefreshing) add(HomeTodoSource.SPOC)
@@ -468,12 +469,35 @@ fun MainAppScreen(
       homeManualRefreshPending &&
           (homeManualRefreshStarted || homeBootstrapRunning || homeContentLoading)
   val homeTodoFailedSources = buildList {
+    if (venueOrderHistoryState.error != null) add(HomeTodoSource.VENUE)
     if (homeExamState.error != null) add(HomeTodoSource.EXAM)
     if (bykcChosenState.error != null) add(HomeTodoSource.BYKC)
     if (spocUiState.error != null) add(HomeTodoSource.SPOC)
     if (judgeUiState.error != null) add(HomeTodoSource.JUDGE)
     if (cgyyUiState.ordersError != null) add(HomeTodoSource.CGYY)
     if (shouldLoadYgdkHomeOverview && ygdkUiState.loadError != null) add(HomeTodoSource.YGDK)
+  }
+
+  LaunchedEffect(
+      homeTodoItems,
+      homeTodoLoading,
+      homeBootstrapRunning,
+      homeTodoFailedSources,
+      homeLibBookBooking,
+      libBookUiState.isBookingsLoading,
+      userData.schoolid,
+  ) {
+    if (!homeTodoLoading && !homeBootstrapRunning && !libBookUiState.isBookingsLoading) {
+      cn.edu.ubaa.plus.widget.WidgetTodoStore.write(
+          userData.schoolid,
+          homeTodoItems,
+          homeNow,
+          homeLibBookBooking,
+          homeTodoFailedSources.map { it.label } +
+              listOfNotNull(libBookUiState.bookingsError?.let { "图书馆座位" }),
+      )
+      cn.edu.ubaa.plus.widget.ScheduleWidgetProvider.requestRefresh(appContext)
+    }
   }
 
   fun startHomeBootstrap(forceRefresh: Boolean = false) {

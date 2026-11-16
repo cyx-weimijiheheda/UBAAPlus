@@ -40,11 +40,14 @@ import cn.edu.ubaa.plus.api.feature.DormElectricityApi
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
 import cn.edu.ubaa.plus.api.storage.ThemeMode
+import cn.edu.ubaa.plus.api.storage.WidgetColorMode
 import cn.edu.ubaa.plus.model.dto.DormRoomDto
 import cn.edu.ubaa.plus.reminder.ReminderServiceController
+import cn.edu.ubaa.plus.ui.common.components.CustomBrandColorDialog
 import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 private sealed interface DormRoomsState {
@@ -65,6 +68,16 @@ fun SettingsScreen(
 ) {
   var pendingMode by remember { mutableStateOf<ConnectionMode?>(null) }
   val preferences by AppPreferencesStore.state.collectAsState()
+  var showWidgetColorPicker by remember { mutableStateOf(false) }
+  if (showWidgetColorPicker)
+      CustomBrandColorDialog(
+          initialArgb = preferences.widgetCustomArgb,
+          onDismiss = { showWidgetColorPicker = false },
+          onApply = {
+            AppPreferencesStore.setWidgetAppearance(argb = it)
+            showWidgetColorPicker = false
+          },
+      )
   var dormState by remember { mutableStateOf<DormRoomsState>(DormRoomsState.Loading) }
   val dormApi = remember { DormElectricityApi() }
 
@@ -88,6 +101,13 @@ fun SettingsScreen(
   ) {
     item {
       SettingsSection(title = "外观") {
+        Text("显示模式", style = MaterialTheme.typography.bodyLarge)
+        UbaaSegmentedTabs(
+            labels = ThemeMode.entries.map { it.displayName },
+            selectedIndex = preferences.themeMode.ordinal,
+            onSelected = { AppPreferencesStore.setThemeMode(ThemeMode.entries[it]) },
+        )
+        Spacer(modifier = Modifier.height(12.dp))
         ThemePalettePicker(
             selected = preferences.themePalette,
             followWallpaper = preferences.followWallpaper,
@@ -103,9 +123,9 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
           Column(modifier = Modifier.weight(1f)) {
-            Text("液态玻璃效果", style = MaterialTheme.typography.bodyLarge)
+            Text("玻璃与磨砂效果", style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = "低透明度主题色磨砂表面；关闭后使用纯色卡片",
+                text = "底部导航使用透亮玻璃，内容卡片使用柔和磨砂",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -116,16 +136,6 @@ fun SettingsScreen(
           )
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text("深色模式", style = MaterialTheme.typography.bodyLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          ThemeMode.entries.forEach { mode ->
-            FilterChip(
-                selected = preferences.themeMode == mode,
-                onClick = { AppPreferencesStore.setThemeMode(mode) },
-                label = { Text(mode.displayName) },
-            )
-          }
-        }
         Spacer(modifier = Modifier.height(12.dp))
         Text("功能页布局", style = MaterialTheme.typography.bodyLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -137,6 +147,33 @@ fun SettingsScreen(
             )
           }
         }
+      }
+    }
+
+    item {
+      SettingsSection(title = "桌面小组件") {
+        Text("显示模式", style = MaterialTheme.typography.bodyLarge)
+        UbaaSegmentedTabs(
+            labels = ThemeMode.entries.map { it.displayName },
+            selectedIndex = preferences.widgetThemeMode.ordinal,
+            onSelected = { AppPreferencesStore.setWidgetAppearance(mode = ThemeMode.entries[it]) },
+        )
+        UbaaDropdownSelector(
+            selectedText = preferences.widgetColorMode.displayName,
+            options = WidgetColorMode.entries.map { it.displayName },
+            onSelected = {
+              AppPreferencesStore.setWidgetAppearance(color = WidgetColorMode.entries[it])
+            },
+            label = "配色",
+        )
+        if (preferences.widgetColorMode == WidgetColorMode.CUSTOM) {
+          TextButton(onClick = { showWidgetColorPicker = true }) { Text("设置小组件颜色") }
+        }
+        Text(
+            "今日课程小组件同时显示待办，也可单独添加待办小组件。待办来自应用同步快照；打开首页可更新。Android 12 以下壁纸配色回退到应用配色。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
       }
     }
 

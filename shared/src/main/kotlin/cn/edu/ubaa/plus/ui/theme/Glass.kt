@@ -12,6 +12,8 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,14 +51,13 @@ fun Modifier.ubaaGlassSurface(
 
   val dark = scheme.surface.luminance() < 0.5f
   val container = if (chrome) scheme.surfaceContainer else scheme.surface
-  val alpha = if (chrome) (if (dark) 0.76f else 0.86f) else (if (dark) 0.66f else 0.80f)
-  val tintAlpha = if (dark) 0.12f else 0.07f
+  val alpha = if (dark) 0.88f else 0.90f
   val brush =
       Brush.linearGradient(
           listOf(
               container.copy(alpha = alpha),
               scheme.surfaceContainerLow.copy(alpha = alpha * 0.96f),
-              scheme.primary.copy(alpha = tintAlpha),
+              scheme.surfaceContainerLow.copy(alpha = alpha * 0.94f),
           )
       )
   return this.clip(shape)
@@ -66,6 +67,48 @@ fun Modifier.ubaaGlassSurface(
           scheme.outlineVariant.copy(alpha = if (dark) 0.32f else 0.48f),
           shape,
       )
+}
+
+/** 导航专用透亮玻璃：分层反光、柔和阴影与渐变边缘；内容卡片继续用磨砂。 */
+@Composable
+fun Modifier.ubaaLiquidGlass(shape: Shape): Modifier {
+  val scheme = MaterialTheme.colorScheme
+  if (!UbaaGlass.enabled) return this.ubaaGlassSurface(shape = shape)
+  val dark = scheme.surface.luminance() < 0.5f
+  return this.shadow(12.dp, shape, clip = false)
+      .clip(shape)
+      .background(
+          Brush.verticalGradient(
+              listOf(
+                  scheme.surface.copy(alpha = if (dark) 0.78f else 0.88f),
+                  scheme.primary.copy(alpha = if (dark) 0.16f else 0.08f),
+                  scheme.surface.copy(alpha = if (dark) 0.64f else 0.76f),
+              )
+          )
+      )
+      .border(
+          1.dp,
+          Brush.linearGradient(
+              listOf(
+                  Color.White.copy(alpha = if (dark) 0.40f else 0.88f),
+                  scheme.primary.copy(alpha = 0.12f),
+                  Color.White.copy(alpha = if (dark) 0.12f else 0.60f),
+              )
+          ),
+          shape,
+      )
+      .drawWithCache {
+        val gleam =
+            Brush.radialGradient(
+                listOf(Color.White.copy(alpha = if (dark) 0.09f else 0.24f), Color.Transparent),
+                center = Offset(size.width * 0.2f, 0f),
+                radius = size.width * 0.7f,
+            )
+        onDrawWithContent {
+          drawRect(gleam)
+          drawContent()
+        }
+      }
 }
 
 /** 柔和的主题色背景，给玻璃表面提供透出的底色；静态，无动画、无强高光。 */

@@ -28,6 +28,12 @@ enum class ThemeMode(val displayName: String) {
   DARK("深色"),
 }
 
+enum class WidgetColorMode(val displayName: String) {
+  WALLPAPER("跟随壁纸"),
+  APP("应用配色"),
+  CUSTOM("自定义"),
+}
+
 /** 功能列表的展示方式。 */
 enum class FeatureLayout(val displayName: String) {
   GRID("网格"),
@@ -38,6 +44,9 @@ enum class FeatureLayout(val displayName: String) {
 data class AppPreferences(
     val themePalette: ThemePalette = ThemePalette.BUAA_BLUE,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val widgetThemeMode: ThemeMode = ThemeMode.SYSTEM,
+    val widgetColorMode: WidgetColorMode = WidgetColorMode.WALLPAPER,
+    val widgetCustomArgb: Int = DEFAULT_CUSTOM_BRAND_ARGB,
     val followWallpaper: Boolean = false,
     val customBrandArgb: Int = DEFAULT_CUSTOM_BRAND_ARGB,
     val glassEnabled: Boolean = true,
@@ -80,6 +89,18 @@ object AppPreferencesStore {
 
   fun reload() {
     _state.value = load()
+  }
+
+  fun setWidgetAppearance(
+      mode: ThemeMode = state.value.widgetThemeMode,
+      color: WidgetColorMode = state.value.widgetColorMode,
+      argb: Int = state.value.widgetCustomArgb,
+  ) {
+    settings.putString("widget_theme_mode", mode.name)
+    settings.putString("widget_color_mode", color.name)
+    settings.putInt("widget_custom_argb", argb)
+    _state.value =
+        _state.value.copy(widgetThemeMode = mode, widgetColorMode = color, widgetCustomArgb = argb)
   }
 
   fun setThemePalette(palette: ThemePalette) {
@@ -201,6 +222,13 @@ object AppPreferencesStore {
     return AppPreferences(
         themePalette = palette,
         themeMode = mode,
+        widgetThemeMode =
+            runCatching { ThemeMode.valueOf(settings.getString("widget_theme_mode", "")) }
+                .getOrDefault(ThemeMode.SYSTEM),
+        widgetColorMode =
+            runCatching { WidgetColorMode.valueOf(settings.getString("widget_color_mode", "")) }
+                .getOrDefault(WidgetColorMode.WALLPAPER),
+        widgetCustomArgb = settings.getInt("widget_custom_argb", DEFAULT_CUSTOM_BRAND_ARGB),
         followWallpaper = settings.getBoolean(KEY_FOLLOW_WALLPAPER, false),
         customBrandArgb = settings.getInt(KEY_CUSTOM_BRAND_ARGB, DEFAULT_CUSTOM_BRAND_ARGB),
         glassEnabled = settings.getBoolean(KEY_GLASS_ENABLED, true),

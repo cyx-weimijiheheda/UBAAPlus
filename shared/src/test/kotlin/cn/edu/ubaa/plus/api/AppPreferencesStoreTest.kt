@@ -4,6 +4,7 @@ import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
 import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.api.storage.ThemePalette
+import cn.edu.ubaa.plus.api.storage.WidgetColorMode
 import com.russhwolf.settings.MapSettings
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -25,6 +26,20 @@ class AppPreferencesStoreTest {
     AppPreferencesStore.setThemePalette(ThemePalette.BUAA_BLUE)
     AppPreferencesStore.setFeatureLayout(FeatureLayout.GRID)
     AppPreferencesStore.setDormDefaults("", "", "")
+  }
+
+  @Test
+  fun `小组件深浅与颜色独立保存并可重新读取`() {
+    AppPreferencesStore.setWidgetAppearance(
+        ThemeMode.DARK,
+        WidgetColorMode.CUSTOM,
+        0xFF123456.toInt(),
+    )
+    AppPreferencesStore.reload()
+    assertEquals(ThemeMode.DARK, AppPreferencesStore.state.value.widgetThemeMode)
+    assertEquals(WidgetColorMode.CUSTOM, AppPreferencesStore.state.value.widgetColorMode)
+    assertEquals(0xFF123456.toInt(), AppPreferencesStore.state.value.widgetCustomArgb)
+    assertEquals(ThemeMode.SYSTEM, AppPreferencesStore.state.value.themeMode)
   }
 
   @Test

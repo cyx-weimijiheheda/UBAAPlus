@@ -1,6 +1,7 @@
 package cn.edu.ubaa.plus.ui.common.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
@@ -9,9 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
-import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
+import cn.edu.ubaa.plus.ui.theme.ubaaLiquidGlass
 
 enum class BottomNavTab {
   HOME,
@@ -29,7 +29,7 @@ fun BottomNavigation(
       NavigationBarItemDefaults.colors(
           selectedIconColor = MaterialTheme.colorScheme.primary,
           selectedTextColor = MaterialTheme.colorScheme.primary,
-          indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+          indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
           unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
           unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -38,11 +38,8 @@ fun BottomNavigation(
       modifier =
           modifier
               .fillMaxWidth()
-              .ubaaGlassSurface(
-                  shape = RectangleShape,
-                  chrome = true,
-                  solidColor = MaterialTheme.colorScheme.surfaceContainer,
-              ),
+              .padding(horizontal = 12.dp, vertical = 6.dp)
+              .ubaaLiquidGlass(shape = RoundedCornerShape(28.dp)),
       containerColor = Color.Transparent,
       contentColor = MaterialTheme.colorScheme.onSurface,
       tonalElevation = 0.dp,

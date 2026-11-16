@@ -26,6 +26,35 @@ class LibBookHomeRulesTest {
       )
 
   @Test
+  fun `待签到状态不被通用使用中文案改变可执行操作`() {
+    val waiting = booking("waiting", status = "4", statusName = "使用中")
+    assertEquals(
+        listOf(LibBookCardAction.CANCEL, LibBookCardAction.SIGN_IN),
+        waiting.cardActions().filter(waiting::isCardActionEnabled),
+    )
+  }
+
+  @Test
+  fun `明确暂离与待签到标志优先于通用使用中文案`() {
+    assertEquals(
+        "临时离开",
+        libBookHomeStatusLabel(
+            booking("left", status = "3", statusName = "使用中").copy(flagLeave = "1")
+        ),
+    )
+    assertEquals(
+        "待签到",
+        libBookHomeStatusLabel(
+            booking("waiting", status = "3", statusName = "使用中").copy(flagIn = "1", flagOut = "0")
+        ),
+    )
+    assertEquals(
+        "未签到",
+        libBookHomeStatusLabel(booking("waiting", status = "4", statusName = "使用中")),
+    )
+  }
+
+  @Test
   fun `使用中的预约优先于待签到`() {
     val bookings =
         listOf(

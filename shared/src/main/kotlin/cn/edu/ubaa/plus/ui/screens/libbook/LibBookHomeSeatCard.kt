@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
+import cn.edu.ubaa.plus.model.dto.canReturnSignIn
 import cn.edu.ubaa.plus.model.dto.canSignIn
 import cn.edu.ubaa.plus.model.dto.isInUseBooking
 import cn.edu.ubaa.plus.model.dto.isTerminalBooking
@@ -167,6 +168,13 @@ fun LibBookHomeSeatCard(
  * 只信任接口给的中文文案；接口没给时不要直接把 status 数字码露出来（3/4/6 对用户没有意义）， 而是按可执行状态给出人话。
  */
 internal fun libBookHomeStatusLabel(booking: LibBookBookingDto): String {
+  if (booking.isTerminalBooking())
+      return booking.statusName.takeIf { name ->
+        listOf("结束", "取消", "过期", "失效", "完成").any { name.contains(it) }
+      } ?: "已结束"
+  if (booking.canReturnSignIn()) return "临时离开"
+  if (booking.flagIn == "1" && booking.flagOut != "1") return "待签到"
+  if (booking.status.trim() == "4") return "未签到"
   val name = booking.statusName.trim()
   if (name.isNotBlank() && name != booking.status.trim()) return name
   return when {

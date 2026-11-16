@@ -125,6 +125,8 @@ fun LibBookBookingDto.isTerminalBooking(): Boolean =
 /** 已签到、正在使用或临时离开中。 */
 fun LibBookBookingDto.isInUseBooking(): Boolean =
     !isTerminalBooking() &&
+        !(status.trim() == "4" && flagOut != "1") &&
+        !(flagIn == "1" && flagOut != "1" && flagLeave != "1") &&
         (status.trim() in inUseLibBookBookingStatusCodes ||
             listOf("使用中", "临时离开", "暂离", "已签到").any { statusName.contains(it) })
 

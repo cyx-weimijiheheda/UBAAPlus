@@ -34,13 +34,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -207,7 +209,6 @@ fun RegularFeaturesScreen(
 ) {
   var menuFeature by remember { mutableStateOf<FeatureItem?>(null) }
   var menuOffset by remember { mutableStateOf(Offset.Zero) }
-  val density = LocalDensity.current
 
   Box(modifier = modifier.fillMaxSize()) {
     when (layout) {
@@ -249,21 +250,49 @@ fun RegularFeaturesScreen(
           }
     }
 
-    DropdownMenu(
-        shape = RoundedCornerShape(14.dp),
-        expanded = menuFeature != null,
-        onDismissRequest = { menuFeature = null },
-        offset = with(density) { DpOffset(menuOffset.x.toDp(), menuOffset.y.toDp()) },
-    ) {
-      DropdownMenuItem(
-          text = { Text("在浏览器打开") },
-          enabled = menuFeature?.webUrl != null,
-          onClick = {
-            menuFeature?.let(onLongPressWeb)
-            menuFeature = null
-          },
-      )
-    }
+    if (menuFeature != null)
+        Popup(
+            popupPositionProvider =
+                object : PopupPositionProvider {
+                  override fun calculatePosition(
+                      anchorBounds: androidx.compose.ui.unit.IntRect,
+                      windowSize: androidx.compose.ui.unit.IntSize,
+                      layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+                      popupContentSize: androidx.compose.ui.unit.IntSize,
+                  ): IntOffset =
+                      IntOffset(
+                          menuOffset.x
+                              .toInt()
+                              .coerceIn(
+                                  0,
+                                  (windowSize.width - popupContentSize.width).coerceAtLeast(0),
+                              ),
+                          menuOffset.y
+                              .toInt()
+                              .coerceIn(
+                                  0,
+                                  (windowSize.height - popupContentSize.height).coerceAtLeast(0),
+                              ),
+                      )
+                },
+            onDismissRequest = { menuFeature = null },
+            properties = PopupProperties(focusable = true),
+        ) {
+          androidx.compose.material3.Surface(
+              modifier = Modifier.widthIn(min = 180.dp, max = 240.dp),
+              shape = RoundedCornerShape(14.dp),
+              shadowElevation = 6.dp,
+          ) {
+            DropdownMenuItem(
+                text = { Text("在浏览器打开") },
+                enabled = menuFeature?.webUrl != null,
+                onClick = {
+                  menuFeature?.let(onLongPressWeb)
+                  menuFeature = null
+                },
+            )
+          }
+        }
   }
 }
 
@@ -282,7 +311,7 @@ private fun FeatureCard(
               .ubaaGlassSurface()
               .fillMaxWidth()
               .heightIn(min = 160.dp)
-              .onGloballyPositioned { cardPosition = it.positionInRoot() }
+              .onGloballyPositioned { cardPosition = it.positionInWindow() }
               .pointerInput(feature.id) {
                 detectTapGestures(
                     onTap = { onClick() },
@@ -339,7 +368,7 @@ private fun FeatureCompactRow(
           modifier
               .ubaaGlassSurface()
               .fillMaxWidth()
-              .onGloballyPositioned { rowPosition = it.positionInRoot() }
+              .onGloballyPositioned { rowPosition = it.positionInWindow() }
               .pointerInput(feature.id) {
                 detectTapGestures(
                     onTap = { onClick() },

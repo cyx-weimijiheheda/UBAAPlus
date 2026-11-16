@@ -62,6 +62,7 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
             ScheduleWidgetProvider::class.java,
             TodayScheduleWidgetProvider::class.java,
             UpcomingScheduleWidgetProvider::class.java,
+            TodoWidgetProvider::class.java,
         )
     private const val ACTION_WEEK = "cn.edu.ubaa.plus.widget.WEEK"
     private const val ACTION_REFRESH = "cn.edu.ubaa.plus.widget.REFRESH"
@@ -115,6 +116,23 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
       }
       val selected = result.getOrNull()
       val views = RemoteViews(context.packageName, R.layout.schedule_widget)
+      val palette = widgetPalette(context)
+      val widgetOptions = manager.getAppWidgetOptions(id)
+      val widgetWidth =
+          widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 320).coerceIn(110, 700)
+      val widgetHeight =
+          widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 400).coerceIn(100, 900)
+      views.setImageViewBitmap(
+          R.id.widget_background,
+          widgetBackground(widgetWidth, widgetHeight, palette),
+      )
+      listOf(R.id.widget_title, R.id.widget_message, R.id.widget_footer).forEach {
+        views.setTextColor(it, palette.text)
+      }
+      listOf(R.id.widget_previous, R.id.widget_next, R.id.widget_current).forEach {
+        views.setTextColor(it, palette.accent)
+      }
+
       val open =
           if (selected != null)
               Intent(context, ScheduleWidgetActivity::class.java)
@@ -202,7 +220,7 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
         views.setViewVisibility(R.id.widget_grid, View.VISIBLE)
         views.setImageViewBitmap(
             R.id.widget_grid,
-            if (agendaDays == 0) renderScheduleWidget(week, schedule, width, height)
+            if (agendaDays == 0) renderScheduleWidget(week, schedule, width, height, palette)
             else
                 renderAgendaWidget(
                     cn.edu.ubaa.plus.repository.savedAgenda(
@@ -212,6 +230,7 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
                     ),
                     width,
                     height,
+                    palette,
                 ),
         )
         views.setContentDescription(
@@ -232,6 +251,75 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
         views.setBoolean(R.id.widget_previous, "setEnabled", week != weeks.first())
         views.setBoolean(R.id.widget_next, "setEnabled", week != weeks.last())
       }
+      val todoOnly = provider.className == TodoWidgetProvider::class.java.name
+      if (agendaDays == 1 || todoOnly) {
+        val now = Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai"))
+        val snapshot = WidgetTodoStore.read(owner, now)
+        val agenda =
+            if (todoOnly) emptyList()
+            else
+                runCatching {
+                      cn.edu.ubaa.plus.repository.savedAgenda(
+                          owner?.let(ScheduleStore::read).orEmpty(),
+                          today,
+                          1,
+                      )
+                    }
+                    .getOrDefault(emptyList())
+        val lines = buildList {
+          if (!todoOnly) {
+            add("今日课程 · ${agenda.size} 门")
+            if (agenda.isEmpty()) add("暂无本地课程 · 打开应用本地化课表")
+            agenda.forEach {
+              add(
+                  "${it.course.beginTime.orEmpty()}–${it.course.endTime.orEmpty()} ${it.course.courseName}\n${it.course.placeName.orEmpty()}"
+              )
+            }
+          }
+          add("待办 · ${snapshot?.items?.size ?: 0} 项")
+          if (snapshot == null) add("打开应用首页同步待办")
+          else if (snapshot.items.isEmpty())
+              add(if (snapshot.unavailable.isEmpty()) "暂无待办 · 点击打开首页更新" else "部分来源未更新 · 打开首页重试")
+          snapshot?.items?.forEach { add("${it.title}\n${it.detail}") }
+        }
+        // Share limited space between courses and todos so the todo section remains visible.
+        val rows = ((widgetHeight - 64) / 54).coerceAtLeast(1)
+        val display =
+            if (!todoOnly && rows >= 2 && snapshot?.items?.isNotEmpty() == true) {
+              val courseRows = (rows / 2).coerceAtLeast(1)
+              lines.take(courseRows) +
+                  listOf("待办 · ${snapshot.items.size} 项") +
+                  snapshot.items.map { "${it.title}\n${it.detail}" }
+            } else lines
+        views.setViewVisibility(R.id.widget_grid, View.VISIBLE)
+        views.setViewVisibility(R.id.widget_message, View.GONE)
+        views.setImageViewBitmap(
+            R.id.widget_grid,
+            renderWidgetLines(display, widgetWidth - 16, widgetHeight - 64, palette),
+        )
+        views.setTextViewText(R.id.widget_title, if (todoOnly) "待办" else "今日课程与待办")
+        views.setTextViewText(
+            R.id.widget_footer,
+            snapshot?.let {
+              "快照 ${formatUbaaCompactDateTime(it.updated)}" +
+                  if (it.unavailable.isEmpty()) " · 点击更新" else " · 部分来源未更新"
+            } ?: "点击打开应用同步",
+        )
+        views.setContentDescription(R.id.widget_grid, lines.joinToString("；"))
+        listOf(R.id.widget_previous, R.id.widget_next, R.id.widget_current).forEach {
+          views.setViewVisibility(it, View.GONE)
+        }
+        val appIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)!!
+        views.setOnClickPendingIntent(
+            R.id.widget_root,
+            PendingIntent.getActivity(
+                context,
+                id,
+                appIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            ),
+        )
+      }
       manager.updateAppWidget(id, views)
     }
   }
@@ -240,3 +328,5 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
 class TodayScheduleWidgetProvider : ScheduleWidgetProvider()
 
 class UpcomingScheduleWidgetProvider : ScheduleWidgetProvider()
+
+class TodoWidgetProvider : ScheduleWidgetProvider()

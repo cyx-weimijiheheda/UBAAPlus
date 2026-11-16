@@ -37,13 +37,17 @@
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/schedule_widget_info" />
         </receiver>
-        <receiver android:name="cn.edu.ubaa.plus.widget.TodayScheduleWidgetProvider" android:exported="false" android:label="UBAAPlus 今日课程">
+        <receiver android:name="cn.edu.ubaa.plus.widget.TodayScheduleWidgetProvider" android:exported="false" android:label="UBAAPlus 今日课程与待办">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/schedule_today_widget_info" />
         </receiver>
         <receiver android:name="cn.edu.ubaa.plus.widget.UpcomingScheduleWidgetProvider" android:exported="false" android:label="UBAAPlus 近日课程">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/schedule_upcoming_widget_info" />
+        </receiver>
+        <receiver android:name="cn.edu.ubaa.plus.widget.TodoWidgetProvider" android:exported="false" android:label="UBAAPlus 待办">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/todo_widget_info" />
         </receiver>
         <activity android:name="cn.edu.ubaa.plus.widget.ScheduleWidgetActivity" android:exported="false" />
         <!-- 提醒走 AlarmManager 定时唤醒，不需要前台服务与常驻通知 -->

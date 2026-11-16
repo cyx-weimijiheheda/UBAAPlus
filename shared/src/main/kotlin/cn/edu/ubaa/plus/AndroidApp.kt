@@ -21,6 +21,8 @@ fun AndroidApp() {
   LaunchedEffect(Unit) {
     ScheduleStore.changes.collect { ScheduleWidgetProvider.requestRefresh(context) }
   }
+  val appearance by cn.edu.ubaa.plus.api.storage.AppPreferencesStore.state.collectAsState()
+  LaunchedEffect(appearance) { ScheduleWidgetProvider.requestRefresh(context) }
   var pendingResponse by rememberSaveable { mutableStateOf<String?>(null) }
   val launcher =
       rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri

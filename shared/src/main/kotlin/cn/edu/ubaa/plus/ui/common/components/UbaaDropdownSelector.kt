@@ -1,5 +1,6 @@
 package cn.edu.ubaa.plus.ui.common.components
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -46,42 +47,48 @@ fun UbaaDropdownSelector(
 
   // 磨砂层画在外层 Box 上，按钮本身完全透明且不画边框：
   // 直接把玻璃挂在 OutlinedButton 上时，按钮自带的 1dp 描边会内缩，视觉上比磨砂块小一圈。
-  Row(
-      modifier = modifier.ubaaGlassSurface(shape = UbaaSelectorShape).fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically,
-  ) {
-    OutlinedButton(
-        onClick = { expanded = true },
-        enabled = enabled,
-        shape = UbaaSelectorShape,
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent),
-        border = null,
-        contentPadding = ButtonDefaults.ContentPadding,
-        modifier = Modifier.fillMaxWidth(),
+  Box(modifier = modifier) {
+    Row(
+        modifier = Modifier.ubaaGlassSurface(shape = UbaaSelectorShape).fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-      Text(
-          text = text,
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.weight(1f),
-      )
-      Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+      OutlinedButton(
+          onClick = { expanded = true },
+          enabled = enabled,
+          shape = UbaaSelectorShape,
+          colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent),
+          border = null,
+          contentPadding = ButtonDefaults.ContentPadding,
+          modifier = Modifier.fillMaxWidth(),
+      ) {
+        Text(
+            text = text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            Icons.Default.ArrowDropDown,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+        )
+      }
     }
-  }
 
-  DropdownMenu(
-      expanded = expanded,
-      onDismissRequest = { expanded = false },
-      shape = RoundedCornerShape(14.dp),
-  ) {
-    options.forEachIndexed { index, option ->
-      DropdownMenuItem(
-          text = { Text(option) },
-          onClick = {
-            expanded = false
-            onSelected(index)
-          },
-      )
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { expanded = false },
+        shape = RoundedCornerShape(14.dp),
+    ) {
+      options.forEachIndexed { index, option ->
+        DropdownMenuItem(
+            text = { Text(option) },
+            onClick = {
+              expanded = false
+              onSelected(index)
+            },
+        )
+      }
     }
   }
 }
