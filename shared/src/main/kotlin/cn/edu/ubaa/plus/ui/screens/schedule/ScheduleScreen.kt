@@ -191,6 +191,7 @@ fun ScheduleScreen(
             Text(selectedTerm?.itemName ?: "选择学期", maxLines = 2)
           }
           DropdownMenu(
+              shape = RoundedCornerShape(14.dp),
               expanded = showTermSelector,
               onDismissRequest = { showTermSelector = false },
           ) {

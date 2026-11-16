@@ -276,7 +276,11 @@ private fun ConnectionModeMenuButton(
       Spacer(modifier = Modifier.width(8.dp))
       Text("模式")
     }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { expanded = false },
+        shape = RoundedCornerShape(14.dp),
+    ) {
       availableModes.forEach { mode ->
         DropdownMenuItem(
             text = {

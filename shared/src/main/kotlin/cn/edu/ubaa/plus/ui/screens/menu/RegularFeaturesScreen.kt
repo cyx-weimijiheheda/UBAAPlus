@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -249,6 +250,7 @@ fun RegularFeaturesScreen(
     }
 
     DropdownMenu(
+        shape = RoundedCornerShape(14.dp),
         expanded = menuFeature != null,
         onDismissRequest = { menuFeature = null },
         offset = with(density) { DpOffset(menuOffset.x.toDp(), menuOffset.y.toDp()) },

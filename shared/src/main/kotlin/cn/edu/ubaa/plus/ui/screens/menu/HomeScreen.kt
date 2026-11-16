@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SportsBasketball
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,7 +56,6 @@ import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailDialog
 import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailInfo
 import cn.edu.ubaa.plus.ui.screens.schedule.displayCourseName
 import cn.edu.ubaa.plus.ui.screens.schedule.toCourseDetailInfo
-import cn.edu.ubaa.plus.ui.screens.signin.SigninClassCard
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.time.Clock
@@ -106,6 +106,8 @@ internal fun HomeScreen(
         course.time?.split("-")?.firstOrNull()?.replace(":", "")?.toIntOrNull() ?: Int.MAX_VALUE
       }
 
+  val matchedIds = sortedClasses.mapNotNull { matchHomeSignin(it, signinClasses)?.courseId }.toSet()
+  val unmatchedSignin = signinClasses.filter { it.courseId !in matchedIds }
   UbaaPullToRefresh(
       refreshing = isRefreshing,
       onRefresh = onRefresh,
@@ -160,40 +162,44 @@ internal fun HomeScreen(
                   subtitle = "课程安排会在这里补齐，不影响先浏览首页其他内容。",
               )
             }
-        sortedClasses.isEmpty() && !isLoading ->
+        sortedClasses.isEmpty() && unmatchedSignin.isEmpty() && !isLoading ->
             item { HomeEmptyCard(title = "今天没有课程安排", subtitle = "今天可以安心处理其他事项。") }
         else ->
             items(sortedClasses) { todayClass ->
               TodayClassCard(
                   todayClass = todayClass,
+                  signin = matchHomeSignin(todayClass, signinClasses),
+                  now = libBookNow,
+                  attendanceKnown =
+                      !signinLoading &&
+                          signinError == null &&
+                          !hasUnmatchedHomeSignin(todayClass, signinClasses),
+                  isSigningIn =
+                      signingCourseId == matchHomeSignin(todayClass, signinClasses)?.courseId &&
+                          signingCourseId != null,
+                  onSigninClick = onSigninClick,
                   onClick = { selectedCourseInfo = todayClass.toCourseDetailInfo(today) },
               )
             }
       }
 
-      item {
-        Text(
-            text = "今日课程考勤",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+      items(unmatchedSignin, key = { "unmatched-signin:${it.courseId}:${it.classBeginTime}" }) {
+          signin ->
+        val course =
+            TodayClass(
+                signin.courseName,
+                null,
+                "${signin.classBeginTime} - ${signin.classEndTime}",
+                null,
+            )
+        TodayClassCard(
+            todayClass = course,
+            signin = signin,
+            now = libBookNow,
+            attendanceKnown = !signinLoading && signinError == null,
+            isSigningIn = signingCourseId == signin.courseId,
+            onSigninClick = onSigninClick,
         )
-      }
-      when {
-        signinLoading && signinClasses.isEmpty() ->
-            item { HomeLoadingCard(title = "正在加载今日考勤", subtitle = "签到状态会在这里显示。") }
-        signinError != null && signinClasses.isEmpty() ->
-            item { HomeErrorCard(message = signinError, onRetry = onRetrySchedule) }
-        signinClasses.isEmpty() ->
-            item { HomeEmptyCard(title = "今天没有需要签到的课程", subtitle = "有签到安排的课程会显示在这里。") }
-        else ->
-            items(signinClasses, key = { "signin:${it.courseId}" }) { clazz ->
-              SigninClassCard(
-                  clazz = clazz,
-                  onSigninClick = { onSigninClick(clazz.courseId) },
-                  isSigningIn = signingCourseId == clazz.courseId,
-              )
-            }
       }
 
       item {
@@ -364,14 +370,44 @@ private fun HomeLoadingCard(title: String, subtitle: String) {
 @Composable
 private fun TodayClassCard(
     todayClass: TodayClass,
+    signin: SigninClassDto?,
+    now: LocalDateTime,
+    attendanceKnown: Boolean,
+    isSigningIn: Boolean,
+    onSigninClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
+  val status = homeCourseStatus(todayClass, signin, now, attendanceKnown)
+  val tint =
+      when (status) {
+        HomeCourseStatus.COMPLETE -> Color(0xFF60A873)
+        HomeCourseStatus.MISSED -> Color(0xFFD5A832)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+      }
   Card(
       modifier = modifier.ubaaGlassSurface().fillMaxWidth().clickable(onClick = onClick),
-      colors = ubaaGlassCardColors(),
+      colors = CardDefaults.cardColors(containerColor = tint.copy(alpha = 0.16f)),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            when (status) {
+              HomeCourseStatus.COMPLETE -> if (signin != null) "已签到" else "已结束"
+              HomeCourseStatus.MISSED -> "未签到 · 缺勤"
+              HomeCourseStatus.UNKNOWN -> "考勤状态未确认"
+              HomeCourseStatus.PENDING -> if (signin != null) "待签到" else "无需签到"
+            },
+            color = tint,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.weight(1f),
+        )
+        if (signin != null && status == HomeCourseStatus.PENDING) {
+          Button(onClick = { onSigninClick(signin.courseId) }, enabled = !isSigningIn) {
+            Text(if (isSigningIn) "签到中…" else "签到")
+          }
+        }
+      }
       Text(
           text = todayClass.displayCourseName(),
           style = MaterialTheme.typography.titleMedium,
