@@ -85,35 +85,20 @@ class LibBookHomeRulesTest {
   }
 
   @Test
-  fun `待签到显示取消与扫码签到`() {
+  fun `不同状态只启用允许的操作`() {
+    fun enabled(booking: LibBookBookingDto) =
+        booking.cardActions().filter(booking::isCardActionEnabled)
     assertEquals(
         listOf(LibBookCardAction.CANCEL, LibBookCardAction.SIGN_IN),
-        booking("reserved").cardActions(),
+        enabled(booking("reserved")),
     )
-  }
-
-  @Test
-  fun `使用中显示临时离开与完全离开`() {
     assertEquals(
-        listOf(
-            LibBookCardAction.CANCEL,
-            LibBookCardAction.LEAVE,
-            LibBookCardAction.CHECKOUT,
-            LibBookCardAction.SIGN_IN,
-        ),
-        booking("in-use", status = "3", statusName = "使用中").cardActions(),
+        listOf(LibBookCardAction.LEAVE, LibBookCardAction.CHECKOUT),
+        enabled(booking("in-use", status = "3", statusName = "使用中")),
     )
-  }
-
-  @Test
-  fun `临时离开后显示返回签到`() {
     assertEquals(
-        listOf(
-            LibBookCardAction.CANCEL,
-            LibBookCardAction.RETURN_SIGN_IN,
-            LibBookCardAction.CHECKOUT,
-        ),
-        booking("left", status = "7", statusName = "临时离开").cardActions(),
+        listOf(LibBookCardAction.RETURN_SIGN_IN, LibBookCardAction.CHECKOUT),
+        enabled(booking("left", status = "7", statusName = "临时离开")),
     )
   }
 

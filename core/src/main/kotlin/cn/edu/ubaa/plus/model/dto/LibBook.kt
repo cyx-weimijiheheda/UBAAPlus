@@ -130,7 +130,8 @@ fun LibBookBookingDto.isInUseBooking(): Boolean =
 
 fun LibBookBookingDto.canSignIn(): Boolean =
     !isTerminalBooking() &&
-        flagLeave != "1" &&
+        !canReturnSignIn() &&
+        !isInUseBooking() &&
         (flagIn == "1" || (flagIn.isBlank() && !isInUseBooking()))
 
 /** 临时离开后返回签到；官方 H5 的 back-sign 复用 /v4/space/signin。 */
@@ -142,14 +143,16 @@ fun LibBookBookingDto.canReturnSignIn(): Boolean =
 
 fun LibBookBookingDto.canTemporaryLeave(): Boolean =
     !isTerminalBooking() &&
-        (flagOut == "1" || (flagOut.isBlank() && !canReturnSignIn() && isInUseBooking()))
+        !canReturnSignIn() &&
+        (flagOut == "1" || (flagOut.isBlank() && isInUseBooking()))
 
 fun LibBookBookingDto.canCheckout(): Boolean =
     !isTerminalBooking() &&
-        (flagLeave == "1" || flagOut == "1" || (flagLeave.isBlank() && isInUseBooking()))
+        (canReturnSignIn() || flagOut == "1" || (flagLeave.isBlank() && isInUseBooking()))
 
 fun LibBookBookingDto.cancelBlockedMessage(): String? {
   if (id.isBlank()) return "预约记录不存在或已失效，请刷新后重试"
+  if (isInUseBooking() || canReturnSignIn()) return "签到后不能取消预约，请选择完全离开"
   if (status.trim() in nonCancelableLibBookBookingStatusCodes) {
     return "该预约已结束或已取消，无需取消"
   }

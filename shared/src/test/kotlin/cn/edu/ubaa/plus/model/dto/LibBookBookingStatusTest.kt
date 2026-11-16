@@ -52,7 +52,7 @@ class LibBookBookingStatusTest {
 
     assertTrue(booking.canReturnSignIn())
     assertFalse(booking.canSignIn())
-    assertTrue(booking.canTemporaryLeave())
+    assertFalse(booking.canTemporaryLeave())
     assertTrue(booking.canCheckout())
   }
 

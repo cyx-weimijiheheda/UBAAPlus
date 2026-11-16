@@ -27,19 +27,15 @@ enum class LibBookCardAction {
 }
 
 fun LibBookBookingDto.cardActions(): List<LibBookCardAction> =
-    if (isTerminalBooking()) {
-      emptyList()
-    } else {
-      buildList {
-        if (canCancelBooking()) add(LibBookCardAction.CANCEL)
-        if (canReturnSignIn()) {
-          add(LibBookCardAction.RETURN_SIGN_IN)
-        } else if (canTemporaryLeave()) {
-          add(LibBookCardAction.LEAVE)
-        }
-        if (canCheckout()) add(LibBookCardAction.CHECKOUT)
-        if (!canReturnSignIn()) add(LibBookCardAction.SIGN_IN)
-      }
+    if (isTerminalBooking()) emptyList() else LibBookCardAction.entries
+
+fun LibBookBookingDto.isCardActionEnabled(action: LibBookCardAction): Boolean =
+    when (action) {
+      LibBookCardAction.CANCEL -> canCancelBooking()
+      LibBookCardAction.SIGN_IN -> canSignIn()
+      LibBookCardAction.RETURN_SIGN_IN -> canReturnSignIn()
+      LibBookCardAction.LEAVE -> canTemporaryLeave()
+      LibBookCardAction.CHECKOUT -> canCheckout()
     }
 
 /**

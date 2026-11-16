@@ -140,7 +140,7 @@ fun LibBookCurrentBookingCard(
         actions.forEach { action ->
           AssistChip(
               onClick = { onAction(action, booking.id) },
-              enabled = !isCanceling && !isSubmitting,
+              enabled = !isCanceling && !isSubmitting && booking.isCardActionEnabled(action),
               label = {
                 Text(
                     when (action) {
