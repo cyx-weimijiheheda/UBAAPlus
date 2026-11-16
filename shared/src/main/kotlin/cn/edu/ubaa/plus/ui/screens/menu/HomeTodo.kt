@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus.ui.screens.menu
 import cn.edu.ubaa.plus.api.venue.VenueOrderRecord
 import cn.edu.ubaa.plus.model.dto.BykcChosenCourseDto
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
+import cn.edu.ubaa.plus.model.dto.Exam
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
@@ -10,6 +11,8 @@ import cn.edu.ubaa.plus.model.dto.SpocSubmissionStatus
 import cn.edu.ubaa.plus.model.dto.Week
 import cn.edu.ubaa.plus.model.dto.YgdkOverviewResponse
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDateTime
+import cn.edu.ubaa.plus.model.format.parseUbaaDate
+import cn.edu.ubaa.plus.model.format.parseUbaaTime
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -18,6 +21,7 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.plus
 
 internal enum class HomeTodoSource(val label: String) {
+  EXAM("考试"),
   BYKC("博雅"),
   SPOC("SPOC"),
   JUDGE("希冀"),
@@ -32,6 +36,8 @@ internal sealed interface HomeTodoAction {
   data class OpenSpocAssignment(val assignmentId: String) : HomeTodoAction
 
   data class OpenJudgeAssignment(val courseId: String, val assignmentId: String) : HomeTodoAction
+
+  data object OpenExam : HomeTodoAction
 
   data object OpenCgyyOrders : HomeTodoAction
 
@@ -57,6 +63,7 @@ internal fun buildHomeTodoItems(
     judgeAssignments: List<JudgeAssignmentSummaryDto>,
     cgyyOrders: List<CgyyOrderDto>,
     venueOrders: List<VenueOrderRecord> = emptyList(),
+    exams: List<Exam> = emptyList(),
     ygdkOverview: YgdkOverviewResponse? = null,
     currentWeek: Week? = null,
     ygdkReminderEnabled: Boolean = true,
@@ -65,6 +72,7 @@ internal fun buildHomeTodoItems(
     now: LocalDateTime,
 ): List<HomeTodoItem> {
   return buildList {
+        addAll(buildExamTodoItems(exams, now))
         addAll(buildBykcTodoItems(bykcCourses, now))
         addAll(buildSpocTodoItems(spocAssignments, now))
         addAll(buildJudgeTodoItems(judgeAssignments, now))
@@ -104,6 +112,30 @@ internal fun parseHomeDateTime(value: String?, today: LocalDate? = null): LocalD
 
 internal fun formatHomeDateTime(value: LocalDateTime?): String =
     value?.let { formatUbaaCompactDateTime(it) } ?: "时间待定"
+
+private fun buildExamTodoItems(exams: List<Exam>, now: LocalDateTime): List<HomeTodoItem> =
+    exams.mapNotNull { exam ->
+      val date = parseUbaaDate(exam.examDate) ?: return@mapNotNull null
+      val time = parseUbaaTime(exam.startTime) ?: return@mapNotNull null
+      val start = LocalDateTime(date, time)
+      if (start < now || date > now.date.plus(DatePeriod(days = 14))) return@mapNotNull null
+      HomeTodoItem(
+          id = "exam:${exam.taskId ?: "${exam.courseNo}:${exam.courseName}:$start"}",
+          source = HomeTodoSource.EXAM,
+          title = exam.courseName,
+          subtitle =
+              listOfNotNull(
+                      exam.examPlace?.takeIf { it.isNotBlank() },
+                      exam.examSeatNo?.takeIf { it.isNotBlank() }?.let { "座位 $it" },
+                  )
+                  .joinToString(" · ")
+                  .ifBlank { "考试安排" },
+          statusLabel = "待考试",
+          timeLabel = "开始 ${formatHomeDateTime(start)}",
+          sortTime = start,
+          action = HomeTodoAction.OpenExam,
+      )
+    }
 
 private fun buildBykcTodoItems(
     courses: List<BykcChosenCourseDto>,

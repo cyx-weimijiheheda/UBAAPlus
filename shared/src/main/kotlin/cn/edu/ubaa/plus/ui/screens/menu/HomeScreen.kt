@@ -621,6 +621,7 @@ private fun TodoChip(text: String, color: Color, contentColor: Color) {
 @Composable
 private fun sourceContainerColor(source: HomeTodoSource): Color =
     when (source) {
+      HomeTodoSource.EXAM -> MaterialTheme.colorScheme.primaryContainer
       HomeTodoSource.BYKC -> MaterialTheme.colorScheme.primaryContainer
       HomeTodoSource.SPOC -> MaterialTheme.colorScheme.tertiaryContainer
       HomeTodoSource.JUDGE -> MaterialTheme.colorScheme.primaryContainer
@@ -632,6 +633,7 @@ private fun sourceContainerColor(source: HomeTodoSource): Color =
 @Composable
 private fun sourceContentColor(source: HomeTodoSource): Color =
     when (source) {
+      HomeTodoSource.EXAM -> MaterialTheme.colorScheme.onPrimaryContainer
       HomeTodoSource.BYKC -> MaterialTheme.colorScheme.onPrimaryContainer
       HomeTodoSource.SPOC -> MaterialTheme.colorScheme.onTertiaryContainer
       HomeTodoSource.JUDGE -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -642,6 +644,7 @@ private fun sourceContentColor(source: HomeTodoSource): Color =
 
 private fun sourceIcon(source: HomeTodoSource): ImageVector =
     when (source) {
+      HomeTodoSource.EXAM -> Icons.Default.School
       HomeTodoSource.BYKC -> Icons.Default.School
       HomeTodoSource.SPOC -> Icons.Default.AssignmentTurnedIn
       HomeTodoSource.JUDGE -> Icons.Default.Code

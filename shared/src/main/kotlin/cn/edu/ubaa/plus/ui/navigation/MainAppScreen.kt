@@ -184,6 +184,8 @@ fun MainAppScreen(
     scheduleUiState.selectedTerm?.let(scheduleViewModel::loadWeeks)
   }
 
+  val homeExamViewModel: ExamViewModel = viewModel(key = "home-exam") { ExamViewModel() }
+  val homeExamState by homeExamViewModel.uiState.collectAsState()
   val examViewModel: ExamViewModel? =
       if (currentScreen == AppScreen.EXAM) {
         viewModel(key = "exam") { ExamViewModel() }
@@ -423,6 +425,8 @@ fun MainAppScreen(
           spocUiState.assignmentsResponse,
           judgeUiState.assignmentsResponse,
           cgyyUiState.orders.content,
+          venueOrders,
+          homeExamState.examData,
           signinUiState.classes,
           ygdkUiState.overview,
           currentWeek,
@@ -437,6 +441,7 @@ fun MainAppScreen(
             judgeAssignments = judgeUiState.assignmentsResponse?.assignments.orEmpty(),
             cgyyOrders = cgyyUiState.orders.content,
             venueOrders = venueOrders,
+            exams = homeExamState.examData?.arranged.orEmpty(),
             ygdkOverview = ygdkUiState.overview,
             currentWeek = currentWeek,
             ygdkReminderEnabled = ygdkUiState.homeReminderEnabled,
@@ -446,6 +451,7 @@ fun MainAppScreen(
         )
       }
   val homeTodoLoadingSources = buildList {
+    if (homeExamState.isLoading) add(HomeTodoSource.EXAM)
     if (bykcChosenState.isLoading) add(HomeTodoSource.BYKC)
     if (spocUiState.isLoading || spocUiState.isRefreshing) add(HomeTodoSource.SPOC)
     if (judgeUiState.isLoading || judgeUiState.isRefreshing) add(HomeTodoSource.JUDGE)
@@ -462,6 +468,7 @@ fun MainAppScreen(
       homeManualRefreshPending &&
           (homeManualRefreshStarted || homeBootstrapRunning || homeContentLoading)
   val homeTodoFailedSources = buildList {
+    if (homeExamState.error != null) add(HomeTodoSource.EXAM)
     if (bykcChosenState.error != null) add(HomeTodoSource.BYKC)
     if (spocUiState.error != null) add(HomeTodoSource.SPOC)
     if (judgeUiState.error != null) add(HomeTodoSource.JUDGE)
@@ -470,6 +477,7 @@ fun MainAppScreen(
   }
 
   fun startHomeBootstrap(forceRefresh: Boolean = false) {
+    homeExamViewModel.ensureLoaded(forceRefresh = forceRefresh)
     val showLoading =
         forceRefresh ||
             !scheduleViewModel.hasTodayLoaded() ||
@@ -594,6 +602,7 @@ fun MainAppScreen(
         cgyyViewModel?.ensureOrdersLoaded()
         navigateTo(AppScreen.CGYY_ORDERS)
       }
+      HomeTodoAction.OpenExam -> navigateTo(AppScreen.EXAM)
       HomeTodoAction.OpenVenueHome -> navigateTo(AppScreen.VENUE_HOME)
       HomeTodoAction.OpenYgdkHome -> navigateTo(AppScreen.YGDK_HOME)
     }
@@ -696,6 +705,7 @@ fun MainAppScreen(
     // 按需 ViewModel（当前可能为 null，仅在存活时重置）
     cgyyViewModel?.resetLoadedState()
     ygdkViewModel?.resetLoadedState()
+    homeExamViewModel.resetLoadedState()
     examViewModel?.resetLoadedState()
     gradeViewModel?.resetLoadedState()
     gradeScoreWatchViewModel.resetLoadedState()
