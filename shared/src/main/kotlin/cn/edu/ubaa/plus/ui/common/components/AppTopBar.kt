@@ -22,7 +22,9 @@ fun AppTopBar(
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-  Box(modifier = modifier.fillMaxWidth().ubaaLiquidGlass(shape = RectangleShape)) {
+  Box(
+      modifier = modifier.fillMaxWidth().ubaaLiquidGlass(shape = RectangleShape, outlined = false)
+  ) {
     CenterAlignedTopAppBar(
         expandedHeight = 56.dp,
         title = { Text(title) },

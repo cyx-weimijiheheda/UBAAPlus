@@ -67,25 +67,32 @@ fun Modifier.ubaaGlassSurface(
       )
 }
 
-/** 导航专用透亮玻璃：分层反光、柔和阴影与渐变边缘；内容卡片继续用磨砂。 */
+/** 导航专用透亮玻璃；顶栏不描边且底色渐隐，底部浮动栏保留柔和边缘。 */
 @Composable
-fun Modifier.ubaaLiquidGlass(shape: Shape): Modifier {
+fun Modifier.ubaaLiquidGlass(shape: Shape, outlined: Boolean = true): Modifier {
   val scheme = MaterialTheme.colorScheme
-  if (!UbaaGlass.enabled) return this.ubaaGlassSurface(shape = shape)
+  if (!UbaaGlass.enabled)
+      return if (outlined) this.ubaaGlassSurface(shape = shape)
+      else this.background(scheme.surfaceContainerLow, shape)
   val dark = scheme.surface.luminance() < 0.5f
   // Single shape-clipped layer: no rectangular gleam or shadow inside the transparent surface.
-  return this.clip(shape)
-      .background(
-          Brush.verticalGradient(
-              listOf(
-                  scheme.surface.copy(alpha = if (dark) 0.54f else 0.68f),
-                  scheme.primary.copy(alpha = if (dark) 0.09f else 0.04f),
-                  scheme.surface.copy(alpha = if (dark) 0.42f else 0.56f),
-              )
-          ),
-          shape,
-      )
-      .border(
+  val surface =
+      this.clip(shape)
+          .background(
+              Brush.verticalGradient(
+                  listOf(
+                      scheme.surface.copy(alpha = if (dark) 0.54f else 0.68f),
+                      scheme.primary.copy(alpha = if (dark) 0.09f else 0.04f),
+                      scheme.surface.copy(
+                          alpha = if (!outlined) 0f else if (dark) 0.42f else 0.56f
+                      ),
+                  )
+              ),
+              shape,
+          )
+  return if (!outlined) surface
+  else
+      surface.border(
           0.5.dp,
           Brush.linearGradient(
               listOf(

@@ -375,7 +375,9 @@ private fun ScheduleTopAppBar(
     isNextEnabled: Boolean,
     onTitleClick: () -> Unit,
 ) {
-  Box(modifier = Modifier.fillMaxWidth().ubaaLiquidGlass(shape = RectangleShape)) {
+  Box(
+      modifier = Modifier.fillMaxWidth().ubaaLiquidGlass(shape = RectangleShape, outlined = false)
+  ) {
     CenterAlignedTopAppBar(
         expandedHeight = 56.dp,
         navigationIcon = {
