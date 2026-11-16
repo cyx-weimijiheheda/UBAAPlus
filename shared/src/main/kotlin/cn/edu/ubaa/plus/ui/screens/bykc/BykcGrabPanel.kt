@@ -70,7 +70,9 @@ fun BykcGrabPanel(
   Card(
       modifier = modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
-          CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+          CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f)
+          ),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Row(verticalAlignment = Alignment.CenterVertically) {

@@ -21,7 +21,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -120,7 +119,10 @@ private fun GradeSummaryCard(
 ) {
   Card(
       modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+      colors =
+          CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+          ),
   ) {
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -183,7 +185,7 @@ private fun SummaryValue(label: String, value: String, modifier: Modifier = Modi
 
 @Composable
 private fun GradeCard(grade: Grade) {
-  OutlinedCard(
+  Card(
       modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors = ubaaGlassCardColors(),
   ) {
@@ -237,7 +239,9 @@ private fun GradeBadge(score: String?) {
   Card(
       modifier = Modifier.ubaaGlassSurface(),
       colors =
-          CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+          CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
+          ),
   ) {
     Row(
         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

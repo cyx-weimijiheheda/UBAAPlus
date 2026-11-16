@@ -92,7 +92,7 @@ fun GrabConfirmDialog(
               modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
               colors =
                   CardDefaults.cardColors(
-                      containerColor = MaterialTheme.colorScheme.errorContainer
+                      containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
                   ),
           ) {
             Text(

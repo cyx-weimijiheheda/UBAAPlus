@@ -461,15 +461,17 @@ private fun SeatGrid(
           val selected = seat.id == selectedSeatId
           ElevatedCard(
               modifier =
-                  Modifier.ubaaGlassSurface().weight(1f).height(44.dp).clickable {
-                    onSeatClick(seat.id)
-                  },
+                  Modifier.ubaaGlassSurface(shape = RoundedCornerShape(8.dp))
+                      .weight(1f)
+                      .height(44.dp)
+                      .clickable { onSeatClick(seat.id) },
               shape = RoundedCornerShape(8.dp),
               colors =
                   CardDefaults.elevatedCardColors(
                       containerColor =
-                          if (selected) MaterialTheme.colorScheme.primaryContainer
-                          else MaterialTheme.colorScheme.surfaceVariant
+                          if (selected)
+                              MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+                          else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
                   ),
           ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

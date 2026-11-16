@@ -22,7 +22,9 @@ fun CourseDetailScreen(course: CourseClass, modifier: Modifier = Modifier) {
       Card(
           modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
           colors =
-              CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+              CardDefaults.cardColors(
+                  containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+              ),
       ) {
         Column(modifier = Modifier.padding(16.dp)) {
           Text(

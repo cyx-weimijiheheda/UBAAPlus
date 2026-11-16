@@ -66,7 +66,8 @@ fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
                 modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                        containerColor =
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
                     ),
             ) {
               Column(

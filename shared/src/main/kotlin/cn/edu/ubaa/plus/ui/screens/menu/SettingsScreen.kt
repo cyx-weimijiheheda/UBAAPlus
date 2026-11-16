@@ -295,9 +295,9 @@ fun SettingsScreen(
                   CardDefaults.cardColors(
                       containerColor =
                           if (mode == currentMode) {
-                            MaterialTheme.colorScheme.secondaryContainer
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
                           } else {
-                            MaterialTheme.colorScheme.surface
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
                           }
                   ),
           ) {

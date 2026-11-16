@@ -78,7 +78,8 @@ fun CampusCardScreen(
                 modifier = Modifier.ubaaGlassSurface(),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
+                        containerColor =
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
                     ),
             ) {
               Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
@@ -95,7 +96,8 @@ fun CampusCardScreen(
                 modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                        containerColor =
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
                     ),
             ) {
               Column(

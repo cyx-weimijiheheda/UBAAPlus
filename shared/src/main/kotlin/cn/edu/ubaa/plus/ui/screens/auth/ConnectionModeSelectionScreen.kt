@@ -66,9 +66,9 @@ fun ConnectionModeSelectionScreen(
               CardDefaults.cardColors(
                   containerColor =
                       if (selectedMode == mode) {
-                        MaterialTheme.colorScheme.secondaryContainer
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
                       } else {
-                        MaterialTheme.colorScheme.surface
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
                       }
               ),
       ) {

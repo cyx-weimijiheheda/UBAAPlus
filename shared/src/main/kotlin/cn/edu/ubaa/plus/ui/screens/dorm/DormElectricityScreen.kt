@@ -137,7 +137,8 @@ fun DormElectricityScreen(
                 modifier = Modifier.ubaaGlassSurface(),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
+                        containerColor =
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
                     ),
             ) {
               Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {

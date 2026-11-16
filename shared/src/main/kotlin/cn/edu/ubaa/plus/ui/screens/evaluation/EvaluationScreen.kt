@@ -273,7 +273,7 @@ fun EvaluationProgressCard(
       colors =
           CardDefaults.cardColors(
               containerColor =
-                  if (progress.isCompleted) UbaaColors.current.successContainer
+                  if (progress.isCompleted) UbaaColors.current.successContainer.copy(alpha = 0.72f)
                   else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
           ),
   ) {

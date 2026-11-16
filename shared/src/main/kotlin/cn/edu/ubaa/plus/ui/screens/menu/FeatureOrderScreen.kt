@@ -190,8 +190,8 @@ private fun FeatureOrderRow(
       colors =
           CardDefaults.cardColors(
               containerColor =
-                  if (visible) MaterialTheme.colorScheme.surfaceContainerLow
-                  else MaterialTheme.colorScheme.surfaceVariant
+                  if (visible) MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.72f)
+                  else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
           ),
   ) {
     Row(

@@ -143,7 +143,9 @@ fun YgdkClockinFormScreen(
     ) {
       Card(
           colors =
-              CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+              CardDefaults.cardColors(
+                  containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+              ),
           modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       ) {
         Text(
@@ -156,7 +158,9 @@ fun YgdkClockinFormScreen(
       uiState.submitMessage?.let {
         Card(
             colors =
-                CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
+                ),
             modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
         ) {
           Text(

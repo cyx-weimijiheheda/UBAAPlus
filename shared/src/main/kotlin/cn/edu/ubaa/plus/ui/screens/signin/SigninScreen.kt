@@ -97,8 +97,8 @@ fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningI
       colors =
           CardDefaults.cardColors(
               containerColor =
-                  if (isSigned) MaterialTheme.colorScheme.primaryContainer
-                  else MaterialTheme.colorScheme.surfaceVariant
+                  if (isSigned) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+                  else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
           ),
   ) {
     Row(

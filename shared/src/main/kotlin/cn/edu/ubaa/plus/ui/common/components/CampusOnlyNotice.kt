@@ -29,7 +29,9 @@ fun CampusOnlyNotice(
   Card(
       modifier = modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
-          CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+          CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
+          ),
   ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(12.dp),

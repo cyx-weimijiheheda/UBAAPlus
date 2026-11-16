@@ -761,10 +761,16 @@ private fun CourseCell(
   val contentColor = if (containerColor.luminance() > 0.5f) Color.Black else Color.White
 
   Card(
-      modifier = modifier.ubaaGlassSurface().fillMaxSize().clickable { onClick() },
+      modifier =
+          modifier.ubaaGlassSurface(shape = RoundedCornerShape(6.dp)).fillMaxSize().clickable {
+            onClick()
+          },
       shape = RoundedCornerShape(6.dp),
       colors =
-          CardDefaults.cardColors(containerColor = containerColor, contentColor = contentColor),
+          CardDefaults.cardColors(
+              containerColor = containerColor.copy(alpha = 0.86f),
+              contentColor = contentColor,
+          ),
   ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(4.dp),

@@ -67,7 +67,9 @@ fun ProfileScreen(
       Card(
           modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
           colors =
-              CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+              CardDefaults.cardColors(
+                  containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+              ),
       ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(20.dp),
@@ -107,7 +109,7 @@ fun ProfileScreen(
           modifier = Modifier.ubaaGlassSurface().fillMaxWidth().clickable { nextQuip() },
           colors =
               CardDefaults.cardColors(
-                  containerColor = MaterialTheme.colorScheme.secondaryContainer
+                  containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
               ),
       ) {
         Row(

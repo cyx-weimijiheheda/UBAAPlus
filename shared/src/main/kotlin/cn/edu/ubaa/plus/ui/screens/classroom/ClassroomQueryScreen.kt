@@ -98,9 +98,9 @@ fun ClassroomQueryScreen(
         Arrangement.spacedBy(8.dp),
         Alignment.CenterVertically,
     ) {
-      OutlinedCard(
+      Card(
           onClick = { showDatePicker = true },
-          modifier = Modifier.ubaaGlassSurface().weight(1f),
+          modifier = Modifier.ubaaGlassSurface(shape = RoundedCornerShape(12.dp)).weight(1f),
           colors = ubaaGlassCardColors(),
           shape = RoundedCornerShape(12.dp),
       ) {

@@ -78,7 +78,8 @@ fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode)
                 modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        containerColor =
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
                     ),
             ) {
               Text(
@@ -247,7 +248,10 @@ private fun EmptyHint(text: String) {
 private fun RetryRow(message: String, onRetry: () -> Unit) {
   Card(
       modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+      colors =
+          CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
+          ),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
       Text(
@@ -268,8 +272,8 @@ private fun AttendanceRecordCard(record: IclassAttendanceRecordDto) {
       colors =
           CardDefaults.cardColors(
               containerColor =
-                  if (signed) MaterialTheme.colorScheme.primaryContainer
-                  else MaterialTheme.colorScheme.surfaceVariant
+                  if (signed) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+                  else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
           ),
   ) {
     Row(

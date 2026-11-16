@@ -500,7 +500,10 @@ private fun HomeTodoCard(item: HomeTodoItem, onClick: () -> Unit) {
 private fun HomeErrorCard(message: String, onRetry: () -> Unit) {
   Card(
       modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+      colors =
+          CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
+          ),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),

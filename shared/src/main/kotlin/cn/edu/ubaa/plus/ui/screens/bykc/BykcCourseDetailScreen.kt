@@ -135,7 +135,8 @@ fun BykcCourseDetailScreen(
                   modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
                   colors =
                       CardDefaults.cardColors(
-                          containerColor = MaterialTheme.colorScheme.primaryContainer
+                          containerColor =
+                              MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
                       ),
               ) {
                 Column(modifier = Modifier.padding(16.dp)) {
