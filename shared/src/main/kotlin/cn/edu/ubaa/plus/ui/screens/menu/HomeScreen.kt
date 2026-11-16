@@ -402,10 +402,11 @@ private fun TodayClassCard(
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.weight(1f),
         )
-        if (signin != null && status == HomeCourseStatus.PENDING) {
-          Button(onClick = { onSigninClick(signin.courseId) }, enabled = !isSigningIn) {
-            Text(if (isSigningIn) "签到中…" else "签到")
-          }
+        Button(
+            onClick = { signin?.let { onSigninClick(it.courseId) } },
+            enabled = signin != null && status == HomeCourseStatus.PENDING && !isSigningIn,
+        ) {
+          Text(if (isSigningIn) "签到中…" else "签到")
         }
       }
       Text(
