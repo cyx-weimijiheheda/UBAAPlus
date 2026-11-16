@@ -33,6 +33,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,17 +42,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.IclassAttendanceRecordDto
+import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.screens.menu.TodayClassCard
+import cn.edu.ubaa.plus.ui.screens.menu.homeCourseEntries
+import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailDialog
+import cn.edu.ubaa.plus.ui.screens.schedule.CourseDetailInfo
+import cn.edu.ubaa.plus.ui.screens.schedule.toCourseDetailInfo
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
+import kotlinx.datetime.LocalDateTime
 
 /** 智慧教室：今日课程一键签到 + 本学期考勤查询。扫码入口在标题栏。 */
 @Composable
-fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode) {
+internal fun IclassHomeScreen(
+    viewModel: SigninViewModel,
+    connectionMode: ConnectionMode,
+    todayClasses: List<TodayClass>,
+    scheduleLoading: Boolean,
+    scheduleError: String?,
+    now: LocalDateTime,
+    onRefreshSchedule: () -> Unit,
+) {
   val uiState by viewModel.uiState.collectAsState()
+  var selectedInfo by remember { mutableStateOf<CourseDetailInfo?>(null) }
+  val entries =
+      homeCourseEntries(todayClasses, uiState.classes, !uiState.isLoading && uiState.error == null)
+  selectedInfo?.let { CourseDetailDialog(it) { selectedInfo = null } }
 
   UbaaToastEffect(uiState.signinResult) { viewModel.clearSigninResult() }
 
@@ -60,8 +81,9 @@ fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode)
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { padding ->
     UbaaPullToRefresh(
-        refreshing = uiState.isLoading,
+        refreshing = uiState.isLoading || scheduleLoading,
         onRefresh = {
+          onRefreshSchedule()
           viewModel.loadTodayClasses()
           viewModel.reloadAttendanceIndex(preserveSelection = true)
         },
@@ -95,29 +117,24 @@ fun IclassHomeScreen(viewModel: SigninViewModel, connectionMode: ConnectionMode)
         item { SectionTitle("今日课程") }
 
         when {
-          uiState.isLoading ->
-              item {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(80.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                  Text(
-                      "正在加载今日课程...",
-                      color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  )
-                }
-              }
-          uiState.error != null ->
-              item {
-                RetryRow(message = uiState.error.orEmpty(), onRetry = viewModel::loadTodayClasses)
-              }
-          uiState.classes.isEmpty() -> item { EmptyHint("今日无课程安排") }
+          scheduleLoading && entries.isEmpty() -> item { EmptyHint("正在加载今日课程…") }
+          scheduleError != null && entries.isEmpty() ->
+              item { RetryRow(scheduleError, onRefreshSchedule) }
+          entries.isEmpty() && uiState.error != null ->
+              item { RetryRow(uiState.error.orEmpty(), viewModel::loadTodayClasses) }
+          entries.isEmpty() -> item { EmptyHint("今日无课程安排") }
           else ->
-              items(uiState.classes) { clazz ->
-                SigninClassCard(
-                    clazz = clazz,
-                    onSigninClick = { viewModel.performSignin(clazz.courseId) },
-                    isSigningIn = uiState.signingInCourseId == clazz.courseId,
+              items(entries) { entry ->
+                TodayClassCard(
+                    todayClass = entry.course,
+                    signin = entry.signin,
+                    now = now,
+                    attendanceKnown = entry.attendanceKnown,
+                    isSigningIn =
+                        uiState.signingInCourseId != null &&
+                            uiState.signingInCourseId == entry.signin?.courseId,
+                    onSigninClick = viewModel::performSignin,
+                    onClick = { selectedInfo = entry.course.toCourseDetailInfo(now.date) },
                 )
               }
         }

@@ -57,3 +57,41 @@ internal fun homeCourseStatus(
     else -> HomeCourseStatus.PENDING
   }
 }
+
+internal data class HomeCourseEntry(
+    val course: TodayClass,
+    val signin: SigninClassDto?,
+    val attendanceKnown: Boolean,
+)
+
+internal fun homeCourseEntries(
+    courses: List<TodayClass>,
+    signinClasses: List<SigninClassDto>,
+    attendanceKnown: Boolean,
+): List<HomeCourseEntry> {
+  val entries =
+      courses.map {
+        HomeCourseEntry(
+            it,
+            matchHomeSignin(it, signinClasses),
+            attendanceKnown && !hasUnmatchedHomeSignin(it, signinClasses),
+        )
+      }
+  val ids = entries.mapNotNull { it.signin?.courseId }.toSet()
+  return (entries +
+          signinClasses
+              .filter { it.courseId !in ids }
+              .map { signin ->
+                HomeCourseEntry(
+                    TodayClass(
+                        signin.courseName,
+                        null,
+                        "${signin.classBeginTime} - ${signin.classEndTime}",
+                        null,
+                    ),
+                    signin,
+                    attendanceKnown,
+                )
+              })
+      .sortedBy { parseUbaaTime(it.course.time)?.toSecondOfDay() ?: Int.MAX_VALUE }
+}

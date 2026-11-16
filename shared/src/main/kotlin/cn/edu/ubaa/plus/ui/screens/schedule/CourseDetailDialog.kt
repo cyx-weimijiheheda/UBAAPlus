@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -156,13 +157,17 @@ fun CourseDetailDialog(info: CourseDetailInfo, onDismiss: () -> Unit) {
       },
       confirmButton = {
         // 与其他卡片一致：复制与添加到日历都用图标，不再占文字按钮的位置。
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
           IconButton(
               onClick = {
                 clipboard.setText(AnnotatedString(info.toClipboardText()))
                 UbaaToast.show("课程信息已复制")
               },
-              modifier = Modifier.size(32.dp),
+              modifier = Modifier.size(48.dp),
           ) {
             Icon(
                 imageVector = Icons.Default.ContentCopy,
@@ -184,7 +189,7 @@ fun CourseDetailDialog(info: CourseDetailInfo, onDismiss: () -> Unit) {
                     )
                 UbaaToast.show(if (ok) "已打开日历" else "未找到可用的日历应用")
               },
-              modifier = Modifier.size(32.dp),
+              modifier = Modifier.size(48.dp),
           ) {
             Icon(
                 imageVector = Icons.Default.Event,
@@ -192,9 +197,11 @@ fun CourseDetailDialog(info: CourseDetailInfo, onDismiss: () -> Unit) {
                 modifier = Modifier.size(18.dp),
             )
           }
+          TextButton(onClick = onDismiss, modifier = Modifier.size(width = 64.dp, height = 48.dp)) {
+            Text("关闭")
+          }
         }
       },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
   )
 }
 

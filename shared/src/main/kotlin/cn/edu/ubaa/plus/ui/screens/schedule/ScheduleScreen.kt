@@ -612,16 +612,16 @@ private fun TimeColumn(
         ) {
           Text(
               text = slot.start,
-              fontSize = 8.sp,
-              lineHeight = 9.sp,
+              fontSize = 10.sp,
+              lineHeight = 12.sp,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               maxLines = 1,
               softWrap = false,
           )
           Text(
               text = slot.end,
-              fontSize = 8.sp,
-              lineHeight = 9.sp,
+              fontSize = 10.sp,
+              lineHeight = 12.sp,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               maxLines = 1,
               softWrap = false,

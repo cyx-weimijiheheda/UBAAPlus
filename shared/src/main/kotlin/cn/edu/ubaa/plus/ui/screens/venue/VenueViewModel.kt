@@ -330,6 +330,7 @@ class VenueViewModel(
           loginForm = VenueLoginForm(),
       )
     }
+    loadOrderHistory(refresh = true)
     loadSites()
   }
 
@@ -541,8 +542,12 @@ class VenueViewModel(
     _membershipCodeState.value = VenueMembershipCodeUiState()
   }
 
-  /** 首页待办用：已就绪时静默刷新预约记录，未登录/未就绪时不做任何事。 */
+  /** 首页首次进入时初始化场馆会话；认证完成后加载预约，后续刷新只读取预约。 */
   fun refreshOrdersForHome() {
+    if (!initialized) {
+      ensureInitialized()
+      return
+    }
     if (_state.value.authPhase != VenueAuthPhase.READY) return
     loadOrderHistory(refresh = true)
   }

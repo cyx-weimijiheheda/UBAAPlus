@@ -259,7 +259,15 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
         AppScreen.COURSE_DETAIL -> selectedCourse?.let { CourseDetailScreen(course = it) }
         AppScreen.BYKC_STATISTICS -> BykcStatisticsScreen(viewModel = bykcViewModel)
         AppScreen.ICLASS_HOME ->
-            IclassHomeScreen(viewModel = signinViewModel, connectionMode = effectiveConnectionMode)
+            IclassHomeScreen(
+                viewModel = signinViewModel,
+                connectionMode = effectiveConnectionMode,
+                todayClasses = todayScheduleState.todayClasses,
+                scheduleLoading = todayScheduleState.isLoading,
+                scheduleError = todayScheduleState.error,
+                now = homeNow,
+                onRefreshSchedule = { scheduleViewModel.loadTodaySchedule() },
+            )
         AppScreen.BYKC_COURSES ->
             BykcCoursesScreen(
                 courses = bykcCoursesState.courses,

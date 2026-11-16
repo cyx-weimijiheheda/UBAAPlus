@@ -101,13 +101,8 @@ internal fun HomeScreen(
     mutableStateOf<Pair<LibBookBookingDto, LibBookCardAction>?>(null)
   }
   val todoLoadingSummary = todoLoadingSources.joinToString("、") { it.label }
-  val sortedClasses =
-      todayClasses.sortedBy { course ->
-        course.time?.split("-")?.firstOrNull()?.replace(":", "")?.toIntOrNull() ?: Int.MAX_VALUE
-      }
-
-  val matchedIds = sortedClasses.mapNotNull { matchHomeSignin(it, signinClasses)?.courseId }.toSet()
-  val unmatchedSignin = signinClasses.filter { it.courseId !in matchedIds }
+  val courseEntries =
+      homeCourseEntries(todayClasses, signinClasses, !signinLoading && signinError == null)
   UbaaPullToRefresh(
       refreshing = isRefreshing,
       onRefresh = onRefresh,
@@ -119,7 +114,7 @@ internal fun HomeScreen(
     ) {
       item {
         Column(modifier = Modifier.padding(top = 16.dp)) {
-          // 标题字号与「今日课程考勤」「待办区」保持一致，并与下方日期底部对齐。
+          // 章节标题与待办区一致，并与日期底部对齐。
           Row(
               horizontalArrangement = Arrangement.spacedBy(8.dp),
               verticalAlignment = Alignment.Bottom,
@@ -129,7 +124,7 @@ internal fun HomeScreen(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
-            if (isLoading && sortedClasses.isEmpty()) {
+            if (isLoading && courseEntries.isEmpty()) {
               HomeSectionLoadingChip(text = "加载中")
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -153,53 +148,30 @@ internal fun HomeScreen(
       }
 
       when {
-        error != null && sortedClasses.isEmpty() ->
+        error != null && courseEntries.isEmpty() ->
             item { HomeErrorCard(message = error, onRetry = onRetrySchedule) }
-        isLoading && sortedClasses.isEmpty() ->
+        isLoading && courseEntries.isEmpty() ->
             item {
               HomeLoadingCard(
                   title = "今日课表正在后台加载",
                   subtitle = "课程安排会在这里补齐，不影响先浏览首页其他内容。",
               )
             }
-        sortedClasses.isEmpty() && unmatchedSignin.isEmpty() && !isLoading ->
+        courseEntries.isEmpty() && !isLoading ->
             item { HomeEmptyCard(title = "今天没有课程安排", subtitle = "今天可以安心处理其他事项。") }
         else ->
-            items(sortedClasses) { todayClass ->
+            items(courseEntries) { entry ->
               TodayClassCard(
-                  todayClass = todayClass,
-                  signin = matchHomeSignin(todayClass, signinClasses),
+                  todayClass = entry.course,
+                  signin = entry.signin,
                   now = libBookNow,
-                  attendanceKnown =
-                      !signinLoading &&
-                          signinError == null &&
-                          !hasUnmatchedHomeSignin(todayClass, signinClasses),
+                  attendanceKnown = entry.attendanceKnown,
                   isSigningIn =
-                      signingCourseId == matchHomeSignin(todayClass, signinClasses)?.courseId &&
-                          signingCourseId != null,
+                      signingCourseId != null && signingCourseId == entry.signin?.courseId,
                   onSigninClick = onSigninClick,
-                  onClick = { selectedCourseInfo = todayClass.toCourseDetailInfo(today) },
+                  onClick = { selectedCourseInfo = entry.course.toCourseDetailInfo(today) },
               )
             }
-      }
-
-      items(unmatchedSignin, key = { "unmatched-signin:${it.courseId}:${it.classBeginTime}" }) {
-          signin ->
-        val course =
-            TodayClass(
-                signin.courseName,
-                null,
-                "${signin.classBeginTime} - ${signin.classEndTime}",
-                null,
-            )
-        TodayClassCard(
-            todayClass = course,
-            signin = signin,
-            now = libBookNow,
-            attendanceKnown = !signinLoading && signinError == null,
-            isSigningIn = signingCourseId == signin.courseId,
-            onSigninClick = onSigninClick,
-        )
       }
 
       item {
@@ -368,7 +340,7 @@ private fun HomeLoadingCard(title: String, subtitle: String) {
 }
 
 @Composable
-private fun TodayClassCard(
+internal fun TodayClassCard(
     todayClass: TodayClass,
     signin: SigninClassDto?,
     now: LocalDateTime,

@@ -292,7 +292,6 @@ private fun CgyyReservationTable(
               text = space.spaceName,
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
-              fontSize = 15.sp,
               maxLines = 1,
               overflow = TextOverflow.Ellipsis,
           )

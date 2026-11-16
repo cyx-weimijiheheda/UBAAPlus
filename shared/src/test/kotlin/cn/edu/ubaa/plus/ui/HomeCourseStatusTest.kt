@@ -13,6 +13,21 @@ class HomeCourseStatusTest {
   private val attendance = SigninClassDto("1", "数学", "08:00", "09:40", 0)
 
   @Test
+  fun mergedCoursesKeepUnmatchedAttendanceAndSortByTime() {
+    val later =
+        attendance.copy(
+            courseId = "2",
+            courseName = "物理",
+            classBeginTime = "10:00",
+            classEndTime = "11:40",
+        )
+    val entries = homeCourseEntries(listOf(course), listOf(later, attendance), true)
+    assertEquals(listOf("数学", "物理"), entries.map { it.course.bizName })
+    assertEquals(listOf("1", "2"), entries.map { it.signin?.courseId })
+    assertEquals(1, homeCourseEntries(listOf(course), listOf(attendance), true).size)
+  }
+
+  @Test
   fun states() {
     val before = LocalDateTime(2026, 11, 16, 9, 0)
     val after = LocalDateTime(2026, 11, 16, 10, 0)
