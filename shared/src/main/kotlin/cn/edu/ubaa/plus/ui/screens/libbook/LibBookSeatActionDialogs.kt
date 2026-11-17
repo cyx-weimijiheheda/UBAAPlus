@@ -88,19 +88,6 @@ fun LibBookSeatActionDialogs(
               fontWeight = if (context.qrScanLanded()) FontWeight.Medium else FontWeight.Normal,
           )
           Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (context.canReturnSignIn) {
-              AssistChip(
-                  onClick = { onAction(LibBookSeatAction.RETURN_SIGN_IN) },
-                  enabled = !submitting,
-                  label = { Text("返回签到") },
-              )
-            } else if (context.canSignIn) {
-              AssistChip(
-                  onClick = { onAction(LibBookSeatAction.SIGN_IN) },
-                  enabled = !submitting,
-                  label = { Text("签到") },
-              )
-            }
             if (context.canTemporaryLeave) {
               AssistChip(
                   onClick = { onAction(LibBookSeatAction.LEAVE) },

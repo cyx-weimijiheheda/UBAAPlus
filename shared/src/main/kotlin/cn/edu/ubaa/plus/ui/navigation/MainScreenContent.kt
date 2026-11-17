@@ -138,7 +138,6 @@ internal class MainScreenActions(
     val handleHomeTodoClick: (HomeTodoItem) -> Unit,
     val handleHomeLibBookAction: (LibBookBookingDto, LibBookCardAction) -> Unit,
     val openLibBookBookings: () -> Unit,
-    val onLibBookScanRequest: () -> Unit,
     val onConnectionModeSelected: (ConnectionMode) -> Unit,
     val onFeatureLongPressWeb: (FeatureItem) -> Unit,
     val onOpenUrl: (String) -> Unit,
@@ -450,8 +449,6 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                     libBookViewModel.ensureBookingsLoaded()
                     navigateTo(AppScreen.LIBBOOK_BOOKINGS)
                   },
-                  onSubmitSuccess = { navigateTo(AppScreen.LIBBOOK_BOOKINGS) },
-                  onScanRequest = onLibBookScanRequest,
               )
             }
         AppScreen.LIBBOOK_BOOKINGS ->

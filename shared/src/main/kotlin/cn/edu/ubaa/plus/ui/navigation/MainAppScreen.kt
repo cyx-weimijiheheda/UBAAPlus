@@ -19,6 +19,9 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.SystemBarsAppearance
 import cn.edu.ubaa.plus.api.ConnectionMode
@@ -30,14 +33,15 @@ import cn.edu.ubaa.plus.api.storage.BykcCourseFilterStore
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
-import cn.edu.ubaa.plus.model.dto.LibBookGeoPoint
 import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.reminder.AppNotificationRoute
+import cn.edu.ubaa.plus.reminder.LibBookLeaveReminder
 import cn.edu.ubaa.plus.reminder.LibBookNotifications
 import cn.edu.ubaa.plus.reminder.PendingAppRouteStore
 import cn.edu.ubaa.plus.reminder.SigninNotifications
+import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.components.AppTopBar
 import cn.edu.ubaa.plus.ui.common.components.BottomNavTab
 import cn.edu.ubaa.plus.ui.common.components.QrScanResultDialog
@@ -254,6 +258,18 @@ fun MainAppScreen(
   val libBookViewModel: LibBookViewModel =
       viewModel(key = "libbook-${userData.schoolid}") {
         LibBookViewModel(
+            onBookingsLoaded = { bookings, now ->
+              if (ScheduleStore.account() == userData.schoolid)
+                  LibBookLeaveReminder.syncBookings(appContext, userData.schoolid, bookings, now)
+              else bookings
+            },
+            onLeaveSucceeded = { booking ->
+              if (ScheduleStore.account() == userData.schoolid)
+                  LibBookLeaveReminder.recordLeave(appContext, userData.schoolid, booking)
+            },
+            onBookingClosed = { id ->
+              LibBookLeaveReminder.close(appContext, userData.schoolid, id)
+            },
             notifyResult = { notice -> LibBookNotifications.notifyResult(appContext, notice) },
             locationProvider = {
               if (hasLocationPermission(appContext)) currentLocationPoint(appContext) else null
@@ -261,34 +277,26 @@ fun MainAppScreen(
         )
       }
   val libBookUiState by libBookViewModel.uiState.collectAsState()
+  val libraryLifecycleOwner = LocalLifecycleOwner.current
+  LaunchedEffect(libraryLifecycleOwner, libBookViewModel, currentScreen) {
+    if (
+        currentScreen == AppScreen.HOME ||
+            currentScreen == AppScreen.LIBBOOK_RESERVE ||
+            currentScreen == AppScreen.LIBBOOK_BOOKINGS
+    ) {
+      libraryLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+        while (true) {
+          libBookViewModel.loadBookings()
+          delay(30_000)
+        }
+      }
+    }
+  }
   // 首页展示「当前预约」：不再限定必须是今天，跨天未结束的预约也要能一眼看到。
   val homeLibBookBooking =
       remember(libBookUiState.bookings.bookings, homeNow) {
         selectCurrentLibBookBooking(libBookUiState.bookings.bookings)
       }
-  // 图书馆座位扫码：与「我的座位预约」一致，先取定位再扫码，结果交给 ViewModel 识别座位。
-  val libBookScanOptions = remember {
-    ScanOptions()
-        .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-        .setPrompt("将座位二维码放入框内")
-        .setBeepEnabled(false)
-        .setOrientationLocked(true)
-  }
-  var libBookScanPoint by remember { mutableStateOf<LibBookGeoPoint?>(null) }
-  val libBookScanLauncher =
-      rememberLauncherForActivityResult(ScanContract()) { result ->
-        result.contents
-            ?.takeIf { it.isNotBlank() }
-            ?.let { raw -> libBookViewModel.handleSeatQrScan(raw, libBookScanPoint) }
-      }
-  val libBookScanRequest: () -> Unit = {
-    scope.launch {
-      libBookScanPoint =
-          if (hasLocationPermission(appContext)) currentLocationPoint(appContext) else null
-      libBookScanLauncher.launch(libBookScanOptions)
-    }
-  }
-
   val classroomViewModel: ClassroomViewModel? =
       if (currentScreen == AppScreen.CLASSROOM_QUERY) {
         viewModel(key = "classroom") { ClassroomViewModel() }
@@ -395,8 +403,8 @@ fun MainAppScreen(
       }
       AppNotificationRoute.IclassHome -> navController.navigateTo(AppScreen.ICLASS_HOME)
       AppNotificationRoute.LibBookBookings -> {
-        libBookViewModel.ensureBookingsLoaded()
-        navController.navigateTo(AppScreen.LIBBOOK_BOOKINGS)
+        libBookViewModel.loadBookings()
+        navController.navigateTo(AppScreen.LIBBOOK_RESERVE)
         selectedBottomTab = BottomNavTab.HOME
       }
       is AppNotificationRoute.BykcCourse -> {
@@ -640,20 +648,11 @@ fun MainAppScreen(
     }
   }
 
-  /** 首页图书馆座位卡片的操作；扫码签到进入「我的预约」走现有扫码流程。 */
+  /** 首页图书馆座位卡片的取消、暂离和签退操作。 */
   fun handleHomeLibBookAction(booking: LibBookBookingDto, action: LibBookCardAction) {
     val viewModel = libBookViewModel
     when (action) {
       LibBookCardAction.CANCEL -> viewModel.cancelBooking(booking.id)
-      LibBookCardAction.SIGN_IN -> {
-        viewModel.ensureBookingsLoaded()
-        navigateTo(AppScreen.LIBBOOK_BOOKINGS)
-      }
-      LibBookCardAction.RETURN_SIGN_IN -> {
-        if (viewModel.prepareReturnSignIn(booking)) {
-          submitLibBookSeatAction(LibBookSeatAction.RETURN_SIGN_IN)
-        }
-      }
       LibBookCardAction.LEAVE -> {
         viewModel.requestSeatActionForBooking(booking, LibBookSeatAction.LEAVE)
         submitLibBookSeatAction(LibBookSeatAction.LEAVE)
@@ -986,13 +985,6 @@ fun MainAppScreen(
                 IconButton(onClick = { showVenueMembershipCodeDialog = true }) {
                   Icon(Icons.Default.QrCode2, contentDescription = "会员预约码")
                 }
-              } else if (currentScreen == AppScreen.LIBBOOK_RESERVE) {
-                IconButton(
-                    onClick = libBookScanRequest,
-                    enabled = !libBookUiState.isSeatActionSubmitting,
-                ) {
-                  Icon(Icons.Default.QrCodeScanner, contentDescription = "扫码操作")
-                }
               } else if (currentScreen == AppScreen.HOME || currentScreen == AppScreen.REGULAR) {
                 IconButton(onClick = { genericScanLauncher.launch(genericScanOptions) }) {
                   Icon(Icons.Default.QrCodeScanner, contentDescription = "扫一扫")
@@ -1087,7 +1079,6 @@ fun MainAppScreen(
                 libBookViewModel.ensureBookingsLoaded()
                 navigateTo(AppScreen.LIBBOOK_BOOKINGS)
               },
-              onLibBookScanRequest = libBookScanRequest,
               onConnectionModeSelected = onConnectionModeSelected,
               onFeatureLongPressWeb = { feature -> feature.webUrl?.let(::openUrl) },
               onOpenUrl = { openUrl(it) },

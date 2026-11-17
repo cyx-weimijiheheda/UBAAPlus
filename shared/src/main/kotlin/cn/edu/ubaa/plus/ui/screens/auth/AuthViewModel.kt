@@ -250,6 +250,7 @@ class AuthViewModel(
 
   /** 注销登录，清理所有本地状态。 */
   fun logout() {
+    cn.edu.ubaa.plus.reminder.LibBookLeaveStore.clear()
     cn.edu.ubaa.plus.widget.WidgetTodoStore.clear()
     ScheduleStore.forgetAccount()
     viewModelScope.launch {

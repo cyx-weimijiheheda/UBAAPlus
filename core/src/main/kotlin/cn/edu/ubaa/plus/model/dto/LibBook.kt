@@ -106,13 +106,16 @@ data class LibBookBookingDto(
     val signStatus: String = "",
     /** 预约类型：1=图书馆座位，3/4=研修间。 */
     val type: String = "",
-    /** 官方列表返回的操作标志，缺失时回退到 status 判断。 */
+    /** 官方列表返回的原始操作标志；实际座位状态以最新状态码/文案为准。 */
     val flagIn: String = "",
     val flagOut: String = "",
     val flagLeave: String = "",
     val oksign: String = "",
     /** 预约创建时间，用于计算 30 分钟签到截止；部分接口返回。 */
     val createTime: String = "",
+    val leaveStartedAt: String = "",
+    val leaveDeadline: String = "",
+    val leaveDeadlineEstimated: Boolean = false,
 )
 
 fun LibBookBookingDto.canCancelBooking(): Boolean = cancelBlockedMessage() == null
@@ -122,35 +125,24 @@ fun LibBookBookingDto.isTerminalBooking(): Boolean =
     status.trim() in nonCancelableLibBookBookingStatusCodes ||
         nonCancelableLibBookBookingStatusKeywords.any { statusName.contains(it) }
 
-/** 已签到、正在使用或临时离开中。 */
+/** 实际使用状态由最新状态码/文案判定，操作标志不是持久的座位状态。 */
 fun LibBookBookingDto.isInUseBooking(): Boolean =
     !isTerminalBooking() &&
-        !(status.trim() == "4" && flagOut != "1") &&
-        !(flagIn == "1" && flagOut != "1" && flagLeave != "1") &&
-        (status.trim() in inUseLibBookBookingStatusCodes ||
-            listOf("使用中", "临时离开", "暂离", "已签到").any { statusName.contains(it) })
+        (canReturnSignIn() ||
+            (status.trim() !in setOf("1", "4") &&
+                (status.trim() in inUseLibBookBookingStatusCodes ||
+                    listOf("使用中", "已签到").any { statusName.contains(it) })))
 
-fun LibBookBookingDto.canSignIn(): Boolean =
-    !isTerminalBooking() &&
-        !canReturnSignIn() &&
-        !isInUseBooking() &&
-        (flagIn == "1" || (flagIn.isBlank() && !isInUseBooking()))
+fun LibBookBookingDto.canSignIn(): Boolean = !isTerminalBooking() && !isInUseBooking()
 
-/** 临时离开后返回签到；官方 H5 的 back-sign 复用 /v4/space/signin。 */
+/** 保留 API 契约兼容；客户端通过闸机自动恢复使用，不再提供返回签到操作。 */
 fun LibBookBookingDto.canReturnSignIn(): Boolean =
     !isTerminalBooking() &&
-        (flagLeave == "1" ||
-            (flagLeave.isBlank() &&
-                (status.trim() == "7" || statusName.contains("临时离开") || statusName.contains("暂离"))))
+        (status.trim() == "7" || statusName.contains("临时离开") || statusName.contains("暂离"))
 
-fun LibBookBookingDto.canTemporaryLeave(): Boolean =
-    !isTerminalBooking() &&
-        !canReturnSignIn() &&
-        (flagOut == "1" || (flagOut.isBlank() && isInUseBooking()))
+fun LibBookBookingDto.canTemporaryLeave(): Boolean = isInUseBooking() && !canReturnSignIn()
 
-fun LibBookBookingDto.canCheckout(): Boolean =
-    !isTerminalBooking() &&
-        (canReturnSignIn() || flagOut == "1" || (flagLeave.isBlank() && isInUseBooking()))
+fun LibBookBookingDto.canCheckout(): Boolean = isInUseBooking()
 
 fun LibBookBookingDto.cancelBlockedMessage(): String? {
   if (id.isBlank()) return "预约记录不存在或已失效，请刷新后重试"
@@ -199,6 +191,8 @@ data class LibBookSeatActionResponse(
     val message: String,
     /** 上游返回的原始 code：1 表示已落座/签到成功，其余含义暂未确认，按失败处理并原样显示。 */
     val code: Int? = null,
+    val leaveStartedAt: String = "",
+    val leaveDeadline: String = "",
 )
 
 /** 扫描座位二维码后由 /v4/space/qr_scan 返回的状态。 */

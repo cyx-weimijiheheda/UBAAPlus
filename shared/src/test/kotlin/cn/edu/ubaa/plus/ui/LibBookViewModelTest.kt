@@ -15,7 +15,11 @@ import cn.edu.ubaa.plus.model.dto.LibBookSeatActionResponse
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.LibBookStoreyDto
 import cn.edu.ubaa.plus.model.dto.LibBookTimeSlotDto
-import cn.edu.ubaa.plus.ui.screens.libbook.LibBookViewModel
+import cn.edu.ubaa.plus.model.dto.canCancelBooking
+import cn.edu.ubaa.plus.model.dto.canTemporaryLeave
+import cn.edu.ubaa.plus.reminder.LibBookLeaveStore
+import cn.edu.ubaa.plus.ui.screens.libbook.*
+import com.russhwolf.settings.MapSettings
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,12 +33,71 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.LocalDateTime
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibBookViewModelTest {
   @AfterTest
   fun tearDown() {
     Dispatchers.resetMain()
+  }
+
+  @Test
+  fun `leave return and leave again refresh buttons and use a new deadline`() = runTest {
+    setMainDispatcher(testScheduler)
+    LibBookLeaveStore.settings = MapSettings()
+    var now = LocalDateTime(2026, 11, 17, 9, 0)
+    val using =
+        LibBookBookingDto(
+            "b1",
+            day = "2026-11-17",
+            endTime = "23:00",
+            status = "3",
+            statusName = "使用中",
+            flagLeave = "1",
+            flagOut = "0",
+        )
+    val api = FakeLibBookApi(listOf(using))
+    val notices = mutableListOf<LibBookNotice>()
+    val model =
+        LibBookViewModel(
+            api,
+            notifyResult = { notices += it },
+            nowProvider = { now },
+            onBookingsLoaded = { bookings, date ->
+              LibBookLeaveStore.reconcile("alice", bookings, date)
+            },
+            onLeaveSucceeded = { LibBookLeaveStore.record("alice", it) },
+        )
+    model.loadBookings()
+    advanceUntilIdle()
+    model.handleCurrentCardAction(LibBookCardAction.LEAVE, "b1")
+    advanceUntilIdle()
+    assertEquals(
+        LocalDateTime(2026, 11, 17, 9, 30),
+        libBookReturnDeadline(notices.last().booking!!),
+    )
+    now = LocalDateTime(2026, 11, 17, 9, 1)
+    api.bookings = listOf(using.copy(status = "7", statusName = "临时离开"))
+    model.loadBookings()
+    advanceUntilIdle()
+    assertFalse(model.uiState.value.bookings.bookings.single().canTemporaryLeave())
+    now = LocalDateTime(2026, 11, 17, 9, 10)
+    api.bookings = listOf(using)
+    model.loadBookings()
+    advanceUntilIdle()
+    assertTrue(model.uiState.value.bookings.bookings.single().canTemporaryLeave())
+    assertFalse(model.uiState.value.bookings.bookings.single().canCancelBooking())
+    assertTrue(LibBookLeaveStore.records("alice").isEmpty())
+    now = LocalDateTime(2026, 11, 17, 9, 11)
+    model.handleCurrentCardAction(LibBookCardAction.LEAVE, "b1")
+    advanceUntilIdle()
+    assertEquals(
+        LocalDateTime(2026, 11, 17, 9, 41),
+        libBookReturnDeadline(notices.last().booking!!),
+    )
+    assertTrue(libBookReturnHint(notices.last().booking!!, now)!!.contains("09:41"))
+    assertEquals(2, api.actionRequests.size)
   }
 
   @Test
@@ -193,7 +256,7 @@ class LibBookViewModelTest {
 }
 
 private class FakeLibBookApi(
-    private val bookings: List<LibBookBookingDto> =
+    var bookings: List<LibBookBookingDto> =
         listOf(LibBookBookingDto(id = "b1", nameMerge = "一层 / 101", statusName = "已预约"))
 ) : LibBookApi() {
   var librariesCalls = 0

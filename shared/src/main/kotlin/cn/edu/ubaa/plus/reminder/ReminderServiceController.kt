@@ -22,10 +22,12 @@ object ReminderServiceController {
 
   fun start(context: Context) {
     ReminderScheduler.scheduleNext(context)
+    LibBookLeaveReminder.scheduleNext(context)
   }
 
   fun stop(context: Context) {
     ReminderScheduler.cancel(context)
+    LibBookLeaveReminder.cancel(context)
   }
 
   fun notificationsAllowed(context: Context): Boolean {

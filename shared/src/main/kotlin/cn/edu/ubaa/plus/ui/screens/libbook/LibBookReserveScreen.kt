@@ -76,8 +76,6 @@ import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 fun LibBookReserveScreen(
     viewModel: LibBookViewModel,
     onBookingsClick: () -> Unit,
-    onSubmitSuccess: () -> Unit,
-    onScanRequest: () -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
   var showMapDialog by remember { mutableStateOf(false) }
@@ -97,7 +95,6 @@ fun LibBookReserveScreen(
     val message = uiState.actionMessage ?: return@LaunchedEffect
     UbaaToast.show(message)
     viewModel.clearActionMessage()
-    if (message.contains("成功")) onSubmitSuccess()
   }
 
   if (showMapDialog && selectedMapResource != null) {

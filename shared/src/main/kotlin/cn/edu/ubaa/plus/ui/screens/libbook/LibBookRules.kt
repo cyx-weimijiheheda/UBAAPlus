@@ -4,7 +4,6 @@ import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.canCancelBooking
 import cn.edu.ubaa.plus.model.dto.canCheckout
-import cn.edu.ubaa.plus.model.dto.canReturnSignIn
 import cn.edu.ubaa.plus.model.dto.canSignIn
 import cn.edu.ubaa.plus.model.dto.canTemporaryLeave
 import cn.edu.ubaa.plus.model.dto.isInUseBooking
@@ -20,8 +19,6 @@ internal const val LIB_BOOK_CHECK_IN_MINUTES = 30
 /** 图书馆座位卡片上的操作，与「我的预约」保持一致。 */
 enum class LibBookCardAction {
   CANCEL,
-  SIGN_IN,
-  RETURN_SIGN_IN,
   LEAVE,
   CHECKOUT,
 }
@@ -32,8 +29,6 @@ fun LibBookBookingDto.cardActions(): List<LibBookCardAction> =
 fun LibBookBookingDto.isCardActionEnabled(action: LibBookCardAction): Boolean =
     when (action) {
       LibBookCardAction.CANCEL -> canCancelBooking()
-      LibBookCardAction.SIGN_IN -> canSignIn()
-      LibBookCardAction.RETURN_SIGN_IN -> canReturnSignIn()
       LibBookCardAction.LEAVE -> canTemporaryLeave()
       LibBookCardAction.CHECKOUT -> canCheckout()
     }
@@ -77,7 +72,7 @@ internal val LIB_BOOK_RULES: List<String> =
     listOf(
         "预约时间：线上开放时间为每日 08:30 至闭馆；线下开放时间为开馆至闭馆。",
         "签到时间：预约成功后，须在 30 分钟内完成签到。",
-        "签到方式：使用校园卡、人脸识别或北航码通过闸机入馆后自动签到；也可扫描座位墨水屏或桌面标签二维码手动签到。",
+        "签到与返回：存在有效预约时，通过闸机入馆会自动签到；临时离开后再次入馆自动恢复座位使用，无需手动签到。",
         "取消预约：签到成功前，每日可通过系统自行取消 1 次。",
         "签退与释放：中途离馆 30 分钟内返回可继续使用原座位；午餐 10:30-13:30、晚餐 16:30-19:00 离馆，2 小时内返回可继续使用；结束使用请主动签退；闭馆后系统自动签退。",
         "违约处理：预约成功后 30 分钟内未签到，系统自动取消并记违约 1 次；累计违约 3 次将暂停线上座位预约权限 7 天。",

@@ -20,12 +20,12 @@ import cn.edu.ubaa.plus.model.dto.cancelBlockedMessage
 import cn.edu.ubaa.plus.reminder.LibBookNotifications
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 data class LibBookUiState(
@@ -79,13 +79,24 @@ class LibBookViewModel(
     private val notifyResult: (LibBookNotice) -> Unit = {},
     /** 定位提供者由界面层注入，ViewModel 不直接依赖 Android 定位 API。 */
     private val locationProvider: suspend () -> LibBookGeoPoint? = { null },
+    private val nowProvider: () -> LocalDateTime = ::currentLibBookNow,
+    private val onBookingsLoaded:
+        (List<LibBookBookingDto>, LocalDateTime) -> List<LibBookBookingDto> =
+        { bookings, _ ->
+          bookings
+        },
+    private val onLeaveSucceeded: (LibBookBookingDto) -> Unit = {},
+    private val onBookingClosed: (String) -> Unit = {},
     private val currentDateProvider: () -> String = {
-      val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+      val now = Clock.System.now().toLocalDateTime(LIB_BOOK_ZONE)
       val month = (now.month.ordinal + 1).toString().padStart(2, '0')
       val day = now.day.toString().padStart(2, '0')
       "${now.year}-$month-$day"
     },
 ) : ViewModel() {
+  private var bookingsJob: Job? = null
+  private var generation = 0
+  private var bookingsEpoch = 0
   private var initialLoadedOnce = false
   private var bookingsLoadedOnce = false
   private val _uiState = MutableStateFlow(LibBookUiState(selectedDay = currentDateProvider()))
@@ -98,6 +109,10 @@ class LibBookViewModel(
 
   /** 重置内部加载标记与 UI 状态，用于连接模式切换等场景。 */
   fun resetLoadedState() {
+    generation++
+    bookingsEpoch++
+    bookingsJob?.cancel()
+    bookingsJob = null
     initialLoadedOnce = false
     bookingsLoadedOnce = false
     _uiState.value = LibBookUiState(selectedDay = _uiState.value.selectedDay)
@@ -295,27 +310,38 @@ class LibBookViewModel(
   }
 
   fun loadBookings(page: Int = 1, limit: Int = 20) {
+    if (bookingsJob?.isActive == true) return
     bookingsLoadedOnce = true
-    viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(isBookingsLoading = true, bookingsError = null)
-      libBookApi
-          .getBookings(page, limit)
-          .onSuccess {
-            _uiState.value =
-                _uiState.value.copy(
-                    isBookingsLoading = false,
-                    bookings = it,
-                    bookingsError = null,
-                )
-          }
-          .onFailure {
-            _uiState.value =
-                _uiState.value.copy(
-                    isBookingsLoading = false,
-                    bookingsError = it.message ?: "加载预约记录失败",
-                )
-          }
-    }
+    val requestGeneration = generation
+    val requestEpoch = ++bookingsEpoch
+    bookingsJob =
+        viewModelScope.launch {
+          _uiState.value = _uiState.value.copy(isBookingsLoading = true, bookingsError = null)
+          libBookApi
+              .getBookings(page, limit)
+              .onSuccess {
+                if (generation != requestGeneration || bookingsEpoch != requestEpoch)
+                    return@onSuccess
+                val now = nowProvider()
+                val bookings = onBookingsLoaded(it.bookings, now)
+                _uiState.value =
+                    _uiState.value.copy(
+                        isBookingsLoading = false,
+                        now = now,
+                        bookings = it.copy(bookings = bookings),
+                        bookingsError = null,
+                    )
+              }
+              .onFailure {
+                if (generation != requestGeneration || bookingsEpoch != requestEpoch)
+                    return@onFailure
+                _uiState.value =
+                    _uiState.value.copy(
+                        isBookingsLoading = false,
+                        bookingsError = it.message ?: "加载预约记录失败",
+                    )
+              }
+        }
   }
 
   fun cancelBooking(bookingId: String) {
@@ -328,11 +354,21 @@ class LibBookViewModel(
       setActionMessage(blockedMessage)
       return
     }
-    _uiState.value = current.copy(cancelingBookingId = bookingId, actionMessage = null)
+    bookingsEpoch++
+    bookingsJob?.cancel()
+    bookingsJob = null
+    val cancelGeneration = generation
+    _uiState.value =
+        current.copy(
+            cancelingBookingId = bookingId,
+            isBookingsLoading = false,
+            actionMessage = null,
+        )
     viewModelScope.launch {
       libBookApi
           .cancelBooking(bookingId)
           .onSuccess { response ->
+            if (generation != cancelGeneration) return@onSuccess
             _uiState.value =
                 _uiState.value.copy(
                     cancelingBookingId = null,
@@ -347,9 +383,11 @@ class LibBookViewModel(
                     message = response.message,
                 )
             )
+            if (response.success) onBookingClosed(bookingId)
             loadBookings(_uiState.value.bookings.page, _uiState.value.bookings.limit)
           }
           .onFailure {
+            if (generation != cancelGeneration) return@onFailure
             _uiState.value =
                 _uiState.value.copy(
                     cancelingBookingId = null,
@@ -486,7 +524,13 @@ class LibBookViewModel(
     val booking =
         state.bookings.bookings.firstOrNull { it.id == context.bookId }
             ?: context.toBookingSnapshot()
-    _uiState.value = state.copy(isSeatActionSubmitting = true, actionMessage = null)
+    bookingsEpoch++
+    bookingsJob?.cancel()
+    bookingsJob = null
+    _uiState.value =
+        state.copy(isSeatActionSubmitting = true, isBookingsLoading = false, actionMessage = null)
+    val started = nowProvider()
+    val actionGeneration = generation
     viewModelScope.launch {
       val result =
           when (action) {
@@ -497,23 +541,43 @@ class LibBookViewModel(
           }
       result
           .onSuccess { response ->
+            if (generation != actionGeneration) return@onSuccess
+            val resultBooking =
+                if (response.success && action == LibBookSeatAction.LEAVE)
+                    successfulLibBookLeave(booking, response, started)
+                else booking
+            if (response.success) {
+              if (action == LibBookSeatAction.LEAVE) onLeaveSucceeded(resultBooking)
+              if (action == LibBookSeatAction.CHECKOUT) onBookingClosed(booking.id)
+            }
             _uiState.value =
                 _uiState.value.copy(
                     isSeatActionSubmitting = false,
                     pendingSeatAction = null,
                     seatActionContext = null,
                     actionMessage = response.message,
+                    now = nowProvider(),
+                    bookings =
+                        if (response.success && action == LibBookSeatAction.LEAVE)
+                            _uiState.value.bookings.copy(
+                                bookings =
+                                    _uiState.value.bookings.bookings.map {
+                                      if (it.id == booking.id) resultBooking else it
+                                    }
+                            )
+                        else _uiState.value.bookings,
                 )
             notifyResult(
                 LibBookNotice(
                     outcome = seatActionOutcome(action, response.success),
-                    booking = booking,
+                    booking = resultBooking,
                     message = response.message,
                 )
             )
             loadBookings(_uiState.value.bookings.page, _uiState.value.bookings.limit)
           }
           .onFailure {
+            if (generation != actionGeneration) return@onFailure
             _uiState.value =
                 _uiState.value.copy(
                     isSeatActionSubmitting = false,
@@ -647,14 +711,12 @@ class LibBookViewModel(
     _uiState.value = _uiState.value.copy(seatPage = page, selectedSeatId = null)
   }
 
-  /** 顶部当前预约卡片上的操作。扫码签到统一走主界面右上角入口。 */
+  /** 卡片只提供取消、暂离和完全离开，签到由闸机自动完成。 */
   fun handleCurrentCardAction(action: LibBookCardAction, bookingId: String?) {
     val booking = _uiState.value.bookings.bookings.firstOrNull { it.id == bookingId } ?: return
+    if (!booking.isCardActionEnabled(action)) return
     when (action) {
       LibBookCardAction.CANCEL -> cancelBooking(booking.id)
-      LibBookCardAction.RETURN_SIGN_IN -> {
-        if (prepareReturnSignIn(booking)) requestLocatedSeatAction(LibBookSeatAction.RETURN_SIGN_IN)
-      }
       LibBookCardAction.LEAVE -> {
         requestSeatActionForBooking(booking, LibBookSeatAction.LEAVE)
         continueLocatedSeatAction(LibBookSeatAction.LEAVE)
@@ -663,7 +725,6 @@ class LibBookViewModel(
         requestSeatActionForBooking(booking, LibBookSeatAction.CHECKOUT)
         continueLocatedSeatAction(LibBookSeatAction.CHECKOUT)
       }
-      LibBookCardAction.SIGN_IN -> Unit
     }
   }
 
@@ -718,8 +779,7 @@ class LibBookViewModel(
 }
 
 /** ViewModel 与界面共用的当前时间。 */
-internal fun currentLibBookNow(): LocalDateTime =
-    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+internal fun currentLibBookNow(): LocalDateTime = Clock.System.now().toLocalDateTime(LIB_BOOK_ZONE)
 
 val LibBookUiState.selectedLibrary: LibBookLibraryDto?
   get() = libraries.firstOrNull { it.id == selectedLibraryId }

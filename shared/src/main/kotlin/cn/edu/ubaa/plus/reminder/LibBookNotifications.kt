@@ -4,6 +4,8 @@ import android.content.Context
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookNotice
+import cn.edu.ubaa.plus.ui.screens.libbook.currentLibBookNow
+import cn.edu.ubaa.plus.ui.screens.libbook.libBookReturnHint
 
 /**
  * 图书馆座位操作结果通知。
@@ -47,6 +49,9 @@ object LibBookNotifications {
     val body =
         listOfNotNull(
                 detail.takeIf { it.isNotBlank() },
+                if (outcome == Outcome.LEFT)
+                    booking?.let { libBookReturnHint(it, currentLibBookNow()) }
+                else null,
                 message?.trim()?.takeIf { it.isNotEmpty() },
             )
             .joinToString("\n")

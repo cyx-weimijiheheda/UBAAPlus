@@ -138,6 +138,13 @@ fun LibBookHomeSeatCard(
         )
       }
 
+      libBookReturnHint(booking, now)?.let { hint ->
+        Text(
+            hint,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+      }
       val actions = booking.cardActions()
       if (actions.isNotEmpty()) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -173,7 +180,6 @@ internal fun libBookHomeStatusLabel(booking: LibBookBookingDto): String {
         listOf("结束", "取消", "过期", "失效", "完成").any { name.contains(it) }
       } ?: "已结束"
   if (booking.canReturnSignIn()) return "临时离开"
-  if (booking.flagIn == "1" && booking.flagOut != "1") return "待签到"
   if (booking.status.trim() == "4") return "未签到"
   val name = booking.statusName.trim()
   if (name.isNotBlank() && name != booking.status.trim()) return name
@@ -192,8 +198,6 @@ private fun actionLabel(
 ): String =
     when (action) {
       LibBookCardAction.CANCEL -> if (isCanceling) "取消中..." else "取消预约"
-      LibBookCardAction.RETURN_SIGN_IN -> "返回签到"
       LibBookCardAction.LEAVE -> "临时离开"
       LibBookCardAction.CHECKOUT -> "完全离开"
-      LibBookCardAction.SIGN_IN -> if (booking.canSignIn()) "扫码签到" else "扫码操作"
     }

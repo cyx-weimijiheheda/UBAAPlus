@@ -24,7 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
-import cn.edu.ubaa.plus.model.dto.canSignIn
 import cn.edu.ubaa.plus.model.dto.isInUseBooking
 import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -134,6 +133,13 @@ fun LibBookCurrentBookingCard(
       )
     }
 
+    libBookReturnHint(booking, now)?.let { hint ->
+      Text(
+          hint,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.primary,
+      )
+    }
     val actions = booking.cardActions()
     if (actions.isNotEmpty()) {
       FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -145,10 +151,8 @@ fun LibBookCurrentBookingCard(
                 Text(
                     when (action) {
                       LibBookCardAction.CANCEL -> if (isCanceling) "取消中..." else "取消预约"
-                      LibBookCardAction.RETURN_SIGN_IN -> "返回签到"
                       LibBookCardAction.LEAVE -> "临时离开"
                       LibBookCardAction.CHECKOUT -> "完全离开"
-                      LibBookCardAction.SIGN_IN -> if (booking.canSignIn()) "扫码签到" else "扫码操作"
                     }
                 )
               },

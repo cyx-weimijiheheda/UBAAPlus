@@ -192,7 +192,7 @@ class LocalLibBookApiBackendTest {
                 {
                   "code":1,
                   "data":{
-                    "data":[{"id":"b1","nameMerge":"一层 / 101","no":"101","beginTime":"08:00","endTime":"23:00","status_name":"已预约"}],
+                    "data":[{"id":"b1","nameMerge":"一层 / 101","no":"101","beginTime":"08:00","endTime":"23:00","status_name":"临时离开","timelist":[{"status_name":"临时离开","operateTime":"2026-05-08 09:00:00"},{"status_name":"临时离开","operateTime":"2026-05-08 10:30:00"},{"status_name":"已签到","operateTime":"2026-05-08 10:00:00"}]}],
                     "total":1
                   }
                 }
@@ -240,6 +240,7 @@ class LocalLibBookApiBackendTest {
         "lGWxL9YCYE0sXIQzPsUCs3jfaFPunT/NyR93uF2nVP1OQPYYihpMRBvm7jxYdUZNTMCyIRtdY8d3DgCNz8G3lmeWmPjvy6jV2KeuJXR8nrOmk26JK+ATZB1VXBNOFebA",
     )
     assertEquals(1, bookings.bookings.size)
+    assertEquals("2026-05-08T10:30", bookings.bookings.single().leaveStartedAt)
     assertTrue(cancel.success)
     assertContains(cancelBody, "\"id\":\"b1\"")
   }

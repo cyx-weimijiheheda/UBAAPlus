@@ -19,6 +19,7 @@ import cn.edu.ubaa.plus.model.dto.LibBookSeatActionResponse
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.dto.LibBookStoreyDto
 import cn.edu.ubaa.plus.model.dto.LibBookTimeSlotDto
+import cn.edu.ubaa.plus.model.format.parseUbaaDateTime
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -227,6 +228,12 @@ internal class LocalLibBookApiBackend(
             success = true,
             message = message.ifBlank { defaultMessage },
             code = code,
+            leaveStartedAt = payload.string("leave_time").ifBlank { payload.string("leaveTime") },
+            leaveDeadline =
+                payload
+                    .string("leave_deadline")
+                    .ifBlank { payload.string("return_deadline") }
+                    .ifBlank { payload.string("leave_expire_time") },
         )
       }
 
@@ -687,6 +694,27 @@ private fun mapBooking(element: JsonElement): LibBookBookingDto {
       query = raw.string("query"),
       seatId = raw.string("seat_id").ifBlank { raw.string("seatId") },
       areaId = raw.string("area_id").ifBlank { raw.string("areaId") },
+      leaveStartedAt =
+          raw.string("leave_time")
+              .ifBlank { raw.string("leaveTime") }
+              .ifBlank {
+                raw["timelist"]
+                    ?.jsonArrayOrNull()
+                    ?.mapNotNull { entry ->
+                      val item = entry.jsonObjectOrNull() ?: return@mapNotNull null
+                      val name = item.string("status_name")
+                      if (name.contains("临时离开") || name.contains("暂离"))
+                          parseUbaaDateTime(item.string("operateTime"))
+                      else null
+                    }
+                    ?.maxOrNull()
+                    ?.toString()
+                    .orEmpty()
+              },
+      leaveDeadline =
+          raw.string("leave_deadline")
+              .ifBlank { raw.string("return_deadline") }
+              .ifBlank { raw.string("leave_expire_time") },
       signStatus = raw.string("sign_status").ifBlank { raw.string("signStatus") },
       type = raw.string("type"),
       flagIn = raw.string("flag_in").ifBlank { raw.string("flagIn") },
