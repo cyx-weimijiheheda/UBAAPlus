@@ -9,6 +9,7 @@ import cn.edu.ubaa.plus.model.dto.LibBookAreaDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.LibBookBookingsResponse
 import cn.edu.ubaa.plus.model.dto.LibBookCancelResponse
+import cn.edu.ubaa.plus.model.dto.LibBookDayScheduleDto
 import cn.edu.ubaa.plus.model.dto.LibBookGeoPoint
 import cn.edu.ubaa.plus.model.dto.LibBookLibraryDto
 import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
@@ -106,6 +107,31 @@ internal class LocalLibBookApiBackend(
               HttpStatusCode.BadRequest,
           )
         }
+        val fresh = mapAreaDetail(request.areaId, client.getAreaInfo(request.areaId))
+        val schedule =
+            fresh.schedule(request.day)
+                ?: throw LocalLibBookApiException(
+                    "预约日期已失效，请刷新后重试",
+                    "libbook_unavailable",
+                    HttpStatusCode.Conflict,
+                )
+        schedule
+            .blockedReason(Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai")).time)
+            ?.let {
+              throw LocalLibBookApiException(it, "libbook_unavailable", HttpStatusCode.Conflict)
+            }
+        if (
+            schedule.timeSlots.none {
+              it.id == request.segment &&
+                  (request.startTime.isBlank() || it.start == request.startTime) &&
+                  (request.endTime.isBlank() || it.end == request.endTime)
+            }
+        )
+            throw LocalLibBookApiException(
+                "预约时段已变化，请刷新后重试",
+                "libbook_unavailable",
+                HttpStatusCode.Conflict,
+            )
         val response = client.reserve(request.copy(seatId = seatId))
         val message =
             response.string("message").ifBlank { response.string("msg").ifBlank { "预约成功" } }
@@ -639,30 +665,37 @@ private fun mapAreaDetail(areaId: String, raw: JsonObject): LibBookAreaDetailDto
   val data = raw["data"]?.jsonObjectOrNull()
   val area = data?.get("area")?.jsonObjectOrNull()
   val dateList = data?.get("date")?.jsonObjectOrNull()?.get("list")?.jsonArrayOrNull().orEmpty()
-  val availableDates =
+  val days =
       dateList.mapNotNull { date ->
         val item = date.jsonObject
-        item.string("day").ifBlank { item.string("date") }.takeIf { it.isNotBlank() }
+        val day =
+            item.string("day").ifBlank { item.string("date") }.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+        val slots =
+            (item["times"] ?: item["timeSlots"])?.jsonArrayOrNull().orEmpty().map { element ->
+              val slot = element.jsonObject
+              val id = slot.string("id")
+              val start = slot.string("start")
+              val end = slot.string("end")
+              require(id.isNotBlank() && start.isNotBlank() && end.isNotBlank()) { "图书馆预约时段不完整" }
+              LibBookTimeSlotDto(id, start, end)
+            }
+        LibBookDayScheduleDto(
+            day,
+            slots,
+            item.string("book_start").ifBlank { null },
+            item.string("book_end").ifBlank { null },
+            item.string("book_close").ifBlank { null },
+        )
       }
-  val timeSlots =
-      dateList
-          .firstOrNull()
-          ?.jsonObject
-          ?.get("times")
-          ?.jsonArrayOrNull()
-          ?.mapNotNull { element ->
-            val item = element.jsonObject
-            val id = item.string("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val start = item.string("start")
-            val end = item.string("end")
-            LibBookTimeSlotDto(id = id, start = start, end = end)
-          }
-          .orEmpty()
+  require(days.map { it.day }.distinct().size == days.size) { "图书馆预约日期重复" }
+
   return LibBookAreaDetailDto(
       id = area?.string("id").orEmpty().ifBlank { areaId },
       name = area?.string("name").orEmpty(),
-      availableDates = availableDates,
-      timeSlots = timeSlots,
+      availableDates = days.map { it.day },
+      timeSlots = days.firstOrNull()?.timeSlots.orEmpty(),
+      days = days,
   )
 }
 

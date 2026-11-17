@@ -214,9 +214,24 @@ class LibBookViewModel(
     loadAreaDetailAndSeats(areaId)
   }
 
+  fun selectDay(day: String) {
+    if (_uiState.value.areaDetail?.schedule(day) == null) return
+    _uiState.value =
+        _uiState.value.copy(
+            selectedDay = day,
+            selectedSeatId = null,
+            selectedSlotId = null,
+            seats = emptyList(),
+        )
+    _uiState.value.selectedAreaId?.let(::loadAreaDetailAndSeats)
+  }
+
   fun selectSlot(slotId: String) {
     val current = _uiState.value
-    val slot = current.areaDetail?.timeSlots?.firstOrNull { it.id == slotId } ?: return
+    val slot =
+        current.areaDetail?.schedule(current.selectedDay)?.timeSlots?.firstOrNull {
+          it.id == slotId
+        } ?: return
     val areaId = current.selectedAreaId ?: return
     _uiState.value =
         current.copy(
@@ -243,10 +258,15 @@ class LibBookViewModel(
 
   fun submitReservation() {
     val current = _uiState.value
+    if (current.isSubmitting) return
     val areaId = current.selectedAreaId ?: return setActionMessage("请先选择分区")
     val seatId = current.selectedSeatId ?: return setActionMessage("请先选择可预约座位")
     val slot = current.selectedSlot ?: return setActionMessage("请先选择预约时段")
     val day = current.selectedDay.ifBlank { currentDateProvider() }
+    val blocked =
+        current.areaDetail?.schedule(day)?.blockedReason(nowProvider().time)
+            ?: if (current.areaDetail?.schedule(day) == null) "预约开放时间暂不可用，请刷新后重试" else null
+    if (blocked != null) return setActionMessage(blocked)
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isSubmitting = true, actionMessage = null)
       libBookApi
@@ -651,18 +671,23 @@ class LibBookViewModel(
           .getAreaDetail(areaId)
           .onSuccess { detail ->
             val day =
-                detail.availableDates.firstOrNull()
-                    ?: _uiState.value.selectedDay.ifBlank { currentDateProvider() }
-            val slot = detail.timeSlots.firstOrNull()
+                _uiState.value.selectedDay.takeIf { selected ->
+                  detail.days.any { it.day == selected }
+                } ?: detail.days.firstOrNull()?.day ?: currentDateProvider()
+            val schedule = detail.schedule(day)
+            val blocked =
+                schedule?.blockedReason(nowProvider().time)
+                    ?: if (schedule == null) "预约开放时间暂不可用，请刷新后重试" else null
+            val slot = schedule?.timeSlots?.firstOrNull()?.takeIf { blocked == null }
             _uiState.value =
                 _uiState.value.copy(
                     areaDetail = detail,
                     selectedDay = day,
                     selectedSlotId = slot?.id,
                     selectedSeatId = null,
-                    isSeatsLoading = slot == null,
+                    isSeatsLoading = slot != null,
                     seats = emptyList(),
-                    seatsError = if (slot == null) "当前分区暂无可预约时段" else null,
+                    seatsError = blocked ?: if (slot == null) "当前分区暂无可预约时段" else null,
                 )
             if (slot != null) {
               loadSeats(areaId, day, slot)
@@ -788,7 +813,7 @@ val LibBookUiState.selectedArea: LibBookAreaDto?
   get() = areas.firstOrNull { it.id == selectedAreaId }
 
 val LibBookUiState.selectedSlot: LibBookTimeSlotDto?
-  get() = areaDetail?.timeSlots?.firstOrNull { it.id == selectedSlotId }
+  get() = areaDetail?.schedule(selectedDay)?.timeSlots?.firstOrNull { it.id == selectedSlotId }
 
 val LibBookUiState.selectedSeat: LibBookSeatDto?
   get() = seats.firstOrNull { it.id == selectedSeatId }

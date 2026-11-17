@@ -241,6 +241,30 @@ fun LibBookReserveScreen(
                   }
                 }
 
+                uiState.areaDetail
+                    ?.takeIf { it.days.isNotEmpty() }
+                    ?.let { detail ->
+                      item {
+                        LibBookDropdown(
+                            label = "日期",
+                            selectedText = uiState.selectedDay,
+                            options = detail.days.map { it.day to it.day },
+                            enabled = !uiState.isSubmitting,
+                            onSelected = viewModel::selectDay,
+                        )
+                      }
+                      item {
+                        val slots = detail.schedule(uiState.selectedDay)?.timeSlots.orEmpty()
+                        LibBookDropdown(
+                            label = "时段",
+                            selectedText = uiState.selectedSlot?.label ?: "选择时段",
+                            options = slots.map { it.id to it.label },
+                            enabled = !uiState.isSubmitting && uiState.seatsError == null,
+                            onSelected = viewModel::selectSlot,
+                        )
+                      }
+                    }
+
                 item {
                   val mapAvailable = selectedMapResource != null
                   SectionTitle(

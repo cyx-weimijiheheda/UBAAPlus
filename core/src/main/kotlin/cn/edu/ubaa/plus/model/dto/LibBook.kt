@@ -45,7 +45,40 @@ data class LibBookAreaDetailDto(
     val name: String = "",
     val availableDates: List<String> = emptyList(),
     val timeSlots: List<LibBookTimeSlotDto> = emptyList(),
-)
+    val days: List<LibBookDayScheduleDto> = emptyList(),
+) {
+  fun schedule(day: String): LibBookDayScheduleDto? = days.singleOrNull { it.day == day }
+}
+
+@Serializable
+data class LibBookDayScheduleDto(
+    val day: String,
+    val timeSlots: List<LibBookTimeSlotDto> = emptyList(),
+    val bookStart: String? = null,
+    val bookEnd: String? = null,
+    val bookClose: String? = null,
+) {
+  fun blockedReason(now: kotlinx.datetime.LocalTime): String? {
+    fun parse(value: String?): kotlinx.datetime.LocalTime? =
+        value
+            ?.takeIf { it.matches(Regex("[0-9]{2}:[0-9]{2}")) }
+            ?.let { runCatching { kotlinx.datetime.LocalTime.parse(it) }.getOrNull() }
+    val start = parse(bookStart)
+    val end = listOfNotNull(parse(bookEnd), parse(bookClose)).minOrNull()
+    if (
+        start == null ||
+            end == null ||
+            parse(bookEnd) == null ||
+            parse(bookClose) == null ||
+            start > end
+    )
+        return "预约开放时间暂不可用，请刷新后重试"
+    val minute = now.hour * 60 + now.minute
+    if (minute < start.hour * 60 + start.minute || minute > end.hour * 60 + end.minute)
+        return "当前不在预约时段（$start–$end，北京时间）"
+    return null
+  }
+}
 
 @Serializable
 data class LibBookSeatDto(

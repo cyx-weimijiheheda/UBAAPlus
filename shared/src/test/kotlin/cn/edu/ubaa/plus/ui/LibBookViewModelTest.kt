@@ -307,6 +307,16 @@ private class FakeLibBookApi(
               id = areaId,
               name = "一层西阅学空间",
               availableDates = listOf("2026-05-08"),
+              days =
+                  listOf(
+                      cn.edu.ubaa.plus.model.dto.LibBookDayScheduleDto(
+                          "2026-05-08",
+                          listOf(LibBookTimeSlotDto("seg-1", "08:00", "23:00")),
+                          "00:00",
+                          "23:59",
+                          "23:59",
+                      )
+                  ),
               timeSlots = listOf(LibBookTimeSlotDto("seg-1", "08:00", "23:00")),
           )
       )

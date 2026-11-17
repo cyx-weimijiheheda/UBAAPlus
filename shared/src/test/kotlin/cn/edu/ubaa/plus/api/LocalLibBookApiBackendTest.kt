@@ -155,7 +155,7 @@ class LocalLibBookApiBackendTest {
                     "date":{
                       "list":[
                         {
-                          "day":"2026-05-08",
+                          "day":"2026-05-08","book_start":"00:00","book_end":"23:59","book_close":"23:59",
                           "times":[{"id":"seg-1","start":"08:00","end":"23:00"}]
                         }
                       ]
@@ -271,7 +271,7 @@ class LocalLibBookApiBackendTest {
                   """
                   {"code":0,"data":{
                     "query":"q1","book_id":"b1","seat_id":"101",
-                    "no":"101","name":"一层","day":"2026-05-08",
+                    "no":"101","name":"一层","day":"2026-05-08","book_start":"00:00","book_end":"23:59","book_close":"23:59",
                     "begin_time":"08:00","end_time":"23:00",
                     "status":"3","status_name":"使用中"}}
                   """
