@@ -2,12 +2,40 @@ package cn.edu.ubaa.plus.api
 
 import cn.edu.ubaa.plus.api.local.SsoCaptchaModel
 import cn.edu.ubaa.plus.api.local.decodeCaptcha
+import cn.edu.ubaa.plus.api.local.loadCaptchaModelBytes
 import java.util.zip.GZIPInputStream
 import javax.imageio.ImageIO
 import kotlin.test.*
 import kotlinx.serialization.json.Json
 
 class SsoCaptchaModelTest {
+  @Test
+  fun modelLoaderSupportsAaptExpandedAssetsAndOriginalGzip() {
+    val raw = "synthetic model bytes".toByteArray()
+    val compressed =
+        java.io
+            .ByteArrayOutputStream()
+            .also { output -> java.util.zip.GZIPOutputStream(output).use { it.write(raw) } }
+            .toByteArray()
+    assertContentEquals(
+        raw,
+        loadCaptchaModelBytes { name ->
+          assertEquals("captcha/common.onnx", name)
+          java.io.ByteArrayInputStream(raw)
+        },
+    )
+    assertContentEquals(
+        raw,
+        loadCaptchaModelBytes { name ->
+          when (name) {
+            "captcha/common.onnx" -> throw java.io.FileNotFoundException(name)
+            "captcha/common.onnx.gz" -> java.io.ByteArrayInputStream(compressed)
+            else -> error("unexpected asset")
+          }
+        },
+    )
+  }
+
   @Test
   fun builtInModelReadsUpstreamSyntheticFixture() {
     val image = ImageIO.read(javaClass.getResourceAsStream("/captcha/captcha_synthetic.png"))

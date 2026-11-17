@@ -5,6 +5,8 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.graphics.BitmapFactory
+import java.io.FileNotFoundException
+import java.io.InputStream
 import java.nio.FloatBuffer
 import java.util.Base64
 import java.util.zip.GZIPInputStream
@@ -17,14 +19,12 @@ object SsoCaptchaRecognizer {
   @Volatile private var context: Context? = null
   private val model by lazy {
     context?.assets?.let { assets ->
-      GZIPInputStream(assets.open("captcha/common.onnx.gz")).use { input ->
-        SsoCaptchaModel(
-            input.readBytes(),
-            Json.decodeFromString(
-                assets.open("captcha/charset.json").bufferedReader().use { it.readText() }
-            ),
-        )
-      }
+      SsoCaptchaModel(
+          loadCaptchaModelBytes(assets::open),
+          Json.decodeFromString(
+              assets.open("captcha/charset.json").bufferedReader().use { it.readText() }
+          ),
+      )
     }
   }
 
@@ -56,6 +56,14 @@ object SsoCaptchaRecognizer {
         }
       }
 }
+
+/** aapt 会将 .gz asset 解压并去掉后缀；兼容实际 APK 及保留 gzip 的打包方式。 */
+internal fun loadCaptchaModelBytes(open: (String) -> InputStream): ByteArray =
+    try {
+      open("captcha/common.onnx").use { it.readBytes() }
+    } catch (_: FileNotFoundException) {
+      GZIPInputStream(open("captcha/common.onnx.gz")).use { it.readBytes() }
+    }
 
 internal class SsoCaptchaModel(bytes: ByteArray, private val charset: List<String>) :
     AutoCloseable {
