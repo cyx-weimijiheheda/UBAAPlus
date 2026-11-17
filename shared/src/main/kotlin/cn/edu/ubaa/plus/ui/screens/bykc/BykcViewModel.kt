@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus.ui.screens.bykc
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cn.edu.ubaa.plus.api.feature.BykcApi
+import cn.edu.ubaa.plus.api.storage.FeatureReadCache
 import cn.edu.ubaa.plus.model.dto.*
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,7 +76,12 @@ class BykcViewModel(
   /** 课程详情状态流。 */
   val courseDetailState: StateFlow<BykcCourseDetailUiState> = _courseDetailState.asStateFlow()
 
-  private val _chosenCoursesState = MutableStateFlow(BykcChosenCoursesUiState())
+  private val _chosenCoursesState =
+      MutableStateFlow(
+          BykcChosenCoursesUiState(
+              courses = FeatureReadCache.get<List<BykcChosenCourseDto>>("bykc", "chosen").orEmpty()
+          )
+      )
   /** 已选课程状态流。 */
   val chosenCoursesState: StateFlow<BykcChosenCoursesUiState> = _chosenCoursesState.asStateFlow()
 
@@ -231,7 +237,9 @@ class BykcViewModel(
   /** 获取指定课程的详细数据。 */
   fun loadCourseDetail(courseId: Long) {
     viewModelScope.launch {
-      _courseDetailState.value = BykcCourseDetailUiState(isLoading = true)
+      val cached = FeatureReadCache.get<BykcCourseDetailDto>("bykc", "detail:$courseId")
+      _courseDetailState.value =
+          BykcCourseDetailUiState(isLoading = cached == null, course = cached)
       bykcApi
           .getCourseDetail(courseId)
           .onSuccess {
@@ -239,7 +247,11 @@ class BykcViewModel(
           }
           .onFailure {
             _courseDetailState.value =
-                BykcCourseDetailUiState(isLoading = false, error = it.message ?: "详情加载失败")
+                BykcCourseDetailUiState(
+                    isLoading = false,
+                    course = cached,
+                    error = if (cached == null) it.message ?: "详情加载失败" else null,
+                )
           }
     }
   }
@@ -248,7 +260,11 @@ class BykcViewModel(
   fun loadChosenCourses() {
     chosenLoadedOnce = true
     viewModelScope.launch {
-      _chosenCoursesState.value = _chosenCoursesState.value.copy(isLoading = true, error = null)
+      _chosenCoursesState.value =
+          _chosenCoursesState.value.copy(
+              isLoading = _chosenCoursesState.value.courses.isEmpty(),
+              error = null,
+          )
       bykcApi
           .getChosenCourses()
           .onSuccess {

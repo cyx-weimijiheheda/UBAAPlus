@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus.ui.screens.spoc
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cn.edu.ubaa.plus.api.feature.SpocApi
+import cn.edu.ubaa.plus.api.storage.FeatureReadCache
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentDetailDto
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentsResponse
@@ -50,6 +51,16 @@ class SpocViewModel(
   private val _uiState = MutableStateFlow(SpocUiState())
   val uiState: StateFlow<SpocUiState> = _uiState.asStateFlow()
 
+  init {
+    FeatureReadCache.get<SpocAssignmentsResponse>("spoc", "assignments")?.let { response ->
+      _uiState.value =
+          _uiState.value.copy(
+              assignmentsResponse = response,
+              visibleAssignments = buildVisibleAssignments(response.assignments, _uiState.value),
+          )
+    }
+  }
+
   fun ensureAssignmentsLoaded(forceRefresh: Boolean = false) {
     if (!forceRefresh && assignmentsLoadedOnce) return
     loadAssignments(refresh = forceRefresh)
@@ -69,7 +80,7 @@ class SpocViewModel(
       val hasExistingData = _uiState.value.assignmentsResponse != null
       _uiState.value =
           _uiState.value.copy(
-              isLoading = !refresh || !hasExistingData,
+              isLoading = !hasExistingData,
               isRefreshing = refresh,
               error = null,
           )
@@ -123,8 +134,11 @@ class SpocViewModel(
     viewModelScope.launch {
       _uiState.value =
           _uiState.value.copy(
-              isDetailLoading = true,
-              assignmentDetail = null,
+              isDetailLoading =
+                  FeatureReadCache.get<SpocAssignmentDetailDto>("spoc", "detail:$assignmentId") ==
+                      null,
+              assignmentDetail =
+                  FeatureReadCache.get<SpocAssignmentDetailDto>("spoc", "detail:$assignmentId"),
               detailError = null,
           )
 

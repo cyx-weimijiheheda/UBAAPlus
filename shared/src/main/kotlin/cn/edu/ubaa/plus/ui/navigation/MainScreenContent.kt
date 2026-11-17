@@ -201,7 +201,10 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                     "schedule" -> navigateTo(AppScreen.SCHEDULE)
                     "exam" -> navigateTo(AppScreen.EXAM)
                     "grade" -> navigateTo(AppScreen.GRADE)
-                    "bykc" -> navigateTo(AppScreen.BYKC_COURSES)
+                    "bykc" ->
+                        navigateTo(
+                            if (isAuthenticated) AppScreen.BYKC_COURSES else AppScreen.BYKC_CHOSEN
+                        )
                     "classroom" -> navigateTo(AppScreen.CLASSROOM_QUERY)
                     "iclass" -> navigateTo(AppScreen.ICLASS_HOME)
                     "spoc" -> navigateTo(AppScreen.SPOC_ASSIGNMENTS)

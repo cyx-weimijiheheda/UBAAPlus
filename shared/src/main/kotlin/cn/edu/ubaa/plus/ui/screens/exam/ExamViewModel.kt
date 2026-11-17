@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus.ui.screens.exam
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cn.edu.ubaa.plus.api.feature.ScheduleApi
+import cn.edu.ubaa.plus.api.storage.FeatureReadCache
 import cn.edu.ubaa.plus.model.dto.ExamArrangementData
 import cn.edu.ubaa.plus.model.dto.Term
 import cn.edu.ubaa.plus.repository.GlobalTermRepository
@@ -18,7 +19,7 @@ class ExamViewModel(
 ) : ViewModel() {
   private var loadedOnce = false
 
-  private val _uiState = MutableStateFlow(ExamUiState())
+  private val _uiState = MutableStateFlow(cachedExamState())
   val uiState: StateFlow<ExamUiState> = _uiState.asStateFlow()
 
   fun ensureLoaded(forceRefresh: Boolean = false) {
@@ -29,13 +30,14 @@ class ExamViewModel(
   /** 重置内部加载标记与 UI 状态，用于连接模式切换等场景。 */
   fun resetLoadedState() {
     loadedOnce = false
-    _uiState.value = ExamUiState()
+    _uiState.value = cachedExamState()
   }
 
   fun loadTerms(forceRefresh: Boolean = false) {
     loadedOnce = true
     viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+      _uiState.value =
+          _uiState.value.copy(isLoading = _uiState.value.examData == null, error = null)
 
       termRepository
           .getTerms(forceRefresh)
@@ -66,7 +68,9 @@ class ExamViewModel(
 
   private fun loadExams(termCode: String) {
     viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+      val cached = FeatureReadCache.get<ExamArrangementData>("exams", termCode)
+      _uiState.value =
+          _uiState.value.copy(examData = cached, isLoading = cached == null, error = null)
 
       scheduleApi
           .getExamArrangement(termCode)
@@ -89,3 +93,13 @@ data class ExamUiState(
     val examData: ExamArrangementData? = null,
     val error: String? = null,
 )
+
+private fun cachedExamState(): ExamUiState {
+  val terms = FeatureReadCache.get<List<Term>>("schedule", "terms").orEmpty()
+  val selected = terms.firstOrNull { it.selected } ?: terms.firstOrNull()
+  return ExamUiState(
+      terms = terms,
+      selectedTerm = selected,
+      examData = selected?.let { FeatureReadCache.get<ExamArrangementData>("exams", it.itemCode) },
+  )
+}

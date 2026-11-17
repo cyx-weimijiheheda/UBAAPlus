@@ -36,6 +36,8 @@ class AuthViewModel(
   private var userInfoJob: Job? = null
 
   private fun cancelAuthentication() {
+    cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.allowOnline(false)
+    cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.invalidate()
     authEpoch++
     listOf(preloadJob, captchaJob, loginJob, initializeJob, validationJob, userInfoJob).forEach {
       it?.cancel()
@@ -300,6 +302,7 @@ class AuthViewModel(
     _uiState.value = AuthUiState(isLoading = true)
     CachedUserStore.clear()
     CachedHomeStore.clear()
+    cn.edu.ubaa.plus.api.storage.FeatureReadCache.clear()
     cn.edu.ubaa.plus.reminder.LibBookLeaveStore.clear()
     cn.edu.ubaa.plus.widget.WidgetTodoStore.clear()
     ScheduleStore.forgetAccount()

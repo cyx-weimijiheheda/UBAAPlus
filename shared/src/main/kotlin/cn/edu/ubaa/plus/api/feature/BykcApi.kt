@@ -1,6 +1,7 @@
 package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
+import cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator
 import cn.edu.ubaa.plus.model.dto.*
 import io.ktor.http.*
 
@@ -67,7 +68,9 @@ class BykcApi(
    * @return 课程详细信息，包含签到配置等。
    */
   suspend fun getCourseDetail(courseId: Long): Result<BykcCourseDetailDto> {
-    return currentBackend().getCourseDetail(courseId)
+    return SchoolReadCoordinator.read("bykc", "detail:$courseId") {
+      currentBackend().getCourseDetail(courseId)
+    }
   }
 
   /**
@@ -76,7 +79,7 @@ class BykcApi(
    * @return 已选课程列表。
    */
   suspend fun getChosenCourses(): Result<List<BykcChosenCourseDto>> {
-    return currentBackend().getChosenCourses()
+    return SchoolReadCoordinator.read("bykc", "chosen") { currentBackend().getChosenCourses() }
   }
 
   /**
@@ -85,7 +88,7 @@ class BykcApi(
    * @return 各分类的统计结果。
    */
   suspend fun getStatistics(): Result<BykcStatisticsDto> {
-    return currentBackend().getStatistics()
+    return SchoolReadCoordinator.read("bykc", "statistics") { currentBackend().getStatistics() }
   }
 
   /**

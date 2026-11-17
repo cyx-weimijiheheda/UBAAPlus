@@ -71,7 +71,7 @@ internal data class CachedHomeSnapshot(
 internal object CachedHomeStore {
   private var backing: Settings? = null
   var settings: Settings
-    get() = backing ?: Settings().also { backing = it }
+    get() = backing ?: SecureSettings.get().also { backing = it }
     set(value) {
       backing = value
     }

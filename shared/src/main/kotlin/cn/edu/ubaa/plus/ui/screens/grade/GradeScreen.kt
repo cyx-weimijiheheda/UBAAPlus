@@ -53,7 +53,7 @@ fun GradeScreen(viewModel: GradeViewModel) {
               showIndicator = true,
               modifier = Modifier.fillMaxSize(),
           )
-      uiState.error != null ->
+      uiState.error != null && uiState.gradeData == null ->
           UbaaErrorState(
               message = "加载失败: ${uiState.error}",
               onRetry = { viewModel.ensureLoaded(forceRefresh = true) },

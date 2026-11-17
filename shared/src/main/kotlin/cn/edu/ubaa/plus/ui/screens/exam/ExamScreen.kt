@@ -56,7 +56,7 @@ fun ExamScreen(viewModel: ExamViewModel) {
               showIndicator = false,
               modifier = Modifier.fillMaxSize(),
           )
-      uiState.error != null ->
+      uiState.error != null && uiState.examData == null ->
           UbaaErrorState(
               message = "加载失败: ${uiState.error}",
               onRetry = { viewModel.ensureLoaded(forceRefresh = true) },

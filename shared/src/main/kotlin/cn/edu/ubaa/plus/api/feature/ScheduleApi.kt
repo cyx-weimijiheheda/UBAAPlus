@@ -1,9 +1,11 @@
 package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
+import cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator
 import cn.edu.ubaa.plus.model.dto.*
 import cn.edu.ubaa.plus.repository.SemesterSchedule
 import kotlinx.coroutines.CancellationException
+import kotlinx.datetime.toLocalDateTime
 
 /** 课程表与考试查询服务。 负责从后端获取学期、周次、课表安排以及考试安排等信息。 */
 interface ScheduleApiBackend {
@@ -55,7 +57,7 @@ class ScheduleApi(
    * @return 学期信息列表。
    */
   suspend fun getTerms(): Result<List<Term>> {
-    return currentBackend().getTerms()
+    return SchoolReadCoordinator.read("schedule", "terms") { currentBackend().getTerms() }
   }
 
   /**
@@ -65,7 +67,9 @@ class ScheduleApi(
    * @return 该学期的教学周列表。
    */
   suspend fun getWeeks(termCode: String): Result<List<Week>> {
-    return currentBackend().getWeeks(termCode)
+    return SchoolReadCoordinator.read("schedule", "weeks:$termCode") {
+      currentBackend().getWeeks(termCode)
+    }
   }
 
   /**
@@ -76,7 +80,9 @@ class ScheduleApi(
    * @return 包含该周所有排课信息的 WeeklySchedule。
    */
   suspend fun getWeeklySchedule(termCode: String, week: Int): Result<WeeklySchedule> {
-    return currentBackend().getWeeklySchedule(termCode, week)
+    return SchoolReadCoordinator.read("schedule", "weekly:$termCode:$week") {
+      currentBackend().getWeeklySchedule(termCode, week)
+    }
   }
 
   /**
@@ -85,7 +91,12 @@ class ScheduleApi(
    * @return 今日课程列表。
    */
   suspend fun getTodaySchedule(): Result<List<TodayClass>> {
-    return currentBackend().getTodaySchedule()
+    return SchoolReadCoordinator.read(
+        "schedule",
+        "today:${kotlin.time.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.of("Asia/Shanghai")).date}",
+    ) {
+      currentBackend().getTodaySchedule()
+    }
   }
 
   /**
@@ -95,6 +106,8 @@ class ScheduleApi(
    * @return 包含学生信息、已安排考试和未安排考试的数据汇总。
    */
   suspend fun getExamArrangement(termCode: String): Result<ExamArrangementData> {
-    return currentBackend().getExamArrangement(termCode)
+    return SchoolReadCoordinator.read("exams", termCode) {
+      currentBackend().getExamArrangement(termCode)
+    }
   }
 }

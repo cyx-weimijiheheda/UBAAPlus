@@ -49,7 +49,7 @@ fun BykcChosenCoursesScreen(
               showIndicator = false,
               modifier = Modifier.fillMaxSize(),
           )
-      error != null ->
+      error != null && courses.isEmpty() ->
           UbaaErrorState(
               message = "加载失败: $error",
               onRetry = onRefresh,

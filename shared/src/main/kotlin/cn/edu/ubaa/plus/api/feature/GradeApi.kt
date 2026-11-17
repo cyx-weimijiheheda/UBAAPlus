@@ -1,6 +1,7 @@
 package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
+import cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator
 import cn.edu.ubaa.plus.model.dto.GradeData
 
 interface GradeApiBackend {
@@ -16,5 +17,6 @@ class GradeApi(
 
   private fun currentBackend(): GradeApiBackend = backendProvider()
 
-  suspend fun getGrades(termCode: String): Result<GradeData> = currentBackend().getGrades(termCode)
+  suspend fun getGrades(termCode: String): Result<GradeData> =
+      SchoolReadCoordinator.read("grades", termCode) { currentBackend().getGrades(termCode) }
 }

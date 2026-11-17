@@ -24,6 +24,10 @@ import com.russhwolf.settings.MapSettings
  */
 object TestSettings {
   fun installInMemorySettings() {
+    cn.edu.ubaa.plus.api.storage.FeatureReadCache.settings = MapSettings()
+    cn.edu.ubaa.plus.api.storage.LocalDiagnostics.settings = MapSettings()
+    cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.invalidate()
+    cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.allowOnline(true)
     AuthTokensStore.settings = MapSettings()
     cn.edu.ubaa.plus.api.storage.PublicNoticeStore.settings = MapSettings()
     CredentialStore.settings = MapSettings()

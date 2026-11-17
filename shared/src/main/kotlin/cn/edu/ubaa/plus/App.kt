@@ -93,6 +93,9 @@ fun App() {
   ) {
     val authViewModel: AuthViewModel = viewModel { AuthViewModel() }
     val uiState by authViewModel.uiState.collectAsState()
+    androidx.compose.runtime.SideEffect {
+      cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.allowOnline(uiState.isLoggedIn)
+    }
     val cachedUserRevision by CachedUserStore.changes.collectAsState()
     val cachedUser = remember(cachedUserRevision) { CachedUserStore.current() }
     var showLogin by rememberSaveable { mutableStateOf(false) }

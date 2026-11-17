@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus.ui.screens.grade
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cn.edu.ubaa.plus.api.feature.GradeApi
+import cn.edu.ubaa.plus.api.storage.FeatureReadCache
 import cn.edu.ubaa.plus.model.dto.GradeData
 import cn.edu.ubaa.plus.model.dto.Term
 import cn.edu.ubaa.plus.repository.GlobalTermRepository
@@ -40,7 +41,7 @@ internal constructor(
 ) : ViewModel() {
   private var loadedOnce = false
 
-  private val _uiState = MutableStateFlow(GradeUiState())
+  private val _uiState = MutableStateFlow(cachedGradeState())
   val uiState: StateFlow<GradeUiState> = _uiState.asStateFlow()
 
   fun ensureLoaded(forceRefresh: Boolean = false) {
@@ -51,7 +52,7 @@ internal constructor(
   /** 重置内部加载标记与 UI 状态，用于连接模式切换等场景。 */
   fun resetLoadedState() {
     loadedOnce = false
-    _uiState.value = GradeUiState()
+    _uiState.value = cachedGradeState()
   }
 
   fun loadTerms(forceRefresh: Boolean = false) {
@@ -220,3 +221,20 @@ data class GradeUiState(
     val termGrades: Map<String, GradeData> = emptyMap(),
     val error: String? = null,
 )
+
+private fun cachedGradeState(): GradeUiState {
+  val terms = FeatureReadCache.get<List<Term>>("schedule", "terms").orEmpty()
+  val selected = terms.firstOrNull { it.selected } ?: terms.firstOrNull()
+  val grades =
+      terms
+          .mapNotNull { term ->
+            FeatureReadCache.get<GradeData>("grades", term.itemCode)?.let { term.itemCode to it }
+          }
+          .toMap()
+  return GradeUiState(
+      terms = terms,
+      selectedTerm = selected,
+      gradeData = grades[selected?.itemCode],
+      termGrades = grades,
+  )
+}

@@ -3,6 +3,7 @@ package cn.edu.ubaa.plus.ui.screens.judge
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cn.edu.ubaa.plus.api.feature.JudgeApi
+import cn.edu.ubaa.plus.api.storage.FeatureReadCache
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentDetailDto
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentDetailKeyDto
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
@@ -58,6 +59,16 @@ class JudgeViewModel(
   private val _uiState = MutableStateFlow(JudgeUiState())
   val uiState: StateFlow<JudgeUiState> = _uiState.asStateFlow()
 
+  init {
+    FeatureReadCache.get<JudgeAssignmentsResponse>("judge", "assignments:false")?.let { response ->
+      _uiState.value =
+          _uiState.value.copy(
+              assignmentsResponse = response,
+              visibleAssignments = buildVisibleAssignments(response.assignments, _uiState.value),
+          )
+    }
+  }
+
   fun ensureAssignmentsLoaded(forceRefresh: Boolean = false) {
     if (!forceRefresh && assignmentsLoadedOnce) return
     loadAssignments(refresh = forceRefresh)
@@ -83,7 +94,7 @@ class JudgeViewModel(
       val hasExistingData = _uiState.value.assignmentsResponse != null
       _uiState.value =
           _uiState.value.copy(
-              isLoading = !refresh || !hasExistingData,
+              isLoading = !hasExistingData,
               isRefreshing = refresh,
               isEnrichingAssignments = false,
               error = null,

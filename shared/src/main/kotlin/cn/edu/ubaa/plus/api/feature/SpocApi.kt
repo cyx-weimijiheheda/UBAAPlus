@@ -1,6 +1,7 @@
 package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
+import cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentDetailDto
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentsResponse
 
@@ -20,11 +21,13 @@ open class SpocApi(
 
   /** 获取当前默认学期的所有作业摘要。 */
   open suspend fun getAssignments(): Result<SpocAssignmentsResponse> {
-    return currentBackend().getAssignments()
+    return SchoolReadCoordinator.read("spoc", "assignments") { currentBackend().getAssignments() }
   }
 
   /** 获取指定作业的详细信息。 */
   open suspend fun getAssignmentDetail(assignmentId: String): Result<SpocAssignmentDetailDto> {
-    return currentBackend().getAssignmentDetail(assignmentId)
+    return SchoolReadCoordinator.read("spoc", "detail:$assignmentId") {
+      currentBackend().getAssignmentDetail(assignmentId)
+    }
   }
 }

@@ -660,6 +660,14 @@ fun MainAppScreen(
                     AppScreen.ABOUT,
                     AppScreen.FEATURE_ORDER,
                     AppScreen.SCHEDULE,
+                    AppScreen.GRADE,
+                    AppScreen.EXAM,
+                    AppScreen.SPOC_ASSIGNMENTS,
+                    AppScreen.SPOC_ASSIGNMENT_DETAIL,
+                    AppScreen.JUDGE_ASSIGNMENTS,
+                    AppScreen.JUDGE_ASSIGNMENT_DETAIL,
+                    AppScreen.BYKC_CHOSEN,
+                    AppScreen.BYKC_DETAIL,
                 )
     ) {
       onLoginRequired()
