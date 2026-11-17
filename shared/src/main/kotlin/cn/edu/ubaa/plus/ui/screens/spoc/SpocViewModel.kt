@@ -96,7 +96,7 @@ class SpocViewModel(
                     assignmentsResponse = response,
                     visibleAssignments =
                         buildVisibleAssignments(response.assignments, currentState),
-                    error = null,
+                    error = FeatureReadCache.readWarning("spoc", "assignments"),
                 )
           }
           .onFailure { exception ->

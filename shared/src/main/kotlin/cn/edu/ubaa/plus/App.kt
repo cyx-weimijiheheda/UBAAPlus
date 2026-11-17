@@ -170,6 +170,7 @@ fun App() {
 
     LaunchedEffect(Unit) {
       CachedUserStore.migrateVerifiedAccount()
+      cn.edu.ubaa.plus.api.storage.CachedHomeStore.migrateLegacy()
       val preferred = ConnectionRuntime.preferredMode()
       selectedConnectionMode = preferred
       modeResolved = true

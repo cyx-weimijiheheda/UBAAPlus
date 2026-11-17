@@ -76,7 +76,11 @@ class ExamViewModel(
           .getExamArrangement(termCode)
           .onSuccess { examData ->
             _uiState.value =
-                _uiState.value.copy(isLoading = false, examData = examData, error = null)
+                _uiState.value.copy(
+                    isLoading = false,
+                    examData = examData,
+                    error = FeatureReadCache.readWarning("exams", termCode),
+                )
           }
           .onFailure { exception ->
             _uiState.value =

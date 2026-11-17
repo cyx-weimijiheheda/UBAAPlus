@@ -218,6 +218,8 @@ class AuthViewModel(
               }
               .onFailure { exception ->
                 if (epoch != authEpoch) return@onFailure
+                if (exception !is CaptchaRequiredClientException)
+                    cn.edu.ubaa.plus.api.storage.LocalDiagnostics.record("auth", "login", exception)
                 if (exception is CaptchaRequiredClientException) {
                   _uiState.value =
                       _uiState.value.copy(
@@ -273,6 +275,7 @@ class AuthViewModel(
               }
               .onFailure { error ->
                 if (epoch != authEpoch) return@onFailure
+                cn.edu.ubaa.plus.api.storage.LocalDiagnostics.record("auth", "restore", error)
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 if (error is ApiCallException && error.code == "auth_upstream_timeout") {
                   _uiState.value = _uiState.value.copy(error = error.message)
@@ -367,6 +370,7 @@ class AuthViewModel(
               }
               .onFailure { error ->
                 if (epoch != authEpoch) return@onFailure
+                cn.edu.ubaa.plus.api.storage.LocalDiagnostics.record("auth", "restore", error)
                 if (error is ApiCallException && error.code == "auth_upstream_timeout") {
                   // 网络暂时不可用，保留会话状态
                   return@onFailure

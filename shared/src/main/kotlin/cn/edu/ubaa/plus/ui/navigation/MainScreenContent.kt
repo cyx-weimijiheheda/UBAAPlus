@@ -325,33 +325,41 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 operationInProgress = bykcDetailState.operationInProgress,
                 operationMessage = bykcDetailState.operationMessage,
                 onSelectClick = {
-                  selectedBykcCourseId?.let { bykcViewModel.selectCourse(it) { _, _ -> } }
+                  if (!isAuthenticated) onLoginRequired()
+                  else selectedBykcCourseId?.let { bykcViewModel.selectCourse(it) { _, _ -> } }
                 },
                 onDeselectClick = {
-                  selectedBykcCourseId?.let { bykcViewModel.deselectCourse(it) { _, _ -> } }
+                  if (!isAuthenticated) onLoginRequired()
+                  else selectedBykcCourseId?.let { bykcViewModel.deselectCourse(it) { _, _ -> } }
                 },
                 onSignInClick = {
-                  selectedBykcCourseId?.let {
-                    bykcViewModel.signCourse(it, null, null, 1) { _, _ -> }
-                  }
+                  if (!isAuthenticated) onLoginRequired()
+                  else
+                      selectedBykcCourseId?.let {
+                        bykcViewModel.signCourse(it, null, null, 1) { _, _ -> }
+                      }
                 },
                 onSignOutClick = {
-                  selectedBykcCourseId?.let {
-                    bykcViewModel.signCourse(it, null, null, 2) { _, _ -> }
-                  }
+                  if (!isAuthenticated) onLoginRequired()
+                  else
+                      selectedBykcCourseId?.let {
+                        bykcViewModel.signCourse(it, null, null, 2) { _, _ -> }
+                      }
                 },
                 onClearMessage = { bykcViewModel.clearOperationMessage() },
                 grabState = bykcGrabState,
                 onGrabStart = { scheduledStart, retrySeconds ->
-                  selectedBykcCourseId?.let { courseId ->
-                    bykcViewModel.startGrab(
-                        courseId = courseId,
-                        courseName = bykcDetailState.course?.courseName ?: "",
-                        scheduledStart = scheduledStart,
-                        retrySeconds = retrySeconds,
-                        selectEnd = bykcDetailState.course?.courseSelectEndDate,
-                    )
-                  }
+                  if (!isAuthenticated) onLoginRequired()
+                  else
+                      selectedBykcCourseId?.let { courseId ->
+                        bykcViewModel.startGrab(
+                            courseId = courseId,
+                            courseName = bykcDetailState.course?.courseName ?: "",
+                            scheduledStart = scheduledStart,
+                            retrySeconds = retrySeconds,
+                            selectEnd = bykcDetailState.course?.courseSelectEndDate,
+                        )
+                      }
                 },
                 onGrabStop = { bykcViewModel.stopGrab() },
                 onRefresh = { selectedBykcCourseId?.let { bykcViewModel.loadCourseDetail(it) } },

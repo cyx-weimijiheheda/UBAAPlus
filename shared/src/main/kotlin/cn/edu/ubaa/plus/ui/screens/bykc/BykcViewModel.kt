@@ -255,7 +255,12 @@ class BykcViewModel(
       bykcApi
           .getCourseDetail(courseId)
           .onSuccess {
-            _courseDetailState.value = BykcCourseDetailUiState(isLoading = false, course = it)
+            _courseDetailState.value =
+                BykcCourseDetailUiState(
+                    isLoading = false,
+                    course = it,
+                    error = FeatureReadCache.readWarning("bykc", "detail:$courseId"),
+                )
           }
           .onFailure {
             _courseDetailState.value =
@@ -281,7 +286,11 @@ class BykcViewModel(
           .getChosenCourses()
           .onSuccess {
             _chosenCoursesState.value =
-                _chosenCoursesState.value.copy(isLoading = false, courses = it)
+                _chosenCoursesState.value.copy(
+                    isLoading = false,
+                    courses = it,
+                    error = FeatureReadCache.readWarning("bykc", "chosen"),
+                )
           }
           .onFailure {
             _chosenCoursesState.value =

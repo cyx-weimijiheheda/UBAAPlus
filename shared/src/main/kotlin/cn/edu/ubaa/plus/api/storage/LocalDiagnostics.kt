@@ -91,7 +91,14 @@ internal object LocalDiagnostics {
           }
           .getOrDefault(emptyList())
 
-  fun export(): String = json.encodeToString(issues())
+  @Serializable
+  private data class Report(
+      val schemaVersion: Int = 1,
+      val appVersion: String = cn.edu.ubaa.plus.BuildKonfig.VERSION,
+      val issues: List<Issue>,
+  )
+
+  fun export(): String = json.encodeToString(Report(issues = issues()))
 
   fun clear() {
     settings.remove("local_diagnostics")

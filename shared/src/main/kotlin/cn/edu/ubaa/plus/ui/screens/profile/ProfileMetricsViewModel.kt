@@ -48,8 +48,10 @@ internal class ProfileMetricsViewModel(
               card = cardResult.getOrNull() ?: mutable.value.card,
               network = feeResult.getOrNull() ?: mutable.value.network,
               loading = false,
-              cardError = cardResult.isFailure,
-              networkError = feeResult.isFailure,
+              cardError =
+                  cardResult.isFailure || FeatureReadCache.readWarning("card", "balance") != null,
+              networkError =
+                  feeResult.isFailure || FeatureReadCache.readWarning("network", "fee") != null,
           )
     }
   }

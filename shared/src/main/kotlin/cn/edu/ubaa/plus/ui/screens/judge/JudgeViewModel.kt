@@ -113,7 +113,7 @@ class JudgeViewModel(
                     assignmentsResponse = response,
                     visibleAssignments =
                         buildVisibleAssignments(response.assignments, currentState),
-                    error = null,
+                    error = FeatureReadCache.readWarning("judge", "assignments:$includeExpired"),
                 )
             startAssignmentDetailEnrichment(response.assignments, loadVersion)
           }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cn.edu.ubaa.plus.api.feature.GraduateScheduleLoadException
 import cn.edu.ubaa.plus.api.feature.ScheduleApi
+import cn.edu.ubaa.plus.api.storage.FeatureReadCache
 import cn.edu.ubaa.plus.model.dto.*
 import cn.edu.ubaa.plus.repository.ScheduleRepository
 import kotlinx.coroutines.CoroutineStart
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.toLocalDateTime
 
 /** 默认在线浏览；只有用户手动本地化才保存整学期。离线入口显式禁止联网。 */
 class ScheduleViewModel(
@@ -84,7 +86,17 @@ class ScheduleViewModel(
           if (generation != request) return@launch
           todayLoadedOnce = result.isSuccess
           result
-              .onSuccess { _todayScheduleState.value = TodayScheduleState(todayClasses = it) }
+              .onSuccess {
+                _todayScheduleState.value =
+                    TodayScheduleState(
+                        todayClasses = it,
+                        error =
+                            FeatureReadCache.readWarning(
+                                "schedule",
+                                "today:${kotlin.time.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.of("Asia/Shanghai")).date}",
+                            ),
+                    )
+              }
               .onFailure { _todayScheduleState.value = TodayScheduleState(error = it.message) }
         }
   }

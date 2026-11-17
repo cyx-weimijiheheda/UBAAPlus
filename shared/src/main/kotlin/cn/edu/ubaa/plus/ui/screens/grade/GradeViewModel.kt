@@ -185,7 +185,15 @@ internal constructor(
               error = null,
           )
     }
-    _uiState.value = _uiState.value.copy(isRefreshing = false, isSummaryLoading = false)
+    _uiState.value =
+        _uiState.value.copy(
+            isRefreshing = false,
+            isSummaryLoading = false,
+            error =
+                _uiState.value.selectedTerm?.let {
+                  FeatureReadCache.readWarning("grades", it.itemCode)
+                },
+        )
   }
 
   private fun loadGrades(termCode: String) {
@@ -200,7 +208,7 @@ internal constructor(
                     isLoading = false,
                     gradeData = gradeData,
                     termGrades = _uiState.value.termGrades + (termCode to gradeData),
-                    error = null,
+                    error = FeatureReadCache.readWarning("grades", termCode),
                 )
           }
           .onFailure { exception ->

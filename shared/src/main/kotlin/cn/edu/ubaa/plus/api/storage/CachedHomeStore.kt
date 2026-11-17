@@ -106,8 +106,34 @@ internal object CachedHomeStore {
     )
   }
 
+  /** 升级时把旧明文首页迁到安全存储；失配账号不恢复。 */
+  fun migrateLegacy() {
+    runCatching {
+      val legacy = Settings()
+      legacy.keys
+          .filter { it.startsWith("home_snapshot:") }
+          .forEach { key ->
+            val snapshot =
+                runCatching { json.decodeFromString<CachedHomeSnapshot>(legacy.getString(key, "")) }
+                    .getOrNull()
+            if (
+                snapshot != null &&
+                    snapshot.owner == ScheduleStore.account() &&
+                    CachedUserStore.current() != null &&
+                    read(snapshot.owner) == null
+            )
+                write(snapshot)
+            legacy.remove(key)
+          }
+    }
+  }
+
   fun clear() {
     settings.keys.filter { it.startsWith("home_snapshot:") }.forEach(settings::remove)
+    runCatching {
+      val legacy = Settings()
+      legacy.keys.filter { it.startsWith("home_snapshot:") }.forEach(legacy::remove)
+    }
   }
 }
 

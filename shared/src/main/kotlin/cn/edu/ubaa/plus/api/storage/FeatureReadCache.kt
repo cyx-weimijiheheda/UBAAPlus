@@ -28,6 +28,7 @@ internal object FeatureReadCache {
       val savedAt: Long,
       val lastAttempt: Long,
       val complete: Boolean = true,
+      val lastFailed: Boolean = false,
   )
 
   private fun hash(value: String) =
@@ -99,10 +100,15 @@ internal object FeatureReadCache {
     runCatching {
       settings.putString(
           key(owner, feature, query),
-          json.encodeToString(old.copy(lastAttempt = Clock.System.now().toEpochMilliseconds())),
+          json.encodeToString(
+              old.copy(lastAttempt = Clock.System.now().toEpochMilliseconds(), lastFailed = true)
+          ),
       )
     }
   }
+
+  fun readWarning(feature: String, query: String): String? =
+      if (entry(feature, query)?.lastFailed == true) "更新失败，当前显示上次保存的数据" else null
 
   fun invalidate(feature: String) {
     val owner = ScheduleStore.account() ?: return

@@ -111,6 +111,7 @@ class SchoolReadCoordinatorTest {
         }
     assertEquals(listOf("old"), result.getOrThrow())
     assertEquals(saved, FeatureReadCache.entry("grades", "term")!!.savedAt)
+    assertNotNull(FeatureReadCache.readWarning("grades", "term"))
     val report = LocalDiagnostics.export()
     assertFalse(report.contains("secret-phone"))
     assertTrue(report.contains("upstream"))

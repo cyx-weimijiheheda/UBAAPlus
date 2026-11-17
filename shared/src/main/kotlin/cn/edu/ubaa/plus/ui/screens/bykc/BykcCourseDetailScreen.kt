@@ -153,7 +153,7 @@ fun BykcCourseDetailScreen(
             Text("加载课程详情...", color = MaterialTheme.colorScheme.onSurfaceVariant)
           }
         }
-        error != null -> {
+        error != null && course == null -> {
           Box(
               modifier = Modifier.fillMaxSize().padding(16.dp),
               contentAlignment = Alignment.Center,
