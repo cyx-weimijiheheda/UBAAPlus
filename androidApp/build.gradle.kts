@@ -47,6 +47,9 @@ android {
     }
   }
 
+  // 压缩 APK 内的原生推理库，安装时由系统解压；避免通用包携带四份未压缩 .so。
+  packaging { jniLibs { useLegacyPackaging = true } }
+
   // 仅 CI 发布时开启：生成 universal / x86 / arm64-v8a 三个独立 APK。
   splits {
     abi {

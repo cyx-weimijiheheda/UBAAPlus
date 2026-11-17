@@ -50,6 +50,17 @@ class SsoCaptchaModelTest {
         )
     SsoCaptchaModel(bytes, charset).use { model ->
       assertEquals("a2b3c4", model.recognize(image.width, image.height, pixels))
+      listOf(0.8, 0.9, 1.1, 1.2).forEach { brightness ->
+        val adjusted =
+            pixels
+                .map { argb ->
+                  fun channel(shift: Int) =
+                      (((argb ushr shift) and 255) * brightness).toInt().coerceIn(0, 255)
+                  (255 shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+                }
+                .toIntArray()
+        assertEquals("a2b3c4", model.recognize(image.width, image.height, adjusted))
+      }
     }
   }
 
