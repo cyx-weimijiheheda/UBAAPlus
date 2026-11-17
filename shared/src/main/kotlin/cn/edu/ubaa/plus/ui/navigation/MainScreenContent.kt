@@ -243,6 +243,10 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onModeSelected = onConnectionModeSelected,
                 allowSchoolReads = isAuthenticated,
                 onLoginRequired = onLoginRequired,
+                onBeforeClearCache = {
+                  bykcViewModel.stopGrab()
+                  venueViewModel?.stopGrab()
+                },
                 onFeatureOrderClick = { navigateTo(AppScreen.FEATURE_ORDER) },
             )
         AppScreen.ABOUT -> AboutScreen()

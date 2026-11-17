@@ -17,6 +17,13 @@ import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.repository.selectSavedScheduleWeek
 import cn.edu.ubaa.plus.shared.R
 import kotlin.time.Clock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
@@ -37,13 +44,30 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
   }
 
   override fun onReceive(context: Context, intent: Intent) {
-    super.onReceive(context, intent)
-    if (intent.action == ACTION_REFRESH) refreshAll(context)
-    if (intent.action == ACTION_WEEK) {
-      val manager = AppWidgetManager.getInstance(context)
-      val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1)
-      if (providerClasses.any { it.name == manager.getAppWidgetInfo(id)?.provider?.className }) {
-        update(context, manager, id, intent.getIntExtra("step", 0))
+    val result = goAsync()
+    // 系统更新、尺寸变化和主页刷新都在工作线程处理，避免绘制多张位图阻塞应用帧。
+    widgetScope.launch {
+      try {
+        withTimeout(8_000) {
+          renderMutex.withLock {
+            super.onReceive(context, intent)
+            if (intent.action == ACTION_REFRESH) refreshAll(context)
+            if (intent.action == ACTION_WEEK) {
+              val manager = AppWidgetManager.getInstance(context)
+              val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1)
+              if (
+                  providerClasses.any {
+                    it.name == manager.getAppWidgetInfo(id)?.provider?.className
+                  }
+              )
+                  update(context, manager, id, intent.getIntExtra("step", 0))
+            }
+          }
+        }
+      } catch (_: Exception) {
+        // 小组件失败不影响应用前台；下一次系统更新或点击可重新生成。
+      } finally {
+        result?.finish()
       }
     }
   }
@@ -59,6 +83,8 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
   }
 
   companion object {
+    private val widgetScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val renderMutex = Mutex()
     private val providerClasses =
         listOf(
             ScheduleWidgetProvider::class.java,
@@ -101,8 +127,9 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
               step != 0 &&
               preferences.getString("$id-owner", null) == owner &&
               preferences.getString("$id-anchor", null) == anchor
+      val semesters =
+          runCatching { owner?.let(ScheduleStore::read).orEmpty() }.getOrDefault(emptyList())
       val result = runCatching {
-        val semesters = owner?.let(ScheduleStore::read).orEmpty()
         val selected =
             selectSavedScheduleWeek(
                 semesters,
@@ -226,7 +253,7 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
             else
                 renderAgendaWidget(
                     cn.edu.ubaa.plus.repository.savedAgenda(
-                        owner?.let(ScheduleStore::read).orEmpty(),
+                        semesters,
                         today,
                         agendaDays,
                     ),
@@ -262,7 +289,7 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
             else
                 runCatching {
                       cn.edu.ubaa.plus.repository.savedAgenda(
-                          owner?.let(ScheduleStore::read).orEmpty(),
+                          semesters,
                           today,
                           1,
                       )
@@ -366,6 +393,10 @@ open class ScheduleWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             ),
         )
+      }
+      if (owner != ScheduleStore.account()) {
+        requestRefresh(context)
+        return
       }
       manager.updateAppWidget(id, views)
     }

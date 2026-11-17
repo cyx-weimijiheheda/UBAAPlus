@@ -72,8 +72,21 @@ internal object SchoolReadCoordinator {
       serializer: KSerializer<T>,
       cache: Boolean,
       block: suspend () -> Result<T>,
+  ): Result<T> =
+      kotlinx.coroutines.withContext(cn.edu.ubaa.plus.util.BusinessDispatchers.io) {
+        readOnWorker(feature, query, serializer, cache, block)
+      }
+
+  @Suppress("UNCHECKED_CAST")
+  private suspend fun <T> readOnWorker(
+      feature: String,
+      query: String,
+      serializer: KSerializer<T>,
+      cache: Boolean,
+      block: suspend () -> Result<T>,
   ): Result<T> {
     val scope = capture()
+    val cacheGeneration = FeatureReadCache.generation
     val allowFallback = cache && currentCoroutineContext()[FreshSchoolRead.Key] == null
     if (!onlineAllowed)
         return (if (allowFallback) FeatureReadCache.get(feature, query, serializer) else null)
@@ -118,10 +131,17 @@ internal object SchoolReadCoordinator {
       result.exceptionOrNull()?.let {
         if (it is CancellationException) throw it
         LocalDiagnostics.record(feature, "read", it)
-        FeatureReadCache.attempted(feature, query)
+        FeatureReadCache.attempted(feature, query, cacheGeneration)
       }
       if (result.isSuccess && cache)
-          FeatureReadCache.save(scope.owner, feature, query, serializer, result.getOrThrow())
+          FeatureReadCache.save(
+              scope.owner,
+              feature,
+              query,
+              serializer,
+              result.getOrThrow(),
+              cacheGeneration,
+          )
       if (result.isFailure && allowFallback) {
         FeatureReadCache.get(feature, query, serializer)?.let { result = Result.success(it) }
       }

@@ -24,6 +24,8 @@ import com.russhwolf.settings.MapSettings
  */
 object TestSettings {
   fun installInMemorySettings() {
+    cn.edu.ubaa.plus.util.BusinessDispatchers.io = kotlinx.coroutines.Dispatchers.Unconfined
+    cn.edu.ubaa.plus.widget.WidgetTodoStore.settings = MapSettings()
     cn.edu.ubaa.plus.api.storage.FeatureReadCache.settings = MapSettings()
     cn.edu.ubaa.plus.api.storage.LocalDiagnostics.settings = MapSettings()
     cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.invalidate()

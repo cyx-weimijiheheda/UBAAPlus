@@ -228,7 +228,10 @@ internal interface VenueApiBackend {
 class VenueApi internal constructor(private val backend: VenueApiBackend) {
   constructor() : this(LocalVenueApi())
 
-  suspend fun resumeSession(): VenueAuthOutcome = backend.resumeSession()
+  suspend fun resumeSession(): VenueAuthOutcome =
+      kotlinx.coroutines.withContext(cn.edu.ubaa.plus.util.BusinessDispatchers.io) {
+        backend.resumeSession()
+      }
 
   suspend fun login(
       username: String,
@@ -239,17 +242,27 @@ class VenueApi internal constructor(private val backend: VenueApiBackend) {
 
   fun logout() = backend.logout()
 
-  suspend fun getSites(): Result<VenueSiteList> = backend.getSites()
+  suspend fun getSites(): Result<VenueSiteList> =
+      kotlinx.coroutines.withContext(cn.edu.ubaa.plus.util.BusinessDispatchers.io) {
+        backend.getSites()
+      }
 
   suspend fun getMembershipCode(): Result<VenueMembershipCode?> = backend.getMembershipCode()
 
   suspend fun getDayInfo(siteId: Int, date: String): Result<VenueDayInfo?> =
-      backend.getDayInfo(siteId, date)
+      kotlinx.coroutines.withContext(cn.edu.ubaa.plus.util.BusinessDispatchers.io) {
+        backend.getDayInfo(siteId, date)
+      }
 
   suspend fun getMyOrders(page: Int, size: Int): Result<VenueOrderPage> =
-      backend.getMyOrders(page, size)
+      kotlinx.coroutines.withContext(cn.edu.ubaa.plus.util.BusinessDispatchers.io) {
+        backend.getMyOrders(page, size)
+      }
 
-  suspend fun getBuddies(): Result<List<VenueBuddy>> = backend.getBuddies()
+  suspend fun getBuddies(): Result<List<VenueBuddy>> =
+      kotlinx.coroutines.withContext(cn.edu.ubaa.plus.util.BusinessDispatchers.io) {
+        backend.getBuddies()
+      }
 
   suspend fun addBuddy(userUid: String): Result<Unit> = backend.addBuddy(userUid)
 

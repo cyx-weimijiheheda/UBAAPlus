@@ -66,7 +66,13 @@ open class CgyyApi(
   }
 
   open suspend fun getMyOrders(page: Int = 0, size: Int = 20): Result<CgyyOrdersPageResponse> {
-    return currentBackend().getMyOrders(page, size)
+    return cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.read(
+        "cgyy",
+        "orders:$page:$size",
+        cache = false,
+    ) {
+      currentBackend().getMyOrders(page, size)
+    }
   }
 
   open suspend fun getOrderDetail(orderId: Int): Result<CgyyOrderDto> {

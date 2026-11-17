@@ -53,7 +53,7 @@ class YgdkViewModel(
   init {
     _uiState.value =
         _uiState.value.copy(
-            homeReminderEnabled = YgdkReminderStore.isEnabled(reminderUserKey),
+            homeReminderEnabled = YgdkReminderStore.explicitChoice(reminderUserKey) ?: false,
         )
   }
 
@@ -104,7 +104,12 @@ class YgdkViewModel(
   fun resetLoadedState() {
     loadedOnce = false
     overviewLoadedOnce = false
-    _uiState.value = YgdkUiState(homeReminderEnabled = YgdkReminderStore.isEnabled(reminderUserKey))
+    _uiState.value =
+        YgdkUiState(
+            homeReminderEnabled =
+                YgdkReminderStore.explicitChoice(reminderUserKey)
+                    ?: _uiState.value.homeReminderEnabled
+        )
   }
 
   fun refreshOverviewOnly() {

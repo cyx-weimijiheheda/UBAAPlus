@@ -35,6 +35,8 @@ internal class HomeBootstrapCoordinator(private val scope: CoroutineScope) {
   val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
 
   private var job: Job? = null
+  val isActive: Boolean
+    get() = job?.isActive == true
 
   fun restart(
       actions: HomeBootstrapActions,

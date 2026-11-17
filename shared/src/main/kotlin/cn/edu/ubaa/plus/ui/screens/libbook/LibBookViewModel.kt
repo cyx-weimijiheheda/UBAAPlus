@@ -122,7 +122,7 @@ class LibBookViewModel(
   }
 
   fun ensureBookingsLoaded(forceRefresh: Boolean = false) {
-    if (!forceRefresh && bookingsLoadedOnce) return
+    if (!forceRefresh && (bookingsLoadedOnce || bookingsJob?.isActive == true)) return
     loadBookings()
   }
 

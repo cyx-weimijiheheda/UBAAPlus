@@ -28,6 +28,15 @@ internal class ProfileMetricsViewModel(
   private val mutable = MutableStateFlow(ProfileMetricsState())
   val state = mutable.asStateFlow()
 
+  private var observedCacheRevision = cn.edu.ubaa.plus.api.storage.CacheMaintenance.changes.value
+
+  fun onCacheRevision(revision: Long) {
+    if (observedCacheRevision != revision) {
+      observedCacheRevision = revision
+      mutable.value = ProfileMetricsState()
+    }
+  }
+
   fun refresh(online: Boolean) {
     if (!online || mutable.value.loading) return
     val scope = SchoolReadCoordinator.capture()

@@ -145,6 +145,49 @@ fun MainAppScreen(
     isAuthenticated: Boolean = true,
     onLoginRequired: () -> Unit = {},
 ) {
+  val revision by cn.edu.ubaa.plus.api.storage.CacheMaintenance.changes.collectAsState()
+  val businessStore = remember(userData.schoolid, revision) { androidx.lifecycle.ViewModelStore() }
+  val owner =
+      remember(businessStore) {
+        object : androidx.lifecycle.ViewModelStoreOwner {
+          override val viewModelStore = businessStore
+        }
+      }
+  DisposableEffect(businessStore) { onDispose { businessStore.clear() } }
+  CompositionLocalProvider(
+      androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner provides owner
+  ) {
+    MainAppContent(
+        userData,
+        userInfo,
+        connectionMode,
+        effectiveConnectionMode,
+        availableConnectionModes,
+        onEnsureUserInfo,
+        onConnectionModeSelected,
+        onLogoutClick,
+        modifier,
+        isAuthenticated,
+        onLoginRequired,
+    )
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
+@Composable
+private fun MainAppContent(
+    userData: UserData,
+    userInfo: UserInfo?,
+    connectionMode: ConnectionMode,
+    effectiveConnectionMode: ConnectionMode,
+    availableConnectionModes: List<ConnectionMode>,
+    onEnsureUserInfo: () -> Unit,
+    onConnectionModeSelected: (ConnectionMode) -> Unit,
+    onLogoutClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isAuthenticated: Boolean = true,
+    onLoginRequired: () -> Unit = {},
+) {
   val scope = rememberCoroutineScope()
   val appContext = LocalContext.current
   val uriHandler = LocalUriHandler.current
@@ -160,13 +203,22 @@ fun MainAppScreen(
   }
   val ygdkScreens = remember { setOf(AppScreen.YGDK_HOME, AppScreen.YGDK_FORM) }
 
+  val cacheRevision by cn.edu.ubaa.plus.api.storage.CacheMaintenance.changes.collectAsState()
   var selectedBottomTab by remember { mutableStateOf(BottomNavTab.HOME) }
   var homeManualRefreshPending by remember { mutableStateOf(false) }
   var homeManualRefreshStarted by remember { mutableStateOf(false) }
   val homeSnackbarHostState = remember { SnackbarHostState() }
   var cachedHome by
-      remember(userData.schoolid) { mutableStateOf(CachedHomeStore.read(userData.schoolid)) }
-  var homeSyncStarted by remember(userData.schoolid, isAuthenticated) { mutableStateOf(false) }
+      remember(userData.schoolid, cacheRevision) { mutableStateOf<CachedHomeSnapshot?>(null) }
+  LaunchedEffect(userData.schoolid, cacheRevision) {
+    val initial =
+        kotlinx.coroutines.withContext(cn.edu.ubaa.plus.util.BusinessDispatchers.io) {
+          CachedHomeStore.read(userData.schoolid)
+        }
+    if (cachedHome == null && ScheduleStore.account() == userData.schoolid) cachedHome = initial
+  }
+  var homeSyncStarted by
+      remember(userData.schoolid, isAuthenticated, cacheRevision) { mutableStateOf(false) }
   LaunchedEffect(isAuthenticated) {
     if (
         !isAuthenticated &&
@@ -201,10 +253,13 @@ fun MainAppScreen(
       }
   val scheduleUiState by scheduleViewModel.uiState.collectAsState()
   val todayScheduleState by scheduleViewModel.todayScheduleState.collectAsState()
+  var observedHomeDate by remember { mutableStateOf(homeNow.date) }
   LaunchedEffect(homeNow.date) {
-    scheduleViewModel.loadTodaySchedule()
-    scheduleViewModel.ensureCurrentWeekLoaded(forceRefresh = true)
-    scheduleUiState.selectedTerm?.let(scheduleViewModel::loadWeeks)
+    if (observedHomeDate != homeNow.date) {
+      observedHomeDate = homeNow.date
+      scheduleViewModel.ensureTodayLoaded(forceRefresh = true)
+      scheduleViewModel.ensureCurrentWeekLoaded(forceRefresh = true)
+    }
   }
 
   val homeExamViewModel: ExamViewModel =
@@ -306,8 +361,10 @@ fun MainAppScreen(
                 currentScreen == AppScreen.LIBBOOK_BOOKINGS)
     ) {
       libraryLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+        var first = true
         while (true) {
-          libBookViewModel.loadBookings()
+          if (first) libBookViewModel.ensureBookingsLoaded() else libBookViewModel.loadBookings()
+          first = false
           delay(30_000)
         }
       }
@@ -382,10 +439,13 @@ fun MainAppScreen(
         null
       }
   val ygdkUiState = ygdkViewModel?.uiState?.collectAsState()?.value ?: YgdkUiState()
-  val featureCacheRevision by cn.edu.ubaa.plus.api.storage.FeatureReadCache.changes.collectAsState()
+  val featureCacheRevision by
+      cn.edu.ubaa.plus.api.storage.FeatureReadCache.scheduleChanges.collectAsState()
   val localScheduleRevision by ScheduleStore.changes.collectAsState()
   LaunchedEffect(featureCacheRevision, localScheduleRevision, ygdkViewModel, userData.schoolid) {
-    ygdkViewModel?.refreshHomeReminderPreference()
+    kotlinx.coroutines.withContext(cn.edu.ubaa.plus.util.BusinessDispatchers.io) {
+      ygdkViewModel?.refreshHomeReminderPreference()
+    }
   }
 
   LaunchedEffect(isAuthenticated) {
@@ -533,6 +593,7 @@ fun MainAppScreen(
   }
 
   LaunchedEffect(
+      cacheRevision,
       isAuthenticated,
       homeSyncStarted,
       homeTodoItems,
@@ -569,17 +630,23 @@ fun MainAppScreen(
               if (signinUiState.error == null) homeNow.date.toString()
               else cachedHome?.signinDate.orEmpty(),
           )
-      CachedHomeStore.write(snapshot)
-      cachedHome = snapshot
-      cn.edu.ubaa.plus.widget.WidgetTodoStore.write(
-          userData.schoolid,
-          snapshot.todos,
-          homeNow,
-          snapshot.library,
-          homeTodoFailedSources.map { it.label } +
-              listOfNotNull(libBookUiState.bookingsError?.let { "图书馆座位" }),
-      )
-      cn.edu.ubaa.plus.widget.ScheduleWidgetProvider.requestRefresh(appContext)
+      if (snapshot == cachedHome) return@LaunchedEffect
+      val stored =
+          cn.edu.ubaa.plus.api.storage.CacheMaintenance.writeIfCurrent(cacheRevision) {
+            CachedHomeStore.write(snapshot)
+            cn.edu.ubaa.plus.widget.WidgetTodoStore.write(
+                userData.schoolid,
+                snapshot.todos,
+                homeNow,
+                snapshot.library,
+                homeTodoFailedSources.map { it.label } +
+                    listOfNotNull(libBookUiState.bookingsError?.let { "图书馆座位" }),
+            )
+          }
+      if (stored) {
+        cachedHome = snapshot
+        cn.edu.ubaa.plus.widget.ScheduleWidgetProvider.requestRefresh(appContext)
+      }
     }
   }
 
@@ -591,6 +658,7 @@ fun MainAppScreen(
     }
     homeSyncStarted = true
     homeExamViewModel.ensureLoaded(forceRefresh = forceRefresh)
+    if (!forceRefresh && homeBootstrapCoordinator.isActive) return
     val showLoading =
         forceRefresh ||
             !scheduleViewModel.hasTodayLoaded() ||
@@ -836,6 +904,35 @@ fun MainAppScreen(
     if (currentScreen == AppScreen.PROFILE) {
       onEnsureUserInfo()
     }
+  }
+
+  var observedCacheRevision by remember { mutableStateOf(cacheRevision) }
+  LaunchedEffect(cacheRevision) {
+    if (observedCacheRevision == cacheRevision) return@LaunchedEffect
+    observedCacheRevision = cacheRevision
+    homeSyncStarted = false
+    cachedHome = null
+    homeBootstrapCoordinator.cancel()
+    bykcViewModel.stopGrab()
+    venueViewModel?.stopGrab()
+    scheduleViewModel.resetLoadedState()
+    signinViewModel.resetLoadedState()
+    spocViewModel.resetLoadedState()
+    judgeViewModel.resetLoadedState()
+    bykcViewModel.resetLoadedState()
+    cgyyViewModel?.resetLoadedState()
+    ygdkViewModel?.resetLoadedState()
+    homeExamViewModel.resetLoadedState()
+    examViewModel?.resetLoadedState()
+    gradeViewModel?.resetLoadedState()
+    gradeScoreWatchViewModel.resetLoadedState()
+    libBookViewModel.resetLoadedState()
+    dormElectricityViewModel?.resetLoadedState()
+    campusNetworkViewModel?.resetLoadedState()
+    campusCardViewModel?.resetLoadedState()
+    libraryBorrowViewModel?.resetLoadedState()
+    venueViewModel?.clearOrderHistory()
+    venueViewModel?.clearMembershipCode()
   }
 
   // 连接模式切换后，重置所有 ViewModel 的加载标记与缓存数据，并强制刷新当前页面

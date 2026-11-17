@@ -59,7 +59,11 @@ fun ProfileScreen(
       viewModel(key = "profile-metrics-${userData.schoolid}") { ProfileMetricsViewModel() }
   val metrics by metricsViewModel.state.collectAsState()
   var showDetails by remember(userData.schoolid) { mutableStateOf(false) }
-  LaunchedEffect(isAuthenticated) { metricsViewModel.refresh(isAuthenticated) }
+  val cacheRevision by cn.edu.ubaa.plus.api.storage.CacheMaintenance.changes.collectAsState()
+  LaunchedEffect(isAuthenticated, cacheRevision) {
+    metricsViewModel.onCacheRevision(cacheRevision)
+    metricsViewModel.refresh(isAuthenticated)
+  }
   if (showDetails) {
     AlertDialog(
         onDismissRequest = { showDetails = false },

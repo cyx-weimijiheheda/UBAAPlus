@@ -52,6 +52,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
+import kotlinx.coroutines.launch
 
 private sealed interface DormRoomsState {
   data object Loading : DormRoomsState
@@ -70,7 +71,49 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     allowSchoolReads: Boolean = true,
     onLoginRequired: () -> Unit = {},
+    onBeforeClearCache: () -> Unit = {},
 ) {
+  val diagnosticCacheContext = androidx.compose.ui.platform.LocalContext.current
+  val cacheScope = androidx.compose.runtime.rememberCoroutineScope()
+  var showClearCache by remember { mutableStateOf(false) }
+  var clearingCache by remember { mutableStateOf(false) }
+  if (showClearCache) {
+    AlertDialog(
+        onDismissRequest = { if (!clearingCache) showClearCache = false },
+        title = { Text("清理缓存") },
+        text = { Text("清除首页、成绩、考试、作业和余额等临时缓存。登录信息、设置、已本地化课表和待确认操作记录会保留；再次访问功能时重新加载。") },
+        confirmButton = {
+          TextButton(
+              enabled = !clearingCache,
+              onClick = {
+                onBeforeClearCache()
+                clearingCache = true
+                cacheScope.launch {
+                  try {
+                    cn.edu.ubaa.plus.api.storage.CacheMaintenance.clear()
+                    cn.edu.ubaa.plus.widget.ScheduleWidgetProvider.requestRefresh(
+                        diagnosticCacheContext
+                    )
+                    cn.edu.ubaa.plus.ui.common.components.UbaaToast.show("缓存已清理")
+                    showClearCache = false
+                  } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                  } catch (_: Exception) {
+                    cn.edu.ubaa.plus.ui.common.components.UbaaToast.show("缓存清理失败，请重试")
+                  } finally {
+                    clearingCache = false
+                  }
+                }
+              },
+          ) {
+            Text(if (clearingCache) "清理中…" else "清理")
+          }
+        },
+        dismissButton = {
+          TextButton(enabled = !clearingCache, onClick = { showClearCache = false }) { Text("取消") }
+        },
+    )
+  }
   val diagnosticContext = androidx.compose.ui.platform.LocalContext.current
   var diagnosticCount by remember { mutableStateOf(LocalDiagnostics.issues().size) }
   val diagnosticExport =
@@ -429,6 +472,18 @@ fun SettingsScreen(
               }
             }
           }
+        }
+      }
+    }
+    item {
+      SettingsSection(title = "缓存") {
+        Text(
+            "清理临时业务数据，保留登录信息、设置和已本地化课表。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(enabled = !clearingCache, onClick = { showClearCache = true }) {
+          Text(if (clearingCache) "清理中…" else "清理缓存")
         }
       }
     }

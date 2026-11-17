@@ -26,6 +26,22 @@ class SchoolReadCoordinatorTest {
   }
 
   @Test
+  fun productionWorkDispatcherRunsParsingAwayFromTheCallerThread() = runTest {
+    val old = cn.edu.ubaa.plus.util.BusinessDispatchers.io
+    cn.edu.ubaa.plus.util.BusinessDispatchers.io = Dispatchers.Default
+    val caller = Thread.currentThread()
+    try {
+      SchoolReadCoordinator.read<List<String>>("grades", "thread-check") {
+            assertNotSame(caller, Thread.currentThread())
+            Result.success(listOf("ok"))
+          }
+          .getOrThrow()
+    } finally {
+      cn.edu.ubaa.plus.util.BusinessDispatchers.io = old
+    }
+  }
+
+  @Test
   fun sameQueryMergesAndOneRecoveryServesDifferentFailedReads() = runTest {
     val oldRestore = SchoolReadCoordinator.restoreSession
     var recovered = false

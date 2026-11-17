@@ -15,8 +15,10 @@ object YgdkReminderStore {
       _settings = value
     }
 
+  fun explicitChoice(userKey: String): Boolean? = settings.getBooleanOrNull(enabledKey(userKey))
+
   fun isEnabled(userKey: String): Boolean =
-      settings.getBooleanOrNull(enabledKey(userKey))
+      explicitChoice(userKey)
           ?: runCatching {
                 cn.edu.ubaa.plus.repository.AcademicContext.hasPhysicalEducation(
                     userKey,

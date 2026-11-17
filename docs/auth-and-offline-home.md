@@ -13,7 +13,7 @@
 - 重试只使用已识别的验证码拒绝响应及其下一张挑战；不把超时或其它错误当作识别失败重提。
 - Direct 保持人工输入；会话、Cookie、execution 不跨连接模式使用。取消或切换模式后的旧结果不能恢复界面登录态。
 
-复用 UBAA 随仓库的 `common.onnx.gz` 和 `charset.json`，来源为 ddddocr 1.6.1 的 common_old 模型，经 UBAA 转为标准 ONNX LSTM。
+复用 UBAA 随仓库的 `common.onnx.gz` 和 `charset.json`，来源为 ddddocr 1.6.1 的 common_old 模型；后续重新量化 LSTM 以减小模型，详见 [OCR 与首页性能](ocr-and-home-performance.md)。
 Android 使用 ONNX Runtime 1.23.2 CPU 推理，五像素白边、170×64 灰度归一化输入、CTC 去重解码。
 缩放使用本地双线性采样。模型和字符集不含用户验证码，识别完全在本机完成。识别器兼容 aapt 解压并去掉 `.gz` 后缀的 APK 资源，以及保留 gzip 的资源布局；交付时核对打包后模型与源模型解压字节一致。
 模型声明及 MIT 许可证见 [ddddocr-MIT.txt](licenses/ddddocr-MIT.txt)，参考工程许可证见 [UBAA-MIT.txt](licenses/UBAA-MIT.txt)。
