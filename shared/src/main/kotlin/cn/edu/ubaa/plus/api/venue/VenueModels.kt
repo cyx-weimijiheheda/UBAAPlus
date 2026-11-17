@@ -265,7 +265,15 @@ class VenueApi internal constructor(private val backend: VenueApiBackend) {
   ): Result<VenueCaptchaResult> = backend.verifyCaptcha(challenge, points, imageWidth, imageHeight)
 
   suspend fun submitOrder(request: VenueOrderRequest): Result<VenueOrderResult> =
-      backend.submitOrder(request)
+      cn.edu.ubaa.plus.api.recovery.SchoolWriteCoordinator.perform(
+          "venue",
+          "reserve:${request.siteId}:${request.date}:${request.selections.joinToString { "${it.spaceId}:${it.timeId}" }}",
+          submit = { backend.submitOrder(request) },
+          verify = {
+            backend.getMyOrders(0, 100)
+            null
+          },
+      )
 
   suspend fun pay(tradeNo: String, payType: Int = 13): Result<VenuePayResult> =
       backend.pay(tradeNo, payType)

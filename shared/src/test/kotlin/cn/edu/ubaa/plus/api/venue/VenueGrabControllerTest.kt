@@ -11,6 +11,14 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
 class VenueGrabControllerTest {
+  @kotlin.test.BeforeTest
+  fun setupStores() {
+    cn.edu.ubaa.plus.testing.TestSettings.installInMemorySettings()
+    cn.edu.ubaa.plus.repository.ScheduleStore.useAccount("synthetic-controller")
+    cn.edu.ubaa.plus.api.ConnectionModeStore.save(cn.edu.ubaa.plus.api.ConnectionMode.DIRECT)
+    cn.edu.ubaa.plus.api.ConnectionRuntime.resolveSelectedMode()
+  }
+
   @Test
   fun `关闭开关时不发送场地抢单请求`() = runTest {
     val backend = FakeVenueBackend(dayInfo(free = true))
@@ -46,7 +54,13 @@ class VenueGrabControllerTest {
             day = dayInfo(free = true),
             submitResults =
                 mutableListOf(
-                    Result.failure(ApiCallException("该场地已被预约")),
+                    Result.failure(
+                        ApiCallException(
+                            "该场地已被预约",
+                            status = io.ktor.http.HttpStatusCode.Conflict,
+                            code = "venue_conflict",
+                        )
+                    ),
                     Result.success(order()),
                 ),
         )

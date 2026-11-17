@@ -363,6 +363,8 @@ internal class VenueGrabController(
   private fun handleFailure(error: Throwable?, reloginDone: Boolean): VenueFailureAction {
     val message = error?.message
     val code = (error as? ApiCallException)?.code
+    if (code in setOf("outcome_unknown", "operation_in_progress", "write_storage_unavailable"))
+        return VenueFailureAction.STOP
     return when (classifyVenueFailure(message, code)) {
       VenueFailureKind.RETRY -> {
         logThrottled("重试：${message.orEmpty()}")

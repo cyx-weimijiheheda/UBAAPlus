@@ -89,7 +89,21 @@ internal object CachedHomeStore {
 
   fun write(snapshot: CachedHomeSnapshot) {
     if (snapshot.owner != ScheduleStore.account()) return
-    settings.putString("home_snapshot:${snapshot.owner}", json.encodeToString(snapshot))
+    settings.putString(
+        "home_snapshot:${snapshot.owner}",
+        json.encodeToString(
+            snapshot.copy(
+                library =
+                    snapshot.library?.copy(
+                        query = "",
+                        flagIn = "",
+                        flagOut = "",
+                        flagLeave = "",
+                        oksign = "",
+                    )
+            )
+        ),
+    )
   }
 
   fun clear() {

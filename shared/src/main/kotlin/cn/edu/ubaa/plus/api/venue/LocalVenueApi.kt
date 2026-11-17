@@ -466,7 +466,7 @@ internal class LocalVenueApi(
     val body = response.bodyAsText()
     if (isLoginRedirect(response, body)) {
       accessToken = null
-      if (!allowRetry) {
+      if (!allowRetry || method != HttpMethod.Get) {
         throw VenueAuthRequiredException(VenueAuthOutcome.NeedsCredentials())
       }
       ensureSession()

@@ -23,6 +23,14 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 class BykcGrabControllerTest {
+  @kotlin.test.BeforeTest
+  fun setupStores() {
+    cn.edu.ubaa.plus.testing.TestSettings.installInMemorySettings()
+    cn.edu.ubaa.plus.repository.ScheduleStore.useAccount("synthetic-controller")
+    cn.edu.ubaa.plus.api.ConnectionModeStore.save(cn.edu.ubaa.plus.api.ConnectionMode.DIRECT)
+    cn.edu.ubaa.plus.api.ConnectionRuntime.resolveSelectedMode()
+  }
+
   @Test
   fun `关闭开关时不发送抢课请求`() = runTest {
     val backend = FakeBykcBackend(mutableListOf(Result.success(BykcSuccessResponse("成功"))))
@@ -91,7 +99,7 @@ class BykcGrabControllerTest {
   }
 
   @Test
-  fun `未知错误重试三次后停止`() = runTest {
+  fun `结果未知时立即停止且不会再次提交`() = runTest {
     val backend = FakeBykcBackend(mutableListOf(Result.failure(ApiCallException("网络异常"))))
     val controller = controller(backend)
 
@@ -99,7 +107,7 @@ class BykcGrabControllerTest {
     advanceUntilIdle()
 
     assertEquals(BykcGrabPhase.FAILED, controller.state.value.phase)
-    assertEquals(3, backend.selectCalls)
+    assertEquals(1, backend.selectCalls)
   }
 
   @Test

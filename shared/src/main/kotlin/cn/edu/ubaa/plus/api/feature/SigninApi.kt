@@ -61,7 +61,20 @@ class SigninApi(
       courseId: String,
       timestamp: String? = null,
   ): Result<SigninActionResponse> {
-    return currentBackend().performSignin(courseId, timestamp)
+    return cn.edu.ubaa.plus.api.recovery.SchoolWriteCoordinator.perform(
+        "signin",
+        "signin:$courseId",
+        accepted = { it.success },
+        submit = { currentBackend().performSignin(courseId, timestamp) },
+        verify = {
+          currentBackend()
+              .getTodayClassesStrict()
+              .getOrNull()
+              ?.data
+              ?.firstOrNull { it.courseId == courseId && it.signStatus == 1 }
+              ?.let { SigninActionResponse(0, true, "已核实签到成功") }
+        },
+    )
   }
 
   /** 查询可选学年学期。 */

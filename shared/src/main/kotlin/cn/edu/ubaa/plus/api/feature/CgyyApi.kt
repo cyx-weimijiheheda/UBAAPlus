@@ -52,7 +52,17 @@ open class CgyyApi(
   open suspend fun submitReservation(
       request: CgyyReservationSubmitRequest
   ): Result<CgyyReservationSubmitResponse> {
-    return currentBackend().submitReservation(request)
+    return cn.edu.ubaa.plus.api.recovery.SchoolWriteCoordinator.perform(
+        "cgyy",
+        "reserve:${request.venueSiteId}:${request.reservationDate}:${request.selections.joinToString { "${it.spaceId}:${it.timeId}" }}",
+        accepted = { it.success },
+        submit = { currentBackend().submitReservation(request) },
+        verify = {
+          // 丢失订单 ID 时，列表中的相似事项不能证明是这次提交；只刷新，不推定成功。
+          currentBackend().getMyOrders(0, 100)
+          null
+        },
+    )
   }
 
   open suspend fun getMyOrders(page: Int = 0, size: Int = 20): Result<CgyyOrdersPageResponse> {
@@ -64,7 +74,19 @@ open class CgyyApi(
   }
 
   open suspend fun cancelOrder(orderId: Int): Result<CgyyReservationSubmitResponse> {
-    return currentBackend().cancelOrder(orderId)
+    return cn.edu.ubaa.plus.api.recovery.SchoolWriteCoordinator.perform(
+        "cgyy",
+        "cancel:$orderId",
+        accepted = { it.success },
+        submit = { currentBackend().cancelOrder(orderId) },
+        verify = {
+          currentBackend()
+              .getOrderDetail(orderId)
+              .getOrNull()
+              ?.takeIf { it.orderStatus == 2 }
+              ?.let { CgyyReservationSubmitResponse(true, "已核实取消成功", it) }
+        },
+    )
   }
 
   open suspend fun getLockCode(): Result<CgyyLockCodeResponse> {

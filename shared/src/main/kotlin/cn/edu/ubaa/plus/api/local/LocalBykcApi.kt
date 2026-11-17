@@ -195,6 +195,7 @@ internal class LocalBykcApiBackend(
           client.delChosenCourse(courseId)
           BykcSuccessResponse("退选成功")
         } catch (error: Exception) {
+          if (error !is LocalBykcException) throw error
           throw LocalBykcActionException(
               "deselect_failed",
               HttpStatusCode.BadRequest,
@@ -220,6 +221,7 @@ internal class LocalBykcApiBackend(
             BykcSuccessResponse("签退成功")
           }
         } catch (error: Exception) {
+          if (error !is LocalBykcException) throw error
           throw LocalBykcActionException("sign_failed", HttpStatusCode.BadRequest, error.message)
         }
       }
@@ -324,7 +326,8 @@ internal class LocalBykcApiBackend(
         else -> error.toUserFacingApiException(defaultMessage)
       }
 
-  private fun selectActionException(error: Exception): LocalBykcActionException {
+  private fun selectActionException(error: Exception): Exception {
+    if (error !is LocalBykcException) return error
     val message = error.message.orEmpty()
     val code =
         when {
@@ -440,6 +443,11 @@ private class LocalBykcClient(
       } catch (error: LocalBykcUnauthenticatedException) {
         throw error
       } catch (error: Exception) {
+        if (
+            error is kotlinx.coroutines.CancellationException ||
+                apiName in setOf("choseCourse", "delChosenCourse", "signCourseByUser")
+        )
+            throw error
         login(forceRefresh = true)
         doCallApiRaw(apiName, requestJson)
       }

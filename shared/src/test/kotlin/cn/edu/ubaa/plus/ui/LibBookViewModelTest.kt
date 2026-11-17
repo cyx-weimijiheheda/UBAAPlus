@@ -31,6 +31,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDateTime
@@ -41,6 +42,81 @@ class LibBookViewModelTest {
   fun tearDown() {
     Dispatchers.resetMain()
   }
+
+  @Test
+  fun `late day response cannot replace the newly selected days seats`() = runTest {
+    setMainDispatcher(testScheduler)
+    val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+    val api =
+        object : FakeLibBookApi() {
+          override suspend fun getAreaDetail(areaId: String) =
+              Result.success(
+                  LibBookAreaDetailDto(
+                      areaId,
+                      days =
+                          listOf(
+                              cn.edu.ubaa.plus.model.dto.LibBookDayScheduleDto(
+                                  "2026-05-08",
+                                  listOf(LibBookTimeSlotDto("a", "08:00", "12:00")),
+                                  "00:00",
+                                  "23:59",
+                                  "23:59",
+                              ),
+                              cn.edu.ubaa.plus.model.dto.LibBookDayScheduleDto(
+                                  "2026-05-09",
+                                  listOf(LibBookTimeSlotDto("b", "13:00", "18:00")),
+                                  "00:00",
+                                  "23:59",
+                                  "23:59",
+                              ),
+                          ),
+                  )
+              )
+
+          override suspend fun getSeats(
+              areaId: String,
+              day: String,
+              startTime: String,
+              endTime: String,
+          ): Result<List<LibBookSeatDto>> {
+            if (day == "2026-05-08") gate.await()
+            return Result.success(listOf(LibBookSeatDto(day, status = "1")))
+          }
+        }
+    val vm = LibBookViewModel(api, currentDateProvider = { "2026-05-08" })
+    vm.ensureInitialLoaded()
+    runCurrent()
+    vm.selectDay("2026-05-09")
+    runCurrent()
+    assertEquals("b", vm.uiState.value.selectedSlotId)
+    gate.complete(Unit)
+    advanceUntilIdle()
+    assertEquals("2026-05-09", vm.uiState.value.selectedDay)
+    assertEquals("2026-05-09", vm.uiState.value.seats.single().id)
+  }
+
+  @Test
+  fun `stale leave card is checked online and no longer submits against a changed state`() =
+      runTest {
+        setMainDispatcher(testScheduler)
+        val using = LibBookBookingDto("b1", status = "3", statusName = "使用中")
+        val api = FakeLibBookApi(bookings = listOf(using))
+        val vm = LibBookViewModel(api, currentDateProvider = { "2026-05-08" })
+        vm.loadBookings()
+        advanceUntilIdle()
+        vm.requestSeatActionForBooking(using, LibBookSeatAction.LEAVE)
+        api.bookings = listOf(using.copy(status = "7", statusName = "临时离开"))
+        vm.submitSeatAction(LibBookSeatAction.LEAVE)
+        advanceUntilIdle()
+        assertTrue(api.actionRequests.isEmpty())
+        assertEquals("7", vm.uiState.value.bookings.bookings.single().status)
+        api.bookings = listOf(using)
+        vm.loadBookings()
+        advanceUntilIdle()
+        assertTrue(
+            vm.uiState.value.bookings.bookings.single().isCardActionEnabled(LibBookCardAction.LEAVE)
+        )
+      }
 
   @Test
   fun `leave return and leave again refresh buttons and use a new deadline`() = runTest {
@@ -150,7 +226,7 @@ class LibBookViewModelTest {
     advanceUntilIdle()
 
     assertEquals(1, api.cancelCalls)
-    assertEquals(2, api.bookingsCalls)
+    assertEquals(3, api.bookingsCalls)
     assertTrue(viewModel.uiState.value.actionMessage?.contains("取消") == true)
   }
 
@@ -184,7 +260,8 @@ class LibBookViewModelTest {
   @Test
   fun `leave submits booking id without query`() = runTest {
     setMainDispatcher(testScheduler)
-    val api = FakeLibBookApi()
+    val api =
+        FakeLibBookApi(bookings = listOf(LibBookBookingDto("b1", status = "3", statusName = "使用中")))
     val viewModel = LibBookViewModel(api, currentDateProvider = { "2026-05-08" })
 
     viewModel.loadBookings()
@@ -255,7 +332,7 @@ class LibBookViewModelTest {
   }
 }
 
-private class FakeLibBookApi(
+private open class FakeLibBookApi(
     var bookings: List<LibBookBookingDto> =
         listOf(LibBookBookingDto(id = "b1", nameMerge = "一层 / 101", statusName = "已预约"))
 ) : LibBookApi() {

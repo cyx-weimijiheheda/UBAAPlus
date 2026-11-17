@@ -205,21 +205,6 @@ fun SettingsScreen(
     }
 
     item {
-      SettingsSection(title = "功能选项") {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Text("？！！？", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-          Switch(
-              checked = preferences.mysterySwitchEnabled,
-              onCheckedChange = { enabled ->
-                if (enabled) showMysteryDisclaimer = true
-                else AppPreferencesStore.setMysterySwitchEnabled(false)
-              },
-          )
-        }
-      }
-    }
-
-    item {
       SettingsSection(title = "问题诊断") {
         Text(
             "本机已记录 $diagnosticCount 条诊断，仅包含功能、连接方式和错误分类。",
@@ -444,6 +429,20 @@ fun SettingsScreen(
               }
             }
           }
+        }
+      }
+    }
+    item {
+      SettingsSection(title = "功能选项") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text("？！！？", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+          Switch(
+              checked = preferences.mysterySwitchEnabled,
+              onCheckedChange = { enabled ->
+                if (enabled) showMysteryDisclaimer = true
+                else AppPreferencesStore.setMysterySwitchEnabled(false)
+              },
+          )
         }
       }
     }

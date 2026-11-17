@@ -190,6 +190,11 @@ internal class BykcGrabController(
             runCatching { onSucceeded() }
             return
           }
+          code == "outcome_unknown" ||
+              code == "operation_in_progress" ||
+              code == "write_storage_unavailable" -> {
+            throw BykcGrabFatalException(message)
+          }
           code == "unauthenticated" || code == "invalid_token" -> {
             throw BykcGrabFatalException("登录状态已失效，请重新登录")
           }

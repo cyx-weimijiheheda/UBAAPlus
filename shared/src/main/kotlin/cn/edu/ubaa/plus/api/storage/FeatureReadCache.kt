@@ -62,7 +62,14 @@ internal object FeatureReadCache {
   ) {
     if (owner == null || owner != ScheduleStore.account()) return
     runCatching {
-      val body = json.encodeToString(serializer, value)
+      @Suppress("UNCHECKED_CAST")
+      val projection =
+          when (value) {
+            is cn.edu.ubaa.plus.model.dto.BykcCourseDetailDto ->
+                value.copy(canSign = false, canSignOut = false, signConfig = null) as T
+            else -> value
+          }
+      val body = json.encodeToString(serializer, projection)
       if (body.length > 2_000_000) return
       val now = Clock.System.now().toEpochMilliseconds()
       settings.putString(key(owner, feature, query), json.encodeToString(Entry(body, now, now)))

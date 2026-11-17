@@ -2,6 +2,7 @@ package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.ConnectionRuntime
 import cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator
+import cn.edu.ubaa.plus.api.recovery.SchoolWriteCoordinator
 import cn.edu.ubaa.plus.model.dto.*
 import io.ktor.http.*
 
@@ -98,7 +99,18 @@ class BykcApi(
    * @return 操作成功响应。
    */
   suspend fun selectCourse(courseId: Long): Result<BykcSuccessResponse> {
-    return currentBackend().selectCourse(courseId)
+    return SchoolWriteCoordinator.perform(
+        "bykc",
+        "select:$courseId",
+        submit = { currentBackend().selectCourse(courseId) },
+        verify = {
+          currentBackend()
+              .getChosenCourses()
+              .getOrNull()
+              ?.firstOrNull { it.courseId == courseId }
+              ?.let { BykcSuccessResponse("已核实选课成功") }
+        },
+    )
   }
 
   /**
@@ -108,7 +120,18 @@ class BykcApi(
    * @return 操作成功响应。
    */
   suspend fun deselectCourse(courseId: Long): Result<BykcSuccessResponse> {
-    return currentBackend().deselectCourse(courseId)
+    return SchoolWriteCoordinator.perform(
+        "bykc",
+        "deselect:$courseId",
+        submit = { currentBackend().deselectCourse(courseId) },
+        verify = {
+          currentBackend()
+              .getChosenCourses()
+              .getOrNull()
+              ?.takeIf { list -> list.none { it.courseId == courseId } }
+              ?.let { BykcSuccessResponse("已核实退选成功") }
+        },
+    )
   }
 
   /**
@@ -126,6 +149,19 @@ class BykcApi(
       lng: Double? = null,
       signType: Int,
   ): Result<BykcSuccessResponse> {
-    return currentBackend().signCourse(courseId, lat, lng, signType)
+    return SchoolWriteCoordinator.perform(
+        "bykc",
+        "sign:$courseId:$signType",
+        submit = { currentBackend().signCourse(courseId, lat, lng, signType) },
+        verify = {
+          currentBackend()
+              .getChosenCourses()
+              .getOrNull()
+              ?.firstOrNull {
+                it.courseId == courseId && (if (signType == 1) it.checkin == 1 else it.pass == 1)
+              }
+              ?.let { BykcSuccessResponse("已核实签到状态") }
+        },
+    )
   }
 }

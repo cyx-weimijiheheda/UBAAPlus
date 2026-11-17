@@ -6,6 +6,7 @@ import cn.edu.ubaa.plus.api.storage.*
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
@@ -73,10 +74,12 @@ internal object SchoolReadCoordinator {
       block: suspend () -> Result<T>,
   ): Result<T> {
     val scope = capture()
+    val allowFallback = cache && currentCoroutineContext()[FreshSchoolRead.Key] == null
     if (!onlineAllowed)
-        return FeatureReadCache.get(feature, query, serializer)?.let { Result.success(it) }
+        return (if (allowFallback) FeatureReadCache.get(feature, query, serializer) else null)
+            ?.let { Result.success(it) }
             ?: Result.failure(ApiCallException("登录后可更新此内容", code = "offline_cache_missing"))
-    val key = "${scope.owner}:${scope.mode}:${scope.epoch}:$feature:$query"
+    val key = "${scope.owner}:${scope.mode}:${scope.epoch}:$feature:$query:$allowFallback"
     var owns = false
     val deferred =
         synchronized(lock) {
@@ -119,7 +122,7 @@ internal object SchoolReadCoordinator {
       }
       if (result.isSuccess && cache)
           FeatureReadCache.save(scope.owner, feature, query, serializer, result.getOrThrow())
-      if (result.isFailure && cache) {
+      if (result.isFailure && allowFallback) {
         FeatureReadCache.get(feature, query, serializer)?.let { result = Result.success(it) }
       }
       deferred.complete(result as Result<Any?>)
@@ -158,4 +161,8 @@ internal fun isAuthenticationFailure(error: Throwable?): Boolean {
               "network_auth",
               "card_unauthenticated",
           )
+}
+
+internal object FreshSchoolRead : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
+  object Key : kotlin.coroutines.CoroutineContext.Key<FreshSchoolRead>
 }

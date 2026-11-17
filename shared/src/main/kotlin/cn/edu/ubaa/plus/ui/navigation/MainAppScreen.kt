@@ -382,6 +382,12 @@ fun MainAppScreen(
         null
       }
   val ygdkUiState = ygdkViewModel?.uiState?.collectAsState()?.value ?: YgdkUiState()
+  val featureCacheRevision by cn.edu.ubaa.plus.api.storage.FeatureReadCache.changes.collectAsState()
+  val localScheduleRevision by ScheduleStore.changes.collectAsState()
+  LaunchedEffect(featureCacheRevision, localScheduleRevision, ygdkViewModel, userData.schoolid) {
+    ygdkViewModel?.refreshHomeReminderPreference()
+  }
+
   LaunchedEffect(isAuthenticated) {
     if (!isAuthenticated) {
       bykcViewModel.stopGrab(BykcGrabStopReason.LOGOUT)

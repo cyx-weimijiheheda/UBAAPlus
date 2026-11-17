@@ -51,22 +51,15 @@ class YgdkViewModel(
   val uiState: StateFlow<YgdkUiState> = _uiState.asStateFlow()
 
   init {
-    viewModelScope.launch {
-      kotlinx.coroutines.flow
-          .combine(
-              cn.edu.ubaa.plus.api.storage.FeatureReadCache.changes,
-              cn.edu.ubaa.plus.repository.ScheduleStore.changes,
-          ) { _, _ ->
-            YgdkReminderStore.isEnabled(reminderUserKey)
-          }
-          .collect { enabled ->
-            _uiState.value = _uiState.value.copy(homeReminderEnabled = enabled)
-          }
-    }
     _uiState.value =
         _uiState.value.copy(
             homeReminderEnabled = YgdkReminderStore.isEnabled(reminderUserKey),
         )
+  }
+
+  fun refreshHomeReminderPreference() {
+    _uiState.value =
+        _uiState.value.copy(homeReminderEnabled = YgdkReminderStore.isEnabled(reminderUserKey))
   }
 
   fun ensureLoaded(forceRefresh: Boolean = false) {

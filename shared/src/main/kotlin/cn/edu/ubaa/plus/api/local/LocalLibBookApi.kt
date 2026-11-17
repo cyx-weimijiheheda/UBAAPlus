@@ -471,7 +471,18 @@ private class LocalLibBookClient(
     val raw = parseJsonObject(response, "libbook_error")
     if (isLoginExpired(raw)) {
       token = null
-      if (!allowRetry) {
+      if (
+          !allowRetry ||
+              operation in
+                  setOf(
+                      "reserve",
+                      "cancel_booking",
+                      "seat_signin",
+                      "seat_leave",
+                      "seat_checkout",
+                      "qr_scan",
+                  )
+      ) {
         throw LocalLibBookApiException(
             "图书馆登录状态失效",
             "libbook_auth_failed",

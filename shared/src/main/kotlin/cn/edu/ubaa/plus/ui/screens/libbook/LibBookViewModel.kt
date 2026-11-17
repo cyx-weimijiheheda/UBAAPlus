@@ -96,6 +96,9 @@ class LibBookViewModel(
 ) : ViewModel() {
   private var bookingsJob: Job? = null
   private var generation = 0
+  private var areasEpoch = 0
+  private var detailEpoch = 0
+  private var seatsEpoch = 0
   private var bookingsEpoch = 0
   private var initialLoadedOnce = false
   private var bookingsLoadedOnce = false
@@ -385,6 +388,15 @@ class LibBookViewModel(
             actionMessage = null,
         )
     viewModelScope.launch {
+      val fresh =
+          libBookApi.getBookings(1, 100).getOrNull()?.bookings?.firstOrNull { it.id == bookingId }
+      if (generation != cancelGeneration) return@launch
+      val reason = fresh?.cancelBlockedMessage() ?: if (fresh == null) "预约状态未确认，请刷新后重试" else null
+      if (reason != null) {
+        _uiState.value = _uiState.value.copy(cancelingBookingId = null, actionMessage = reason)
+        loadBookings()
+        return@launch
+      }
       libBookApi
           .cancelBooking(bookingId)
           .onSuccess { response ->
@@ -552,12 +564,37 @@ class LibBookViewModel(
     val started = nowProvider()
     val actionGeneration = generation
     viewModelScope.launch {
+      var freshRequest = request
+      if (action == LibBookSeatAction.LEAVE || action == LibBookSeatAction.CHECKOUT) {
+        val fresh =
+            libBookApi.getBookings(1, 100).getOrNull()?.bookings?.firstOrNull {
+              it.id == request.id
+            }
+        if (generation != actionGeneration) return@launch
+        val allowed =
+            fresh?.isCardActionEnabled(
+                if (action == LibBookSeatAction.LEAVE) LibBookCardAction.LEAVE
+                else LibBookCardAction.CHECKOUT
+            ) == true
+        if (!allowed) {
+          _uiState.value =
+              _uiState.value.copy(
+                  isSeatActionSubmitting = false,
+                  pendingSeatAction = null,
+                  seatActionContext = null,
+                  actionMessage = "预约状态已变化或未确认，请刷新后重试",
+              )
+          loadBookings()
+          return@launch
+        }
+        freshRequest = request.copy(query = fresh?.query.orEmpty())
+      }
       val result =
           when (action) {
             LibBookSeatAction.SIGN_IN,
             LibBookSeatAction.RETURN_SIGN_IN -> libBookApi.signIn(request)
-            LibBookSeatAction.LEAVE -> libBookApi.leave(request)
-            LibBookSeatAction.CHECKOUT -> libBookApi.checkout(request)
+            LibBookSeatAction.LEAVE -> libBookApi.leave(freshRequest)
+            LibBookSeatAction.CHECKOUT -> libBookApi.checkout(freshRequest)
           }
       result
           .onSuccess { response ->
@@ -619,9 +656,7 @@ class LibBookViewModel(
   fun refreshReserveData() {
     val current = _uiState.value
     val areaId = current.selectedAreaId
-    val slot = current.selectedSlot
     when {
-      areaId != null && slot != null -> loadSeats(areaId, current.selectedDay, slot)
       areaId != null -> loadAreaDetailAndSeats(areaId)
       current.selectedLibraryId != null ->
           loadAreas(current.selectedLibraryId, current.selectedStoreyId, current.selectedDay)
@@ -634,11 +669,19 @@ class LibBookViewModel(
   }
 
   private fun loadAreas(libraryId: String, storeyId: String?, day: String) {
+    val request = ++areasEpoch
+    val requestGeneration = generation
+    fun current() =
+        request == areasEpoch &&
+            requestGeneration == generation &&
+            (libraryId == _uiState.value.selectedLibraryId &&
+                storeyId == _uiState.value.selectedStoreyId)
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isAreasLoading = true, areasError = null)
       libBookApi
           .getAreas(libraryId, storeyId, day)
           .onSuccess { areas ->
+            if (!current()) return@onSuccess
             val areaId =
                 _uiState.value.selectedAreaId?.takeIf { id -> areas.any { it.id == id } }
                     ?: areas.firstOrNull()?.id
@@ -655,6 +698,7 @@ class LibBookViewModel(
             }
           }
           .onFailure {
+            if (!current()) return@onFailure
             _uiState.value =
                 _uiState.value.copy(
                     isAreasLoading = false,
@@ -665,11 +709,18 @@ class LibBookViewModel(
   }
 
   private fun loadAreaDetailAndSeats(areaId: String) {
+    val request = ++detailEpoch
+    val requestGeneration = generation
+    fun current() =
+        request == detailEpoch &&
+            requestGeneration == generation &&
+            (areaId == _uiState.value.selectedAreaId)
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isSeatsLoading = true, seatsError = null)
       libBookApi
           .getAreaDetail(areaId)
           .onSuccess { detail ->
+            if (!current()) return@onSuccess
             val day =
                 _uiState.value.selectedDay.takeIf { selected ->
                   detail.days.any { it.day == selected }
@@ -678,7 +729,10 @@ class LibBookViewModel(
             val blocked =
                 schedule?.blockedReason(nowProvider().time)
                     ?: if (schedule == null) "预约开放时间暂不可用，请刷新后重试" else null
-            val slot = schedule?.timeSlots?.firstOrNull()?.takeIf { blocked == null }
+            val slot =
+                (schedule?.timeSlots?.firstOrNull { it.id == _uiState.value.selectedSlotId }
+                        ?: schedule?.timeSlots?.firstOrNull())
+                    ?.takeIf { blocked == null }
             _uiState.value =
                 _uiState.value.copy(
                     areaDetail = detail,
@@ -694,6 +748,7 @@ class LibBookViewModel(
             }
           }
           .onFailure {
+            if (!current()) return@onFailure
             _uiState.value =
                 _uiState.value.copy(
                     isSeatsLoading = false,
@@ -704,11 +759,20 @@ class LibBookViewModel(
   }
 
   private fun loadSeats(areaId: String, day: String, slot: LibBookTimeSlotDto) {
+    val request = ++seatsEpoch
+    val requestGeneration = generation
+    fun current() =
+        request == seatsEpoch &&
+            requestGeneration == generation &&
+            (areaId == _uiState.value.selectedAreaId &&
+                day == _uiState.value.selectedDay &&
+                slot.id == _uiState.value.selectedSlotId)
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isSeatsLoading = true, seatsError = null)
       libBookApi
           .getSeats(areaId, day, slot.start, slot.end)
           .onSuccess { seats ->
+            if (!current()) return@onSuccess
             val selectedSeatId =
                 _uiState.value.selectedSeatId?.takeIf { id ->
                   seats.any { it.id == id && it.isAvailable }
@@ -722,6 +786,7 @@ class LibBookViewModel(
                 )
           }
           .onFailure {
+            if (!current()) return@onFailure
             _uiState.value =
                 _uiState.value.copy(
                     isSeatsLoading = false,

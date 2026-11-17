@@ -259,7 +259,11 @@ fun LibBookReserveScreen(
                             label = "时段",
                             selectedText = uiState.selectedSlot?.label ?: "选择时段",
                             options = slots.map { it.id to it.label },
-                            enabled = !uiState.isSubmitting && uiState.seatsError == null,
+                            enabled =
+                                !uiState.isSubmitting &&
+                                    detail
+                                        .schedule(uiState.selectedDay)
+                                        ?.blockedReason(uiState.now.time) == null,
                             onSelected = viewModel::selectSlot,
                         )
                       }
