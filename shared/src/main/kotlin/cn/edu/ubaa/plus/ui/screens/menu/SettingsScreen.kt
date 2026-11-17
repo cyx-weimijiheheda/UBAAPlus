@@ -65,6 +65,8 @@ fun SettingsScreen(
     onModeSelected: (ConnectionMode) -> Unit,
     onFeatureOrderClick: () -> Unit,
     modifier: Modifier = Modifier,
+    allowSchoolReads: Boolean = true,
+    onLoginRequired: () -> Unit = {},
 ) {
   var pendingMode by remember { mutableStateOf<ConnectionMode?>(null) }
   val preferences by AppPreferencesStore.state.collectAsState()
@@ -78,15 +80,24 @@ fun SettingsScreen(
             showWidgetColorPicker = false
           },
       )
-  var dormState by remember { mutableStateOf<DormRoomsState>(DormRoomsState.Loading) }
+  var dormState by
+      remember(allowSchoolReads) {
+        mutableStateOf<DormRoomsState>(
+            if (allowSchoolReads) DormRoomsState.Loading else DormRoomsState.Error("登录后可更新宿舍信息")
+        )
+      }
   val dormApi = remember { DormElectricityApi() }
 
   fun loadDormRooms() {
+    if (!allowSchoolReads) {
+      onLoginRequired()
+      return
+    }
     dormState = DormRoomsState.Loading
   }
 
   LaunchedEffect(dormState) {
-    if (dormState is DormRoomsState.Loading) {
+    if (allowSchoolReads && dormState is DormRoomsState.Loading) {
       dormApi
           .getRooms()
           .onSuccess { dormState = DormRoomsState.Ready(it) }

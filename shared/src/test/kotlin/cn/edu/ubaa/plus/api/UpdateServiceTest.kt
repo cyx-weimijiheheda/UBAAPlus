@@ -18,6 +18,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 
 class UpdateServiceTest {
+  @kotlin.test.BeforeTest
+  fun setup() {
+    cn.edu.ubaa.plus.testing.TestSettings.installInMemorySettings()
+  }
+
   private val json = Json { ignoreUnknownKeys = true }
 
   @Test

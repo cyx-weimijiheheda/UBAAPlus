@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -19,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
@@ -39,6 +41,7 @@ import cn.edu.ubaa.plus.api.auth.AppVersionCheckResponse
 import cn.edu.ubaa.plus.api.auth.UpdateService
 import cn.edu.ubaa.plus.api.storage.AnnouncementReadStore
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
+import cn.edu.ubaa.plus.api.storage.CachedUserStore
 import cn.edu.ubaa.plus.api.storage.DisclaimerStore
 import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.reminder.ReminderServiceController
@@ -54,7 +57,9 @@ import cn.edu.ubaa.plus.ui.screens.splash.SplashScreen
 import cn.edu.ubaa.plus.ui.theme.PreloadFonts
 import cn.edu.ubaa.plus.ui.theme.UBAATheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -88,6 +93,12 @@ fun App() {
   ) {
     val authViewModel: AuthViewModel = viewModel { AuthViewModel() }
     val uiState by authViewModel.uiState.collectAsState()
+    val cachedUserRevision by CachedUserStore.changes.collectAsState()
+    val cachedUser = remember(cachedUserRevision) { CachedUserStore.current() }
+    var showLogin by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(uiState.isLoggedIn) { if (uiState.isLoggedIn) showLogin = false }
+    BackHandler(enabled = showLogin && cachedUser != null) { showLogin = false }
+
     val loginForm by authViewModel.loginForm.collectAsState()
     val appScope = rememberCoroutineScope()
     val appContext = LocalContext.current
@@ -140,29 +151,30 @@ fun App() {
     }
     val uriHandler = LocalUriHandler.current
 
-    suspend fun checkStartupPrompts() {
-      updateInfo = updateService.checkUpdate()
-      announcementInfo =
-          announcementService.checkAnnouncement()?.takeUnless {
-            AnnouncementReadStore.isRead(it.id)
-          }
+    suspend fun checkStartupPrompts() = coroutineScope {
+      val update = async { updateService.checkUpdate() }
+      val announcement = async { announcementService.checkAnnouncement() }
+      updateInfo = update.await()
+      announcementInfo = announcement.await()?.takeUnless { AnnouncementReadStore.isRead(it.id) }
     }
 
     suspend fun bootstrapForMode(mode: ConnectionMode) {
-      launchStartupTasks(
-          scope = appScope,
-          initializeAuthentication = authViewModel::initializeApp,
-          checkStartupPrompts = ::checkStartupPrompts,
-      )
+      authViewModel.initializeApp()
     }
 
+    // Public app notices never wait for a school session or a chosen school transport.
+    LaunchedEffect(disclaimerAccepted) { if (disclaimerAccepted) checkStartupPrompts() }
+
     LaunchedEffect(Unit) {
+      CachedUserStore.migrateVerifiedAccount()
       val preferred = ConnectionRuntime.preferredMode()
       selectedConnectionMode = preferred
-      val effective = if (preferred != null) ConnectionRuntime.resolveStartupMode() else null
       modeResolved = true
-      if (ScheduleStore.hasSavedSchedule()) isSplashFinished = true
-      effective?.let { bootstrapForMode(it) }
+      if (CachedUserStore.current() != null || ScheduleStore.hasSavedSchedule())
+          isSplashFinished = true
+      if (preferred != null) {
+        ConnectionRuntime.resolveStartupMode()?.let { bootstrapForMode(it) }
+      }
     }
 
     // 前台恢复时验证会话有效性
@@ -176,6 +188,9 @@ fun App() {
             if (wasInBackground) {
               wasInBackground = false
               if (uiState.isLoggedIn) authViewModel.validateSession()
+              else if (cachedUser != null && !uiState.isLoading && !uiState.isPreloading)
+                  authViewModel.initializeApp()
+              appScope.launch { checkStartupPrompts() }
             }
           }
           else -> {}
@@ -288,7 +303,10 @@ fun App() {
 
     // 主界面以外的页面（开屏、连接方式、登录）没有蓝色标题栏，按主题选择系统栏图标颜色。
     val mainAppVisible =
-        uiState.isLoggedIn && uiState.userData != null && isSplashFinished && !showOfflineSchedule
+        (uiState.isLoggedIn && uiState.userData != null || cachedUser != null) &&
+            isSplashFinished &&
+            !showOfflineSchedule &&
+            !showLogin
     if (!mainAppVisible) {
       val useDarkIcons = MaterialTheme.colorScheme.background.luminance() > 0.5f
       SystemBarsAppearance(
@@ -310,26 +328,30 @@ fun App() {
           )
       !isSplashFinished -> SplashScreen(modifier = Modifier.fillMaxSize())
       showOfflineSchedule -> OfflineScheduleScreen(onBack = { showOfflineSchedule = false })
-      uiState.isLoggedIn && uiState.userData != null -> {
-        val userData = uiState.userData!!
-        MainAppScreen(
-            userData = userData,
-            userInfo = uiState.userInfo,
-            connectionMode = selectedConnectionMode ?: ConnectionMode.DIRECT,
-            effectiveConnectionMode =
-                effectiveConnectionMode
-                    ?: selectedConnectionMode?.takeIf { it != ConnectionMode.AUTO }
-                    ?: ConnectionMode.DIRECT,
-            availableConnectionModes = availableConnectionModes,
-            onEnsureUserInfo = { authViewModel.ensureUserInfoLoaded() },
-            onConnectionModeSelected = { mode ->
-              selectedConnectionMode = mode
-              authViewModel.switchConnectionMode(mode)
-              appScope.launch { checkStartupPrompts() }
-            },
-            onLogoutClick = { authViewModel.logout() },
-            modifier = Modifier.fillMaxSize(),
-        )
+      (uiState.isLoggedIn && uiState.userData != null || cachedUser != null) && !showLogin -> {
+        val userData = uiState.userData ?: requireNotNull(cachedUser)
+        key(userData.schoolid) {
+          MainAppScreen(
+              isAuthenticated = uiState.isLoggedIn,
+              onLoginRequired = { showLogin = true },
+              userData = userData,
+              userInfo = uiState.userInfo,
+              connectionMode = selectedConnectionMode ?: ConnectionMode.DIRECT,
+              effectiveConnectionMode =
+                  effectiveConnectionMode
+                      ?: selectedConnectionMode?.takeIf { it != ConnectionMode.AUTO }
+                      ?: ConnectionMode.DIRECT,
+              availableConnectionModes = availableConnectionModes,
+              onEnsureUserInfo = { if (uiState.isLoggedIn) authViewModel.ensureUserInfoLoaded() },
+              onConnectionModeSelected = { mode ->
+                selectedConnectionMode = mode
+                authViewModel.switchConnectionMode(mode)
+                appScope.launch { checkStartupPrompts() }
+              },
+              onLogoutClick = { authViewModel.logout() },
+              modifier = Modifier.fillMaxSize(),
+          )
+        }
       }
       else -> {
         LoginScreen(

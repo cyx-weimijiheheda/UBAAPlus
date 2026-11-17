@@ -19,7 +19,9 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.plus
+import kotlinx.serialization.Serializable
 
+@Serializable
 internal enum class HomeTodoSource(val label: String) {
   EXAM("考试"),
   BYKC("博雅"),
@@ -30,22 +32,25 @@ internal enum class HomeTodoSource(val label: String) {
   YGDK("阳光打卡"),
 }
 
+@Serializable
 internal sealed interface HomeTodoAction {
-  data class OpenBykcCourse(val courseId: Long) : HomeTodoAction
+  @Serializable data class OpenBykcCourse(val courseId: Long) : HomeTodoAction
 
-  data class OpenSpocAssignment(val assignmentId: String) : HomeTodoAction
+  @Serializable data class OpenSpocAssignment(val assignmentId: String) : HomeTodoAction
 
+  @Serializable
   data class OpenJudgeAssignment(val courseId: String, val assignmentId: String) : HomeTodoAction
 
-  data object OpenExam : HomeTodoAction
+  @Serializable data object OpenExam : HomeTodoAction
 
-  data object OpenCgyyOrders : HomeTodoAction
+  @Serializable data object OpenCgyyOrders : HomeTodoAction
 
-  data object OpenVenueHome : HomeTodoAction
+  @Serializable data object OpenVenueHome : HomeTodoAction
 
-  data object OpenYgdkHome : HomeTodoAction
+  @Serializable data object OpenYgdkHome : HomeTodoAction
 }
 
+@Serializable
 internal data class HomeTodoItem(
     val id: String,
     val source: HomeTodoSource,

@@ -30,6 +30,9 @@ import cn.edu.ubaa.plus.api.platform.currentLocationPoint
 import cn.edu.ubaa.plus.api.platform.hasLocationPermission
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.BykcCourseFilterStore
+import cn.edu.ubaa.plus.api.storage.CachedHomeSnapshot
+import cn.edu.ubaa.plus.api.storage.CachedHomeStore
+import cn.edu.ubaa.plus.api.storage.mergeHomeTodos
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.CourseClass
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
@@ -139,6 +142,8 @@ fun MainAppScreen(
     onConnectionModeSelected: (ConnectionMode) -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isAuthenticated: Boolean = true,
+    onLoginRequired: () -> Unit = {},
 ) {
   val scope = rememberCoroutineScope()
   val appContext = LocalContext.current
@@ -159,6 +164,17 @@ fun MainAppScreen(
   var homeManualRefreshPending by remember { mutableStateOf(false) }
   var homeManualRefreshStarted by remember { mutableStateOf(false) }
   val homeSnackbarHostState = remember { SnackbarHostState() }
+  var cachedHome by
+      remember(userData.schoolid) { mutableStateOf(CachedHomeStore.read(userData.schoolid)) }
+  var homeSyncStarted by remember(userData.schoolid, isAuthenticated) { mutableStateOf(false) }
+  LaunchedEffect(isAuthenticated) {
+    if (
+        !isAuthenticated &&
+            homeSnackbarHostState.showSnackbar("当前显示已保存数据，登录后更新", actionLabel = "登录") ==
+                SnackbarResult.ActionPerformed
+    )
+        onLoginRequired()
+  }
   val homeBootstrapCoordinator = remember(scope) { HomeBootstrapCoordinator(scope) }
   val homeBootstrapRunning by homeBootstrapCoordinator.isRunning.collectAsState()
   val homeNow by
@@ -179,7 +195,10 @@ fun MainAppScreen(
       hasVisitedVenue || currentScreen == AppScreen.VENUE_HOME || currentScreen == AppScreen.HOME
 
   // 初始化各模块 ViewModel
-  val scheduleViewModel: ScheduleViewModel = viewModel { ScheduleViewModel() }
+  val scheduleViewModel: ScheduleViewModel =
+      viewModel(key = "schedule-${userData.schoolid}-$isAuthenticated") {
+        ScheduleViewModel(offlineOnly = !isAuthenticated)
+      }
   val scheduleUiState by scheduleViewModel.uiState.collectAsState()
   val todayScheduleState by scheduleViewModel.todayScheduleState.collectAsState()
   LaunchedEffect(homeNow.date) {
@@ -188,11 +207,12 @@ fun MainAppScreen(
     scheduleUiState.selectedTerm?.let(scheduleViewModel::loadWeeks)
   }
 
-  val homeExamViewModel: ExamViewModel = viewModel(key = "home-exam") { ExamViewModel() }
+  val homeExamViewModel: ExamViewModel =
+      viewModel(key = "home-exam-${userData.schoolid}") { ExamViewModel() }
   val homeExamState by homeExamViewModel.uiState.collectAsState()
   val examViewModel: ExamViewModel? =
       if (currentScreen == AppScreen.EXAM) {
-        viewModel(key = "exam") { ExamViewModel() }
+        viewModel(key = "exam-${userData.schoolid}") { ExamViewModel() }
       } else {
         null
       }
@@ -200,7 +220,7 @@ fun MainAppScreen(
   var showExamTermMenu by remember { mutableStateOf(false) }
   val gradeViewModel: GradeViewModel? =
       if (currentScreen == AppScreen.GRADE) {
-        viewModel(key = "grade") { GradeViewModel() }
+        viewModel(key = "grade-${userData.schoolid}") { GradeViewModel() }
       } else {
         null
       }
@@ -244,7 +264,7 @@ fun MainAppScreen(
       }
   val evaluationViewModel: EvaluationViewModel? =
       if (currentScreen == AppScreen.EVALUATION) {
-        viewModel(key = "evaluation") { EvaluationViewModel() }
+        viewModel(key = "evaluation-${userData.schoolid}") { EvaluationViewModel() }
       } else {
         null
       }
@@ -278,11 +298,12 @@ fun MainAppScreen(
       }
   val libBookUiState by libBookViewModel.uiState.collectAsState()
   val libraryLifecycleOwner = LocalLifecycleOwner.current
-  LaunchedEffect(libraryLifecycleOwner, libBookViewModel, currentScreen) {
+  LaunchedEffect(libraryLifecycleOwner, libBookViewModel, currentScreen, isAuthenticated) {
     if (
-        currentScreen == AppScreen.HOME ||
-            currentScreen == AppScreen.LIBBOOK_RESERVE ||
-            currentScreen == AppScreen.LIBBOOK_BOOKINGS
+        isAuthenticated &&
+            (currentScreen == AppScreen.HOME ||
+                currentScreen == AppScreen.LIBBOOK_RESERVE ||
+                currentScreen == AppScreen.LIBBOOK_BOOKINGS)
     ) {
       libraryLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
         while (true) {
@@ -293,13 +314,19 @@ fun MainAppScreen(
     }
   }
   // 首页展示「当前预约」：不再限定必须是今天，跨天未结束的预约也要能一眼看到。
+  val liveLibraryBooking = selectCurrentLibBookBooking(libBookUiState.bookings.bookings)
   val homeLibBookBooking =
-      remember(libBookUiState.bookings.bookings, homeNow) {
-        selectCurrentLibBookBooking(libBookUiState.bookings.bookings)
-      }
+      if (
+          !isAuthenticated ||
+              !homeSyncStarted ||
+              libBookUiState.isBookingsLoading ||
+              libBookUiState.bookingsError != null
+      )
+          liveLibraryBooking ?: cachedHome?.library
+      else liveLibraryBooking
   val classroomViewModel: ClassroomViewModel? =
       if (currentScreen == AppScreen.CLASSROOM_QUERY) {
-        viewModel(key = "classroom") { ClassroomViewModel() }
+        viewModel(key = "classroom-${userData.schoolid}") { ClassroomViewModel() }
       } else {
         null
       }
@@ -355,6 +382,12 @@ fun MainAppScreen(
         null
       }
   val ygdkUiState = ygdkViewModel?.uiState?.collectAsState()?.value ?: YgdkUiState()
+  LaunchedEffect(isAuthenticated) {
+    if (!isAuthenticated) {
+      bykcViewModel.stopGrab(BykcGrabStopReason.LOGOUT)
+      venueViewModel?.stopGrabForLogout()
+    }
+  }
   val currentWeek = scheduleUiState.currentWeek
   val ygdkWeekReminderKey = currentWeek?.let { "${it.term}:${it.serialNumber}" }
   val ygdkTermReminderKey = currentWeek?.term ?: scheduleUiState.selectedTerm?.itemCode
@@ -394,7 +427,8 @@ fun MainAppScreen(
   var showJudgeSortFilterDialog by remember { mutableStateOf(false) }
 
   val pendingNotificationRoute by PendingAppRouteStore.route.collectAsState()
-  LaunchedEffect(pendingNotificationRoute, userData.schoolid) {
+  LaunchedEffect(pendingNotificationRoute, userData.schoolid, isAuthenticated) {
+    if (!isAuthenticated) return@LaunchedEffect
     val route = pendingNotificationRoute ?: return@LaunchedEffect
     when (route) {
       AppNotificationRoute.Home -> {
@@ -487,20 +521,49 @@ fun MainAppScreen(
   }
 
   LaunchedEffect(
+      isAuthenticated,
+      homeSyncStarted,
       homeTodoItems,
       homeTodoLoading,
       homeBootstrapRunning,
       homeTodoFailedSources,
       homeLibBookBooking,
       libBookUiState.isBookingsLoading,
+      todayScheduleState,
+      signinUiState.isLoading,
       userData.schoolid,
   ) {
-    if (!homeTodoLoading && !homeBootstrapRunning && !libBookUiState.isBookingsLoading) {
+    if (
+        isAuthenticated &&
+            homeSyncStarted &&
+            !homeTodoLoading &&
+            !homeBootstrapRunning &&
+            !libBookUiState.isBookingsLoading &&
+            !todayScheduleState.isLoading &&
+            !signinUiState.isLoading
+    ) {
+      val retained = homeTodoFailedSources.toSet()
+      val snapshot =
+          CachedHomeSnapshot(
+              userData.schoolid,
+              mergeHomeTodos(homeTodoItems, cachedHome?.todos.orEmpty(), retained),
+              if (signinUiState.error != null) cachedHome?.signin.orEmpty()
+              else signinUiState.classes,
+              if (libBookUiState.bookingsError != null) cachedHome?.library else liveLibraryBooking,
+              if (todayScheduleState.error == null) todayScheduleState.todayClasses
+              else cachedHome?.todayClasses.orEmpty(),
+              if (todayScheduleState.error == null) homeNow.date.toString()
+              else cachedHome?.todayDate.orEmpty(),
+              if (signinUiState.error == null) homeNow.date.toString()
+              else cachedHome?.signinDate.orEmpty(),
+          )
+      CachedHomeStore.write(snapshot)
+      cachedHome = snapshot
       cn.edu.ubaa.plus.widget.WidgetTodoStore.write(
           userData.schoolid,
-          homeTodoItems,
+          snapshot.todos,
           homeNow,
-          homeLibBookBooking,
+          snapshot.library,
           homeTodoFailedSources.map { it.label } +
               listOfNotNull(libBookUiState.bookingsError?.let { "图书馆座位" }),
       )
@@ -509,6 +572,12 @@ fun MainAppScreen(
   }
 
   fun startHomeBootstrap(forceRefresh: Boolean = false) {
+    if (!isAuthenticated) {
+      scheduleViewModel.ensureTodayLoaded()
+      scheduleViewModel.ensureCurrentWeekLoaded()
+      return
+    }
+    homeSyncStarted = true
     homeExamViewModel.ensureLoaded(forceRefresh = forceRefresh)
     val showLoading =
         forceRefresh ||
@@ -550,6 +619,10 @@ fun MainAppScreen(
   }
 
   fun refreshHomeData() {
+    if (!isAuthenticated) {
+      onLoginRequired()
+      return
+    }
     homeManualRefreshPending = true
     startHomeBootstrap(forceRefresh = true)
   }
@@ -576,6 +649,22 @@ fun MainAppScreen(
 
   /** 跳转至指定页面，并自动更新底部 Tab 激活状态。 */
   fun navigateTo(screen: AppScreen, bottomTab: BottomNavTab? = null) {
+    if (
+        !isAuthenticated &&
+            screen !in
+                setOf(
+                    AppScreen.HOME,
+                    AppScreen.REGULAR,
+                    AppScreen.PROFILE,
+                    AppScreen.SETTINGS,
+                    AppScreen.ABOUT,
+                    AppScreen.FEATURE_ORDER,
+                    AppScreen.SCHEDULE,
+                )
+    ) {
+      onLoginRequired()
+      return
+    }
     navController.navigateTo(screen)
     val tab = bottomTab ?: bottomTabFor(screen)
     tab?.let { selectedBottomTab = it }
@@ -597,6 +686,10 @@ fun MainAppScreen(
 
   /** 尝试用 CAS 一次性 ticket 打开网页；失败时回退普通 URL。 */
   fun openUrl(url: String) {
+    if (!isAuthenticated) {
+      onLoginRequired()
+      return
+    }
     scope.launch {
       val target =
           runCatching { SsoTicketHandoff.authenticatedUrl(url).getOrDefault(url) }.getOrDefault(url)
@@ -612,6 +705,10 @@ fun MainAppScreen(
   }
 
   fun handleHomeTodoClick(todoItem: HomeTodoItem) {
+    if (!isAuthenticated) {
+      onLoginRequired()
+      return
+    }
     when (val action = todoItem.action) {
       is HomeTodoAction.OpenBykcCourse -> {
         selectedBykcCourseId = action.courseId
@@ -650,6 +747,10 @@ fun MainAppScreen(
 
   /** 首页图书馆座位卡片的取消、暂离和签退操作。 */
   fun handleHomeLibBookAction(booking: LibBookBookingDto, action: LibBookCardAction) {
+    if (!isAuthenticated) {
+      onLoginRequired()
+      return
+    }
     val viewModel = libBookViewModel
     when (action) {
       LibBookCardAction.CANCEL -> viewModel.cancelBooking(booking.id)
@@ -690,8 +791,8 @@ fun MainAppScreen(
     }
   }
 
-  LaunchedEffect(currentScreen, currentWeek, shouldLoadYgdkHomeOverview) {
-    if (currentScreen == AppScreen.HOME && shouldLoadYgdkHomeOverview) {
+  LaunchedEffect(currentScreen, currentWeek, shouldLoadYgdkHomeOverview, isAuthenticated) {
+    if (isAuthenticated && currentScreen == AppScreen.HOME && shouldLoadYgdkHomeOverview) {
       ygdkViewModel.ensureOverviewLoaded()
     }
   }
@@ -718,7 +819,8 @@ fun MainAppScreen(
   }
 
   // 连接模式切换后，重置所有 ViewModel 的加载标记与缓存数据，并强制刷新当前页面
-  LaunchedEffect(effectiveConnectionMode, userData.schoolid) {
+  LaunchedEffect(effectiveConnectionMode, userData.schoolid, isAuthenticated) {
+    if (!isAuthenticated) return@LaunchedEffect
     // 常驻 ViewModel
     scheduleViewModel.resetLoadedState()
     signinViewModel.resetLoadedState()
@@ -798,7 +900,12 @@ fun MainAppScreen(
     }
   }
 
-  LaunchedEffect(currentScreen, shouldKeepCgyyViewModel) {
+  LaunchedEffect(currentScreen, shouldKeepCgyyViewModel, isAuthenticated) {
+    if (!isAuthenticated) {
+      if (currentScreen == AppScreen.SCHEDULE) scheduleViewModel.ensureScheduleLoaded()
+      else scheduleViewModel.ensureTodayLoaded()
+      return@LaunchedEffect
+    }
     if (currentScreen != AppScreen.HOME) {
       homeBootstrapCoordinator.cancel()
     }
@@ -1011,21 +1118,52 @@ fun MainAppScreen(
 
       val screenContentState =
           MainScreenContentState(
+              isAuthenticated = isAuthenticated,
               currentScreen = currentScreen,
               userData = userData,
               userInfo = userInfo,
               connectionMode = connectionMode,
               effectiveConnectionMode = effectiveConnectionMode,
               availableConnectionModes = availableConnectionModes,
-              todayScheduleState = todayScheduleState,
+              todayScheduleState =
+                  if (
+                      (!isAuthenticated ||
+                          !homeSyncStarted ||
+                          todayScheduleState.isLoading ||
+                          todayScheduleState.error != null) &&
+                          todayScheduleState.todayClasses.isEmpty() &&
+                          cachedHome?.todayDate == homeNow.date.toString()
+                  )
+                      todayScheduleState.copy(
+                          todayClasses = cachedHome?.coursesOn(homeNow.date.toString()).orEmpty()
+                      )
+                  else todayScheduleState,
               homeIsRefreshing = homeIsRefreshing,
-              homeTodoItems = homeTodoItems,
+              homeTodoItems =
+                  if (!isAuthenticated || !homeSyncStarted) cachedHome?.todos.orEmpty()
+                  else
+                      mergeHomeTodos(
+                          homeTodoItems,
+                          cachedHome?.todos.orEmpty(),
+                          (homeTodoLoadingSources + homeTodoFailedSources).toSet(),
+                      ),
               homeTodoLoading = homeTodoLoading,
               homeTodoLoadingSources = homeTodoLoadingSources,
               homeTodoFailedSources = homeTodoFailedSources,
-              signinUiState = signinUiState,
+              signinUiState =
+                  if (
+                      !isAuthenticated ||
+                          !homeSyncStarted ||
+                          signinUiState.isLoading ||
+                          signinUiState.error != null
+                  )
+                      signinUiState.copy(
+                          classes = cachedHome?.signinOn(homeNow.date.toString()).orEmpty(),
+                          isLoading = !isAuthenticated || signinUiState.isLoading,
+                      )
+                  else signinUiState,
               homeLibBookBooking = homeLibBookBooking,
-              homeLibBookSubmitting = libBookUiState.isSeatActionSubmitting,
+              homeLibBookSubmitting = !isAuthenticated || libBookUiState.isSeatActionSubmitting,
               homeLibBookCanceling = libBookUiState.cancelingBookingId != null,
               homeLibBookLoading = libBookUiState.isBookingsLoading,
               homeNow = homeNow,
@@ -1067,6 +1205,7 @@ fun MainAppScreen(
           )
       val screenActions =
           MainScreenActions(
+              onLoginRequired = onLoginRequired,
               navigateTo = { navigateTo(it) },
               navigateBack = { navigateBack() },
               refreshHomeData = { refreshHomeData() },
@@ -1076,7 +1215,7 @@ fun MainAppScreen(
                 handleHomeLibBookAction(booking, action)
               },
               openLibBookBookings = {
-                libBookViewModel.ensureBookingsLoaded()
+                if (isAuthenticated) libBookViewModel.ensureBookingsLoaded()
                 navigateTo(AppScreen.LIBBOOK_BOOKINGS)
               },
               onConnectionModeSelected = onConnectionModeSelected,

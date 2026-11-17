@@ -7,6 +7,7 @@ import cn.edu.ubaa.plus.api.local.LocalAuthSession
 import cn.edu.ubaa.plus.api.local.LocalAuthSessionStore
 import cn.edu.ubaa.plus.api.local.LocalCookieStore
 import cn.edu.ubaa.plus.api.local.LocalUpstreamClientProvider
+import cn.edu.ubaa.plus.api.local.LocalWebVpnSupport
 import cn.edu.ubaa.plus.model.dto.LoginStatsConnectionMode
 import cn.edu.ubaa.plus.model.dto.LoginStatsReportRequest
 import cn.edu.ubaa.plus.model.dto.LoginStatsSuccessMode
@@ -22,6 +23,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
+import io.ktor.http.parseQueryString
 import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -65,6 +67,139 @@ class LocalAuthServiceBackendTest {
     reportedLogins.clear()
     localConnectionTestMutex.unlock()
   }
+
+  private fun imagePage(number: Int, rejected: Boolean = false): String =
+      """<form id="fm1"><input type="hidden" name="execution" value="exec-$number" /></form><script>config.captcha = { type: 'image', id: 'image-$number' }</script>""" +
+          if (rejected) """<div id="errorDiv">用户名或密码错误。</div>""" else ""
+
+  @Test
+  fun `webvpn automatic captcha submits the same page execution and retries returned challenge`() =
+      runTest {
+        ConnectionModeStore.save(ConnectionMode.WEBVPN)
+        ConnectionRuntime.resolveSelectedMode()
+        var gatewayGets = 0
+        val submissions = mutableListOf<String>()
+        val engine = MockEngine { request ->
+          val direct = io.ktor.http.Url(LocalWebVpnSupport.fromWebVpnUrl(request.url.toString()))
+          when {
+            direct.host == "sso.buaa.edu.cn" &&
+                request.method.value == "GET" &&
+                request.url.host == "d.buaa.edu.cn" &&
+                direct.encodedPath == "/login" -> {
+              gatewayGets++
+              respond(ByteReadChannel(imagePage(1)), HttpStatusCode.OK)
+            }
+            direct.encodedPath == "/captcha" ->
+                respond(ByteReadChannel(byteArrayOf(1, 2, 3)), HttpStatusCode.OK)
+            direct.host == "sso.buaa.edu.cn" && request.method.value == "POST" -> {
+              val body = request.bodyText()
+              submissions += body
+              val form = parseQueryString(body)
+              assertEquals("exec-${submissions.size}", form["execution"])
+              assertEquals("a2b3c4", form["captcha"])
+              assertEquals(form["captcha"], form["captchaResponse"])
+              if (submissions.size == 1)
+                  respond(ByteReadChannel(imagePage(2, true)), HttpStatusCode.Unauthorized)
+              else
+                  respond(
+                      ByteReadChannel.Empty,
+                      HttpStatusCode.Found,
+                      headersOf(HttpHeaders.Location, "https://uc.buaa.edu.cn/landing"),
+                  )
+            }
+            direct.host == "sso.buaa.edu.cn" ->
+                respond(
+                    ByteReadChannel.Empty,
+                    HttpStatusCode.Found,
+                    headersOf(HttpHeaders.Location, "https://uc.buaa.edu.cn/landing"),
+                )
+            direct.encodedPath == "/api/uc/status" ->
+                respond(
+                    ByteReadChannel(
+                        """{"code":0,"data":{"name":"Test User","schoolid":"22374444","username":"22374444"}}"""
+                    ),
+                    HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            else -> respond(ByteReadChannel.Empty, HttpStatusCode.OK)
+          }
+        }
+        useMockUpstream(engine)
+        val result =
+            LocalAuthServiceBackend(recognizeCaptcha = { "a2b3c4" })
+                .login("22374444", "test-password", null, null)
+        assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
+        assertEquals(1, gatewayGets)
+        assertEquals(2, submissions.size)
+      }
+
+  @Test
+  fun `automatic captcha stops after three attempts and manual submission keeps the challenge`() =
+      runTest {
+        ConnectionModeStore.save(ConnectionMode.WEBVPN)
+        ConnectionRuntime.resolveSelectedMode()
+        var gets = 0
+        var posts = 0
+        val engine = MockEngine { request ->
+          val direct = io.ktor.http.Url(LocalWebVpnSupport.fromWebVpnUrl(request.url.toString()))
+          when {
+            direct.encodedPath == "/login" && request.method.value == "GET" -> {
+              gets++
+              respond(ByteReadChannel(imagePage(gets)), HttpStatusCode.OK)
+            }
+            direct.encodedPath == "/captcha" ->
+                respond(ByteReadChannel(byteArrayOf(1, 2, 3)), HttpStatusCode.OK)
+            direct.encodedPath == "/login" && request.method.value == "POST" -> {
+              posts++
+              assertEquals("exec-$posts", parseQueryString(request.bodyText())["execution"])
+              respond(ByteReadChannel(imagePage(posts + 1, true)), HttpStatusCode.Unauthorized)
+            }
+            else -> error("Unexpected request")
+          }
+        }
+        useMockUpstream(engine)
+        val backend = LocalAuthServiceBackend(recognizeCaptcha = { "a2b3c4" })
+        val result = backend.login("22374444", "test-password", null, null)
+        val required = assertIs<CaptchaRequiredClientException>(result.exceptionOrNull())
+        assertEquals(3, posts)
+        assertEquals("exec-4", required.execution)
+        assertEquals("image-4", required.captcha.id)
+        backend.login("22374444", "test-password", "manual", required.execution)
+        assertEquals(4, posts)
+        assertEquals(1, gets)
+      }
+
+  @Test
+  fun `direct manual captcha uses preload challenge without another login page request`() =
+      runTest {
+        var gets = 0
+        var posts = 0
+        val engine = MockEngine { request ->
+          when {
+            request.url.encodedPath == "/captcha" ->
+                respond(ByteReadChannel(byteArrayOf(1, 2, 3)), HttpStatusCode.OK)
+            request.method.value == "GET" -> {
+              gets++
+              respond(ByteReadChannel(imagePage(gets)), HttpStatusCode.OK)
+            }
+            else -> {
+              posts++
+              assertEquals("exec-1", parseQueryString(request.bodyText())["execution"])
+              respond(ByteReadChannel(imagePage(2, true)), HttpStatusCode.Unauthorized)
+            }
+          }
+        }
+        useMockUpstream(engine)
+        val backend =
+            LocalAuthServiceBackend(
+                recognizeCaptcha = { error("Direct mode must not auto-recognize") }
+            )
+        val prepared = backend.preloadLoginState().getOrThrow()
+        assertTrue(prepared.captchaRequired)
+        backend.login("22374444", "test-password", "manual", prepared.execution)
+        assertEquals(1, gets)
+        assertEquals(1, posts)
+      }
 
   @Test
   fun `preloadLoginState restores direct session from upstream cookies`() = runTest {
@@ -404,6 +539,28 @@ class LocalAuthServiceBackendTest {
     assertIs<CaptchaRequiredClientException>(exception)
     assertEquals("captcha-1", exception.captcha.id)
     assertTrue(exception.captcha.base64Image.orEmpty().startsWith("data:image/jpeg;base64,"))
+  }
+
+  @Test
+  fun `late status response cannot clear the new transport session`() = runTest {
+    val direct = LocalAuthSession("direct-user", UserData("Direct", "direct-user"), "now", "now")
+    val vpn = LocalAuthSession("vpn-user", UserData("VPN", "vpn-user"), "now", "now")
+    LocalAuthSessionStore.save(direct, ConnectionMode.DIRECT)
+    LocalAuthSessionStore.save(vpn, ConnectionMode.WEBVPN)
+    useMockUpstream(
+        MockEngine {
+          ConnectionModeStore.save(ConnectionMode.WEBVPN)
+          ConnectionRuntime.resolveSelectedMode()
+          respond(ByteReadChannel.Empty, HttpStatusCode.Unauthorized)
+        }
+    )
+    kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> {
+      LocalAuthServiceBackend().getAuthStatus()
+    }
+    assertEquals(vpn, LocalAuthSessionStore.get())
+    ConnectionModeStore.save(ConnectionMode.DIRECT)
+    ConnectionRuntime.resolveSelectedMode()
+    assertEquals(direct, LocalAuthSessionStore.get())
   }
 
   @Test

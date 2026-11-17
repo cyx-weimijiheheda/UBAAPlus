@@ -25,7 +25,10 @@ import com.russhwolf.settings.MapSettings
 object TestSettings {
   fun installInMemorySettings() {
     AuthTokensStore.settings = MapSettings()
+    cn.edu.ubaa.plus.api.storage.PublicNoticeStore.settings = MapSettings()
     CredentialStore.settings = MapSettings()
+    cn.edu.ubaa.plus.api.storage.CachedUserStore.settings = MapSettings()
+    cn.edu.ubaa.plus.api.storage.CachedHomeStore.settings = MapSettings()
     ConnectionModeStore.settings = MapSettings()
     ScheduleStore.settings = MapSettings()
     GradeScoreCacheStore.settings = MapSettings()

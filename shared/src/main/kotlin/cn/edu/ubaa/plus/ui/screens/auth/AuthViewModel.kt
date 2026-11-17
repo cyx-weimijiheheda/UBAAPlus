@@ -9,11 +9,14 @@ import cn.edu.ubaa.plus.api.auth.AuthService
 import cn.edu.ubaa.plus.api.auth.CaptchaRequiredClientException
 import cn.edu.ubaa.plus.api.auth.UserService
 import cn.edu.ubaa.plus.api.storage.AuthTokensStore
+import cn.edu.ubaa.plus.api.storage.CachedHomeStore
+import cn.edu.ubaa.plus.api.storage.CachedUserStore
 import cn.edu.ubaa.plus.api.storage.CredentialStore
 import cn.edu.ubaa.plus.model.dto.CaptchaInfo
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.repository.ScheduleStore
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +27,21 @@ class AuthViewModel(
     private val authService: AuthService = AuthService(),
     private val userService: UserService = UserService(),
 ) : ViewModel() {
+  private var authEpoch = 0
+  private var preloadJob: Job? = null
+  private var captchaJob: Job? = null
+  private var loginJob: Job? = null
+  private var initializeJob: Job? = null
+  private var validationJob: Job? = null
+  private var userInfoJob: Job? = null
+
+  private fun cancelAuthentication() {
+    authEpoch++
+    listOf(preloadJob, captchaJob, loginJob, initializeJob, validationJob, userInfoJob).forEach {
+      it?.cancel()
+    }
+  }
+
   private var userInfoLoadedOnce = false
   private var userInfoLoading = false
 
@@ -87,62 +105,75 @@ class AuthViewModel(
 
   /** 预加载登录状态。 访问服务端探测当前 SSO 是否已登录，并获取登录所需的执行标识（execution）或验证码。 */
   fun preloadLoginState() {
-    viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(isPreloading = true, error = null)
-      authService
-          .preloadLoginState()
-          .onSuccess { response ->
-            if (response.userData != null) {
-              response.userData?.let { ScheduleStore.useAccount(it.schoolid) }
-              // SSO 已登录，执行自动登录逻辑
-              _uiState.value =
-                  _uiState.value.copy(
-                      isPreloading = false,
-                      isLoggedIn = true,
-                      userData = response.userData,
-                      accessToken = response.accessToken?.takeIf { it.isNotBlank() },
-                  )
-              resetUserInfoState()
-              _loginForm.value = LoginFormState()
-            } else {
-              _uiState.value =
-                  _uiState.value.copy(
-                      isPreloading = false,
-                      captchaRequired = response.captchaRequired,
-                      captchaInfo = response.captcha,
-                      execution = response.execution,
-                  )
-              _loginForm.value = _loginForm.value.copy(captcha = "")
-            }
-          }
-          .onFailure {
-            _uiState.value =
-                _uiState.value.copy(isPreloading = false, error = "加载登录状态失败: ${it.message}")
-          }
-    }
+    if (preloadJob?.isActive == true) return
+    val epoch = authEpoch
+    preloadJob =
+        viewModelScope.launch {
+          _uiState.value = _uiState.value.copy(isPreloading = true, error = null)
+          authService
+              .preloadLoginState()
+              .onSuccess { response ->
+                if (epoch != authEpoch) return@onSuccess
+                if (response.userData != null) {
+                  response.userData?.let(CachedUserStore::remember)
+                  // SSO 已登录，执行自动登录逻辑
+                  _uiState.value =
+                      _uiState.value.copy(
+                          isPreloading = false,
+                          isLoggedIn = true,
+                          userData = response.userData,
+                          accessToken = response.accessToken?.takeIf { it.isNotBlank() },
+                      )
+                  resetUserInfoState()
+                  _loginForm.value = LoginFormState()
+                } else {
+                  _uiState.value =
+                      _uiState.value.copy(
+                          isPreloading = false,
+                          captchaRequired = response.captchaRequired,
+                          captchaInfo = response.captcha,
+                          execution = response.execution,
+                      )
+                  _loginForm.value = _loginForm.value.copy(captcha = "")
+                }
+              }
+              .onFailure {
+                if (epoch != authEpoch) return@onFailure
+                _uiState.value =
+                    _uiState.value.copy(isPreloading = false, error = "加载登录状态失败: ${it.message}")
+              }
+        }
   }
 
   /** 仅刷新验证码图片，不重置其他表单状态。 */
   fun refreshCaptcha(clearInput: Boolean = false) {
-    viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(isRefreshingCaptcha = true, error = null)
-      if (clearInput) _loginForm.value = _loginForm.value.copy(captcha = "")
-      authService
-          .preloadLoginState()
-          .onSuccess { response ->
-            _uiState.value =
-                _uiState.value.copy(
-                    isRefreshingCaptcha = false,
-                    captchaRequired = response.captchaRequired,
-                    captchaInfo = response.captcha,
-                    execution = response.execution,
-                )
-          }
-          .onFailure {
-            _uiState.value =
-                _uiState.value.copy(isRefreshingCaptcha = false, error = "刷新验证码失败: ${it.message}")
-          }
-    }
+    if (captchaJob?.isActive == true) return
+    val epoch = authEpoch
+    captchaJob =
+        viewModelScope.launch {
+          _uiState.value = _uiState.value.copy(isRefreshingCaptcha = true, error = null)
+          if (clearInput) _loginForm.value = _loginForm.value.copy(captcha = "")
+          authService
+              .preloadLoginState()
+              .onSuccess { response ->
+                if (epoch != authEpoch) return@onSuccess
+                _uiState.value =
+                    _uiState.value.copy(
+                        isRefreshingCaptcha = false,
+                        captchaRequired = response.captchaRequired,
+                        captchaInfo = response.captcha,
+                        execution = response.execution,
+                    )
+              }
+              .onFailure {
+                if (epoch != authEpoch) return@onFailure
+                _uiState.value =
+                    _uiState.value.copy(
+                        isRefreshingCaptcha = false,
+                        error = "刷新验证码失败: ${it.message}",
+                    )
+              }
+        }
   }
 
   /** 执行登录提交。 */
@@ -158,87 +189,102 @@ class AuthViewModel(
       return
     }
 
-    viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-      val captcha = if (state.captchaRequired) form.captcha else null
-      authService
-          .login(form.username, form.password, captcha, state.execution)
-          .onSuccess { loginResponse ->
-            ScheduleStore.useAccount(loginResponse.user.schoolid)
-            _uiState.value =
-                _uiState.value.copy(
-                    isLoggedIn = true,
-                    isLoading = false,
-                    userData = loginResponse.user,
-                    accessToken = loginResponse.accessToken.takeIf { it.isNotBlank() },
-                )
-            resetUserInfoState()
-            CredentialStore.setRememberPassword(form.rememberPassword)
-            CredentialStore.setAutoLogin(form.autoLogin)
-            if (form.rememberPassword) CredentialStore.saveCredentials(form.username, form.password)
-            if (!form.rememberPassword) _loginForm.value = LoginFormState()
-          }
-          .onFailure { exception ->
-            if (exception is CaptchaRequiredClientException) {
-              _uiState.value =
-                  _uiState.value.copy(
-                      isLoading = false,
-                      captchaRequired = true,
-                      captchaInfo = exception.captcha,
-                      execution = exception.execution,
-                  )
-            } else {
-              val message = exception.message ?: "登录失败"
-              _uiState.value = _uiState.value.copy(isLoading = false, error = message)
-              // 输错验证码时上游只回一句 "Invalid parameter" 或"登录失败"。验证码是一次性的，失败后必须换一张，
-              // 否则用户对着旧图重试只会一直失败。这里只要本次提交带了验证码就刷新，不依赖 captchaRequired
-              // 是否仍为 true——WebVPN 失败后登录页会被重绘，那个标志并不可靠。
-              if (!captcha.isNullOrBlank() || isCaptchaFailure(message)) {
-                refreshCaptcha(clearInput = true)
+    if (loginJob?.isActive == true) return
+    val epoch = authEpoch
+    loginJob =
+        viewModelScope.launch {
+          _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+          val captcha = if (state.captchaRequired) form.captcha else null
+          authService
+              .login(form.username, form.password, captcha, state.execution)
+              .onSuccess { loginResponse ->
+                if (epoch != authEpoch) return@onSuccess
+                CachedUserStore.remember(loginResponse.user)
+                _uiState.value =
+                    _uiState.value.copy(
+                        isLoggedIn = true,
+                        isLoading = false,
+                        userData = loginResponse.user,
+                        accessToken = loginResponse.accessToken.takeIf { it.isNotBlank() },
+                    )
+                resetUserInfoState()
+                CredentialStore.setRememberPassword(form.rememberPassword)
+                CredentialStore.setAutoLogin(form.autoLogin)
+                if (form.rememberPassword)
+                    CredentialStore.saveCredentials(form.username, form.password)
+                if (!form.rememberPassword) _loginForm.value = LoginFormState()
               }
-            }
-          }
-    }
+              .onFailure { exception ->
+                if (epoch != authEpoch) return@onFailure
+                if (exception is CaptchaRequiredClientException) {
+                  _uiState.value =
+                      _uiState.value.copy(
+                          isLoading = false,
+                          captchaRequired = true,
+                          captchaInfo = exception.captcha,
+                          execution = exception.execution,
+                      )
+                } else {
+                  val message = exception.message ?: "登录失败"
+                  _uiState.value = _uiState.value.copy(isLoading = false, error = message)
+                  // 输错验证码时上游只回一句 "Invalid parameter" 或"登录失败"。验证码是一次性的，失败后必须换一张，
+                  // 否则用户对着旧图重试只会一直失败。这里只要本次提交带了验证码就刷新，不依赖 captchaRequired
+                  // 是否仍为 true——WebVPN 失败后登录页会被重绘，那个标志并不可靠。
+                  if (!captcha.isNullOrBlank() || isCaptchaFailure(message)) {
+                    refreshCaptcha(clearInput = true)
+                  }
+                }
+              }
+        }
   }
 
   /** 应用全局初始化入口。 用于检查本地 Token 是否有效，若失效则根据设置决定跳转登录页或尝试自动登录。 */
   fun initializeApp() {
     if (ConnectionRuntime.currentMode() == null) return
-    viewModelScope.launch {
-      val restoredAccessToken = AuthTokensStore.get()?.accessToken?.takeIf { it.isNotBlank() }
-      if (!authService.hasPersistedSession()) {
-        if (CredentialStore.isAutoLogin()) login() else preloadLoginState()
-        return@launch
-      }
-
-      authService.applyStoredTokens()
-      _uiState.value = _uiState.value.copy(isLoading = true)
-      authService
-          .getAuthStatus()
-          .onSuccess { status ->
-            ScheduleStore.useAccount(status.user.schoolid)
-            _uiState.value =
-                _uiState.value.copy(
-                    isLoggedIn = true,
-                    isLoading = false,
-                    userData = status.user,
-                    accessToken = restoredAccessToken,
-                )
-            resetUserInfoState()
-          }
-          .onFailure { error ->
-            _uiState.value = _uiState.value.copy(isLoading = false)
-            if (error is ApiCallException && error.code == "auth_upstream_timeout") {
-              _uiState.value = _uiState.value.copy(error = error.message)
-              return@onFailure
-            }
-            authService.clearStoredSession()
+    if (initializeJob?.isActive == true) return
+    val epoch = authEpoch
+    initializeJob =
+        viewModelScope.launch {
+          val restoredAccessToken =
+              runCatching { AuthTokensStore.get()?.accessToken?.takeIf { it.isNotBlank() } }
+                  .getOrNull()
+          if (!runCatching { authService.hasPersistedSession() }.getOrDefault(false)) {
             if (CredentialStore.isAutoLogin()) login() else preloadLoginState()
+            return@launch
           }
-    }
+
+          authService.applyStoredTokens()
+          _uiState.value = _uiState.value.copy(isLoading = true)
+          authService
+              .getAuthStatus()
+              .onSuccess { status ->
+                if (epoch != authEpoch) return@onSuccess
+                CachedUserStore.remember(status.user)
+                _uiState.value =
+                    _uiState.value.copy(
+                        isLoggedIn = true,
+                        isLoading = false,
+                        userData = status.user,
+                        accessToken = restoredAccessToken,
+                    )
+                resetUserInfoState()
+              }
+              .onFailure { error ->
+                if (epoch != authEpoch) return@onFailure
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                if (error is ApiCallException && error.code == "auth_upstream_timeout") {
+                  _uiState.value = _uiState.value.copy(error = error.message)
+                  return@onFailure
+                }
+                authService.clearStoredSession()
+                if (CredentialStore.isAutoLogin()) login() else preloadLoginState()
+              }
+        }
   }
 
   fun switchConnectionMode(mode: ConnectionMode) {
+    cancelAuthentication()
+    _uiState.value = AuthUiState(isLoading = true)
     viewModelScope.launch {
       ConnectionRuntime.switchModeAsync(mode)
       resetUserInfoState()
@@ -250,6 +296,10 @@ class AuthViewModel(
 
   /** 注销登录，清理所有本地状态。 */
   fun logout() {
+    cancelAuthentication()
+    _uiState.value = AuthUiState(isLoading = true)
+    CachedUserStore.clear()
+    CachedHomeStore.clear()
     cn.edu.ubaa.plus.reminder.LibBookLeaveStore.clear()
     cn.edu.ubaa.plus.widget.WidgetTodoStore.clear()
     ScheduleStore.forgetAccount()
@@ -278,44 +328,53 @@ class AuthViewModel(
       return
     }
     userInfoLoading = true
-    viewModelScope.launch {
-      userService
-          .getUserInfo()
-          .onSuccess { info ->
-            userInfoLoadedOnce = true
-            _uiState.value = _uiState.value.copy(userInfo = info)
-          }
-          .onFailure { userInfoLoadedOnce = false }
-      userInfoLoading = false
-    }
+    if (userInfoJob?.isActive == true) return
+    val epoch = authEpoch
+    userInfoJob =
+        viewModelScope.launch {
+          userService
+              .getUserInfo()
+              .onSuccess { info ->
+                if (epoch != authEpoch) return@onSuccess
+                userInfoLoadedOnce = true
+                _uiState.value = _uiState.value.copy(userInfo = info)
+              }
+              .onFailure { if (epoch == authEpoch) userInfoLoadedOnce = false }
+          userInfoLoading = false
+        }
   }
 
   /** 前台恢复时验证当前会话是否仍然有效。 如果会话过期或网络暂时不可用，根据错误类型决定保留还是清除会话。 */
   fun validateSession() {
     if (!_uiState.value.isLoggedIn) return
-    viewModelScope.launch {
-      authService
-          .getAuthStatus()
-          .onSuccess { status ->
-            ScheduleStore.useAccount(status.user.schoolid)
-            _uiState.value =
-                _uiState.value.copy(
-                    isLoggedIn = true,
-                    userData = status.user,
-                )
-          }
-          .onFailure { error ->
-            if (error is ApiCallException && error.code == "auth_upstream_timeout") {
-              // 网络暂时不可用，保留会话状态
-              return@onFailure
-            }
-            // 会话确实过期了
-            authService.clearStoredSession()
-            resetUserInfoState()
-            _uiState.value = AuthUiState()
-            if (CredentialStore.isAutoLogin()) login() else preloadLoginState()
-          }
-    }
+    if (validationJob?.isActive == true) return
+    val epoch = authEpoch
+    validationJob =
+        viewModelScope.launch {
+          authService
+              .getAuthStatus()
+              .onSuccess { status ->
+                if (epoch != authEpoch) return@onSuccess
+                CachedUserStore.remember(status.user)
+                _uiState.value =
+                    _uiState.value.copy(
+                        isLoggedIn = true,
+                        userData = status.user,
+                    )
+              }
+              .onFailure { error ->
+                if (epoch != authEpoch) return@onFailure
+                if (error is ApiCallException && error.code == "auth_upstream_timeout") {
+                  // 网络暂时不可用，保留会话状态
+                  return@onFailure
+                }
+                // 会话确实过期了
+                authService.clearStoredSession()
+                resetUserInfoState()
+                _uiState.value = AuthUiState()
+                if (CredentialStore.isAutoLogin()) login() else preloadLoginState()
+              }
+        }
   }
 
   /** 清除当前的错误提示。 */

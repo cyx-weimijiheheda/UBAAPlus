@@ -76,9 +76,13 @@ object LocalAuthSessionStore {
 
   private val json = Json { ignoreUnknownKeys = true }
 
-  fun save(session: LocalAuthSession) {
+  fun save(
+      session: LocalAuthSession,
+      mode: ConnectionMode? = null,
+  ) {
     settings.putString(
-        ModeScopedSessionStore.scopedKey(KEY_LOCAL_AUTH_SESSION),
+        if (mode == null) ModeScopedSessionStore.scopedKey(KEY_LOCAL_AUTH_SESSION)
+        else ModeScopedSessionStore.scopedKey(KEY_LOCAL_AUTH_SESSION, mode),
         json.encodeToString(session),
     )
   }
@@ -334,11 +338,14 @@ internal sealed interface LocalConnectionSessionValidationState {
 }
 
 internal suspend fun validateLocalConnectionSession(): LocalConnectionSessionValidationState {
+  val mode = ConnectionRuntime.currentMode() ?: ConnectionMode.DIRECT
   val response =
       LocalUpstreamClientProvider.shared().get(localUcStatusUrl()) {
         header(HttpHeaders.Accept, "application/json, text/javascript, */*; q=0.01")
         header("X-Requested-With", "XMLHttpRequest")
       }
+  if (mode != (ConnectionRuntime.currentMode() ?: ConnectionMode.DIRECT))
+      throw kotlinx.coroutines.CancellationException("连接模式已切换")
   if (response.status != HttpStatusCode.OK) {
     return if (response.status.value in 500..599) {
       LocalConnectionSessionValidationState.TransientError
@@ -348,6 +355,8 @@ internal suspend fun validateLocalConnectionSession(): LocalConnectionSessionVal
   }
 
   val body = response.bodyAsText()
+  if (mode != (ConnectionRuntime.currentMode() ?: ConnectionMode.DIRECT))
+      throw kotlinx.coroutines.CancellationException("连接模式已切换")
   if (!body.trimStart().startsWith("{")) {
     return LocalConnectionSessionValidationState.Invalid
   }
@@ -365,7 +374,7 @@ internal suspend fun validateLocalConnectionSession(): LocalConnectionSessionVal
           authenticatedAt = LocalAuthSessionStore.get()?.authenticatedAt ?: nowIsoString(),
           lastActivity = nowIsoString(),
       )
-  LocalAuthSessionStore.save(session)
+  LocalAuthSessionStore.save(session, mode)
   return LocalConnectionSessionValidationState.Valid(session)
 }
 
@@ -391,16 +400,34 @@ private suspend fun reportLocalLoginSuccess(username: String, successMode: Login
   LoginStatsReporter.reportSuccess(username, successMode, connectionMode)
 }
 
-internal class LocalAuthServiceBackend : AuthServiceBackend {
+internal class LocalAuthServiceBackend(
+    private val recognizeCaptcha: suspend (String) -> String? = SsoCaptchaRecognizer::recognize,
+) : AuthServiceBackend {
+  private data class Challenge(
+      val html: String,
+      val execution: String,
+      val mode: ConnectionMode?,
+      val createdAt: Long,
+  )
+
+  private val loginMutex = Mutex()
+  private var challenge: Challenge? = null
+  private var manualCaptchaRequired = false
+
   override fun hasPersistedSession(): Boolean = LocalAuthSessionStore.get() != null
 
   override fun applyStoredSession() = Unit
 
   override fun clearStoredSession() {
+    challenge = null
+    manualCaptchaRequired = false
     clearLocalConnectionSession()
   }
 
-  override suspend fun preloadLoginState(): Result<LoginPreloadResponse> {
+  override suspend fun preloadLoginState(): Result<LoginPreloadResponse> =
+      loginMutex.withLock { preloadOnce() }
+
+  private suspend fun preloadOnce(): Result<LoginPreloadResponse> {
     val noRedirectClient = LocalUpstreamClientProvider.newNoRedirectClient()
     return try {
       val response = noRedirectClient.get(loginUrl())
@@ -433,6 +460,21 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
       val loginPageHtml = response.bodyAsText()
       val execution = LocalCasParser.extractExecution(loginPageHtml).takeIf { it.isNotBlank() }
       val captchaInfo = LocalCasParser.detectCaptcha(loginPageHtml, captchaUrl())
+      if (
+          captchaInfo?.type == "image" &&
+              ConnectionRuntime.currentMode() == ConnectionMode.WEBVPN &&
+              !manualCaptchaRequired
+      ) {
+        return Result.success(LoginPreloadResponse(captchaRequired = false, execution = execution))
+      }
+      if (captchaInfo != null)
+          challenge =
+              Challenge(
+                  loginPageHtml,
+                  execution.orEmpty(),
+                  ConnectionRuntime.currentMode(),
+                  System.currentTimeMillis(),
+              )
       val hydratedCaptcha =
           captchaInfo?.let { info -> info.withBase64Image(fetchCaptchaImage(info.id)) }
 
@@ -444,6 +486,7 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
           )
       )
     } catch (e: Exception) {
+      if (e is kotlinx.coroutines.CancellationException) throw e
       Result.failure(e.toUserFacingApiException("登录状态加载失败，请稍后重试"))
     } finally {
       noRedirectClient.close()
@@ -455,27 +498,76 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
       password: String,
       captcha: String?,
       execution: String?,
+  ): Result<LoginResponse> =
+      loginMutex.withLock {
+        val mode = ConnectionRuntime.currentMode()
+        var result = loginOnce(username, password, captcha, execution)
+        if (mode == ConnectionMode.WEBVPN && captcha.isNullOrBlank()) {
+          repeat(3) {
+            if (result.isSuccess) {
+              challenge = null
+              manualCaptchaRequired = false
+              return@withLock result
+            }
+            val required =
+                result.exceptionOrNull() as? CaptchaRequiredClientException
+                    ?: return@withLock result
+            if (required.captcha.type != "image") return@withLock result
+            val image = required.captcha.base64Image ?: return@withLock result
+            val answer = recognizeCaptcha(image)?.takeIf { it.matches(Regex("[a-zA-Z0-9]{6}")) }
+            if (ConnectionRuntime.currentMode() != mode)
+                throw kotlinx.coroutines.CancellationException("连接模式已切换")
+            result =
+                if (answer != null) loginOnce(username, password, answer, required.execution)
+                else {
+                  val fresh = fetchFreshCaptcha()
+                  if (fresh != null)
+                      Result.failure(
+                          CaptchaRequiredClientException(
+                              fresh.first,
+                              fresh.second.orEmpty(),
+                              "请手动输入验证码",
+                          )
+                      )
+                  else result
+                }
+          }
+        }
+        manualCaptchaRequired = result.exceptionOrNull() is CaptchaRequiredClientException
+        if (result.isSuccess) {
+          challenge = null
+          manualCaptchaRequired = false
+        }
+        result
+      }
+
+  private suspend fun loginOnce(
+      username: String,
+      password: String,
+      captcha: String?,
+      execution: String?,
   ): Result<LoginResponse> {
     val noRedirectClient = LocalUpstreamClientProvider.newNoRedirectClient()
     return try {
-      val loginPageResponse = noRedirectClient.get(loginUrl())
+      val prepared =
+          challenge?.takeIf {
+            !captcha.isNullOrBlank() &&
+                it.execution == execution &&
+                it.mode == ConnectionRuntime.currentMode() &&
+                System.currentTimeMillis() - it.createdAt in 0..120_000
+          }
+      val loginPageResponse = if (prepared == null) noRedirectClient.get(loginUrl()) else null
       if (
-          loginPageResponse.status != HttpStatusCode.OK &&
+          loginPageResponse != null &&
+              loginPageResponse.status != HttpStatusCode.OK &&
               loginPageResponse.status.value !in 300..399
-      ) {
-        return Result.failure(ApiCallException("登录失败，请稍后重试"))
-      }
-
-      if (loginPageResponse.status.value in 300..399) {
+      )
+          return Result.failure(ApiCallException("登录失败，请稍后重试"))
+      if (loginPageResponse?.status?.value in 300..399) {
         activateUcLogin()
       } else {
-        val loginPageHtml = loginPageResponse.bodyAsText()
-        LocalCasParser.extractTipText(loginPageHtml)?.let { tip ->
-          return Result.failure(ApiCallException(tip))
-        }
-
-        val actualExecution =
-            execution?.takeIf { it.isNotBlank() } ?: LocalCasParser.extractExecution(loginPageHtml)
+        val loginPageHtml = prepared?.html ?: requireNotNull(loginPageResponse).bodyAsText()
+        val actualExecution = LocalCasParser.extractExecution(loginPageHtml)
         val request =
             LoginRequest(
                 username = username,
@@ -484,7 +576,14 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
                 execution = actualExecution,
             )
         val captchaInfo = LocalCasParser.detectCaptcha(loginPageHtml, captchaUrl())
-        if (captchaInfo != null && captcha.isNullOrBlank()) {
+        if (captchaInfo != null && (captcha.isNullOrBlank() || prepared == null)) {
+          challenge =
+              Challenge(
+                  loginPageHtml,
+                  actualExecution,
+                  ConnectionRuntime.currentMode(),
+                  System.currentTimeMillis(),
+              )
           return Result.failure(
               CaptchaRequiredClientException(
                   captchaInfo.withBase64Image(fetchCaptchaImage(captchaInfo.id)),
@@ -505,19 +604,30 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
         try {
           followRedirectsAndCheckError(submitResponse, noRedirectClient)
         } catch (error: Exception) {
-          // 带了验证码却仍然失败，几乎总是验证码错了：上游只会回 "Invalid parameter"/"登录失败"，
-          // 让人以为是密码问题。这里重新抓一张验证码，用标准异常告诉界面「换一张再试」。
-          if (!captcha.isNullOrBlank()) {
-            val refreshed = fetchFreshCaptcha()
-            if (refreshed != null) {
-              return Result.failure(
-                  CaptchaRequiredClientException(
-                      refreshed.first,
-                      refreshed.second ?: actualExecution,
-                      "验证码不正确，已为你换一张",
-                  )
-              )
-            }
+          val html = submitResponse.bodyAsText()
+          val next = LocalCasParser.detectCaptcha(html, captchaUrl())
+          val rejection = LocalCasParser.findLoginError(html).orEmpty()
+          if (
+              !captcha.isNullOrBlank() &&
+                  next != null &&
+                  ((submitResponse.status == HttpStatusCode.Unauthorized &&
+                      rejection == "用户名或密码错误。") || rejection.contains("验证码"))
+          ) {
+            val nextExecution = LocalCasParser.extractExecution(html)
+            challenge =
+                Challenge(
+                    html,
+                    nextExecution,
+                    ConnectionRuntime.currentMode(),
+                    System.currentTimeMillis(),
+                )
+            return Result.failure(
+                CaptchaRequiredClientException(
+                    next.withBase64Image(fetchCaptchaImage(next.id)),
+                    nextExecution,
+                    "验证未完成，请重试验证码",
+                )
+            )
           }
           throw error
         }
@@ -563,6 +673,7 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
             )
       }
     } catch (e: Exception) {
+      if (e is kotlinx.coroutines.CancellationException) throw e
       Result.failure(e.toUserFacingApiException("登录失败，请稍后重试"))
     } finally {
       noRedirectClient.close()
@@ -615,6 +726,7 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
             )
       }
     } catch (e: Exception) {
+      if (e is kotlinx.coroutines.CancellationException) throw e
       val wrapped = e.toUserFacingApiException("认证服务响应超时，请稍后重试")
       if (wrapped is ApiCallException && wrapped.code == null) {
         Result.failure(
@@ -808,6 +920,13 @@ internal class LocalAuthServiceBackend : AuthServiceBackend {
               val html = response.bodyAsText()
               val info = LocalCasParser.detectCaptcha(html, captchaUrl()) ?: return null
               val execution = LocalCasParser.extractExecution(html).takeIf { it.isNotBlank() }
+              challenge =
+                  Challenge(
+                      html,
+                      execution.orEmpty(),
+                      ConnectionRuntime.currentMode(),
+                      System.currentTimeMillis(),
+                  )
               info.withBase64Image(fetchCaptchaImage(info.id)) to execution
             } finally {
               client.close()

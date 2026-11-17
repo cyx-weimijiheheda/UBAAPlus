@@ -2,13 +2,17 @@ package cn.edu.ubaa.plus.api.auth
 
 import cn.edu.ubaa.plus.BuildKonfig
 import cn.edu.ubaa.plus.api.core.ApiClient
+import cn.edu.ubaa.plus.api.core.PublicApiClientProvider
+import cn.edu.ubaa.plus.api.storage.PublicNoticeStore
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.CancellationException
 
 /** 更新检测服务。 通过服务端检查客户端是否存在新版本。 */
-class UpdateService(private val apiClientProvider: () -> ApiClient = { ApiClientProvider.shared }) {
+class UpdateService(
+    private val apiClientProvider: () -> ApiClient = { PublicApiClientProvider.shared }
+) {
   constructor(apiClient: ApiClient) : this({ apiClient })
 
   /** 检查当前客户端是否需要更新。 */
@@ -20,14 +24,15 @@ class UpdateService(private val apiClientProvider: () -> ApiClient = { ApiClient
             parameter("clientVersion", clientVersion)
           }
       if (response.status != HttpStatusCode.OK) {
-        return null
+        return PublicNoticeStore.update(clientVersion)
       }
-      response.body<AppVersionCheckResponse>().takeIf {
-        it.status == AppUpdateStatus.UPDATE_AVAILABLE
-      }
+      response
+          .body<AppVersionCheckResponse>()
+          .takeIf { it.status == AppUpdateStatus.UPDATE_AVAILABLE }
+          .also { PublicNoticeStore.saveUpdate(clientVersion, it) }
     } catch (e: Throwable) {
       if (e is CancellationException) throw e
-      null
+      PublicNoticeStore.update(clientVersion)
     }
   }
 }

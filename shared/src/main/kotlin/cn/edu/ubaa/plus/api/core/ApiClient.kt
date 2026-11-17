@@ -26,9 +26,13 @@ import kotlinx.serialization.json.Json
  *
  * @param engine 指定的 HTTP 引擎，若为 null 则使用平台默认引擎。
  */
-class ApiClient(private val engine: HttpClientEngine? = null) {
+class ApiClient(
+    private val engine: HttpClientEngine? = null,
+    private val authenticated: Boolean = true,
+) {
   private var httpClient: HttpClient? = null
-  private var cachedTokens: BearerTokens? = AuthTokensStore.get()?.toBearerTokens()
+  private var cachedTokens: BearerTokens? =
+      if (authenticated) AuthTokensStore.get()?.toBearerTokens() else null
   private val refreshMutex = Mutex()
 
   /**
@@ -53,37 +57,41 @@ class ApiClient(private val engine: HttpClientEngine? = null) {
       install(Logging) { level = LogLevel.INFO }
 
       // 配置 Bearer 认证
-      install(Auth) {
-        bearer {
-          loadTokens { cachedTokens }
-          refreshTokens {
-            val expiredTokens = oldTokens ?: return@refreshTokens null
-            val refreshToken = expiredTokens.refreshToken ?: return@refreshTokens null
-            refreshMutex.withLock {
-              val latestTokens = cachedTokens
-              if (latestTokens != null && latestTokens.refreshToken != expiredTokens.refreshToken) {
-                return@withLock latestTokens
-              }
-
-              val refreshResponse =
-                  client.post("api/v1/auth/refresh") {
-                    markAsRefreshTokenRequest()
-                    contentType(ContentType.Application.Json)
-                    setBody(TokenRefreshRequest(refreshToken))
+      if (authenticated)
+          install(Auth) {
+            bearer {
+              loadTokens { cachedTokens }
+              refreshTokens {
+                val expiredTokens = oldTokens ?: return@refreshTokens null
+                val refreshToken = expiredTokens.refreshToken ?: return@refreshTokens null
+                refreshMutex.withLock {
+                  val latestTokens = cachedTokens
+                  if (
+                      latestTokens != null &&
+                          latestTokens.refreshToken != expiredTokens.refreshToken
+                  ) {
+                    return@withLock latestTokens
                   }
-              if (refreshResponse.status != HttpStatusCode.OK) {
-                clearAuthTokens()
-                return@withLock null
-              }
 
-              val refreshedTokens =
-                  refreshResponse.body<TokenRefreshResponse>().toStoredAuthTokens()
-              updateTokens(refreshedTokens)
-              refreshedTokens.toBearerTokens()
+                  val refreshResponse =
+                      client.post("api/v1/auth/refresh") {
+                        markAsRefreshTokenRequest()
+                        contentType(ContentType.Application.Json)
+                        setBody(TokenRefreshRequest(refreshToken))
+                      }
+                  if (refreshResponse.status != HttpStatusCode.OK) {
+                    clearAuthTokens()
+                    return@withLock null
+                  }
+
+                  val refreshedTokens =
+                      refreshResponse.body<TokenRefreshResponse>().toStoredAuthTokens()
+                  updateTokens(refreshedTokens)
+                  refreshedTokens.toBearerTokens()
+                }
+              }
             }
           }
-        }
-      }
 
       // 配置超时时间
       install(HttpTimeout) {
@@ -103,7 +111,7 @@ class ApiClient(private val engine: HttpClientEngine? = null) {
    * @return 当前可用的 HttpClient 实例。
    */
   fun getClient(): HttpClient {
-    if (cachedTokens == null) {
+    if (authenticated && cachedTokens == null) {
       cachedTokens = AuthTokensStore.get()?.toBearerTokens()
     }
     return httpClient ?: createClient().also { httpClient = it }
@@ -151,3 +159,7 @@ private fun TokenRefreshResponse.toStoredAuthTokens(): StoredAuthTokens =
 
 /** 默认 HTTP 引擎。 */
 fun getDefaultEngine(): HttpClientEngine = OkHttp.create()
+
+internal object PublicApiClientProvider {
+  val shared by lazy { ApiClient(authenticated = false) }
+}

@@ -74,6 +74,7 @@ import kotlinx.datetime.LocalDateTime
 
 /** 主界面各屏幕渲染所需的只读状态与 ViewModel。 */
 internal class MainScreenContentState(
+    val isAuthenticated: Boolean,
     val currentScreen: AppScreen,
     val userData: UserData,
     val userInfo: UserInfo?,
@@ -131,6 +132,7 @@ internal class MainScreenContentState(
 
 /** 主界面各屏幕需要的导航与事件回调。 */
 internal class MainScreenActions(
+    val onLoginRequired: () -> Unit,
     val navigateTo: (AppScreen) -> Unit,
     val navigateBack: () -> Unit,
     val refreshHomeData: () -> Unit,
@@ -183,7 +185,10 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onOpenScoresClick = { openScoresFromHomeNotice() },
                 onDismissScoreNotice = { gradeScoreWatchViewModel.consumeNotice() },
                 onTodoClick = { todoItem -> handleHomeTodoClick(todoItem) },
-                onSigninClick = { courseId -> signinViewModel.performSignin(courseId) },
+                onSigninClick = { courseId ->
+                  if (isAuthenticated) signinViewModel.performSignin(courseId)
+                  else onLoginRequired()
+                },
                 onLibBookAction = { booking, action -> handleHomeLibBookAction(booking, action) },
                 onOpenLibBookBookings = { openLibBookBookings() },
             )
@@ -230,6 +235,8 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 currentMode = connectionMode,
                 availableModes = availableConnectionModes,
                 onModeSelected = onConnectionModeSelected,
+                allowSchoolReads = isAuthenticated,
+                onLoginRequired = onLoginRequired,
                 onFeatureOrderClick = { navigateTo(AppScreen.FEATURE_ORDER) },
             )
         AppScreen.ABOUT -> AboutScreen()
@@ -246,9 +253,17 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 isUpdating = scheduleUiState.isUpdating,
                 updatedAt = scheduleUiState.updatedAt,
                 diagnosticResponse = scheduleUiState.diagnosticResponse,
-                onUpdate = { scheduleViewModel.updateSchedule() },
-                onRefresh = { scheduleViewModel.ensureScheduleLoaded(forceRefresh = true) },
-                onImportCurrentTerm = { scheduleViewModel.updateSchedule(currentTerm = true) },
+                onUpdate = {
+                  if (isAuthenticated) scheduleViewModel.updateSchedule() else onLoginRequired()
+                },
+                onRefresh = {
+                  if (isAuthenticated) scheduleViewModel.ensureScheduleLoaded(forceRefresh = true)
+                  else onLoginRequired()
+                },
+                onImportCurrentTerm = {
+                  if (isAuthenticated) scheduleViewModel.updateSchedule(currentTerm = true)
+                  else onLoginRequired()
+                },
                 onTermSelected = { scheduleViewModel.selectTerm(it) },
                 onWeekSelected = { scheduleViewModel.selectWeek(it) },
                 onNavigateBack = { navigateBack() },

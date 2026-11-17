@@ -57,6 +57,7 @@ android {
   }
 
   buildFeatures { buildConfig = true }
+  sourceSets.getByName("test").resources.srcDir("src/main/assets")
 
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -84,6 +85,8 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtimeCompose)
   implementation(libs.androidx.lifecycle.process)
 
+  implementation("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
+
   // 业务与网络
   implementation(libs.kotlinx.serialization.json)
   implementation(libs.kotlinx.datetime)
@@ -105,6 +108,7 @@ dependencies {
   debugImplementation(libs.multiplatform.settings.test)
 
   // Android 单元测试跑在 JUnit4 上，需要 kotlin-test-junit 才能解析 kotlin.test.* 注解
+  testImplementation("com.microsoft.onnxruntime:onnxruntime:1.23.2")
   testImplementation(libs.kotlin.testJunit)
   testImplementation(libs.junit)
   testImplementation(libs.ktor.client.mock)

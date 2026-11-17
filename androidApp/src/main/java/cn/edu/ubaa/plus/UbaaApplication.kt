@@ -15,6 +15,7 @@ class UbaaApplication : Application() {
   override fun onCreate() {
     super.onCreate()
     SecureSettings.initialize(this)
+    cn.edu.ubaa.plus.api.local.SsoCaptchaRecognizer.initialize(this)
     UbaaToast.initialize(this)
     ReminderNotifications.ensureChannels(this)
     LegacyCredentialMigration.migrate(this)
