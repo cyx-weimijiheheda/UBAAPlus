@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
@@ -12,6 +14,8 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,12 +26,14 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.AppInfo
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
+import java.util.Locale
 import kotlin.random.Random
 import kotlinx.coroutines.delay
 
@@ -45,7 +51,34 @@ fun ProfileScreen(
     onAboutClick: () -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isAuthenticated: Boolean = true,
+    onCardClick: () -> Unit = {},
+    onNetworkClick: () -> Unit = {},
 ) {
+  val metricsViewModel: ProfileMetricsViewModel =
+      viewModel(key = "profile-metrics-${userData.schoolid}") { ProfileMetricsViewModel() }
+  val metrics by metricsViewModel.state.collectAsState()
+  var showDetails by remember(userData.schoolid) { mutableStateOf(false) }
+  LaunchedEffect(isAuthenticated) { metricsViewModel.refresh(isAuthenticated) }
+  if (showDetails) {
+    AlertDialog(
+        onDismissRequest = { showDetails = false },
+        title = { Text("个人资料") },
+        text = {
+          Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            ProfileInfoRow("姓名", userData.name)
+            ProfileInfoRow("学号", userData.schoolid)
+            ProfileInfoRow("学院", metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "未提供")
+            ProfileInfoRow("学生类型", profileStudentType(metrics.profile?.studentType))
+            ProfileInfoRow("手机号", userInfo?.phone?.takeIf { it.isNotBlank() } ?: "未提供")
+            ProfileInfoRow("邮箱", userInfo?.email?.takeIf { it.isNotBlank() } ?: "未提供")
+            ProfileInfoRow("证件类型", userInfo?.idCardTypeName?.takeIf { it.isNotBlank() } ?: "未提供")
+            ProfileInfoRow("证件号码", userInfo?.idCardNumber?.takeIf { it.isNotBlank() } ?: "未提供")
+          }
+        },
+        confirmButton = { TextButton(onClick = { showDetails = false }) { Text("关闭") } },
+    )
+  }
   val uriHandler = LocalUriHandler.current
   val quips = remember { profileQuips() }
   var quipIndex by remember { mutableIntStateOf(Random.nextInt(quips.size)) }
@@ -65,7 +98,7 @@ fun ProfileScreen(
   ) {
     item {
       Card(
-          modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+          modifier = Modifier.ubaaGlassSurface().fillMaxWidth().clickable { showDetails = true },
           colors =
               CardDefaults.cardColors(
                   containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
@@ -89,17 +122,21 @@ fun ProfileScreen(
             )
           }
           Spacer(modifier = Modifier.height(12.dp))
-          Text(
-              text = userData.name,
-              style = MaterialTheme.typography.headlineSmall,
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.onPrimaryContainer,
-          )
-          Text(
-              text = userData.schoolid,
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-          )
+          FlowRow(
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            SuggestionChip(
+                onClick = { showDetails = true },
+                label = {
+                  Text(metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "学院未提供")
+                },
+            )
+            SuggestionChip(
+                onClick = { showDetails = true },
+                label = { Text(profileStudentType(metrics.profile?.studentType)) },
+            )
+          }
         }
       }
     }
@@ -133,22 +170,23 @@ fun ProfileScreen(
     }
 
     item {
-      ProfileSection(title = "账号资料") {
-        ProfileInfoRow("姓名", userData.name)
-        ProfileInfoRow("学号", userData.schoolid)
-        if (userInfo == null) {
-          Text(
-              text = "正在加载账号资料…",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        } else {
-          userInfo.username?.let { ProfileInfoRow("用户名", it) }
-          userInfo.phone?.let { ProfileInfoRow("手机号", it) }
-          userInfo.email?.let { ProfileInfoRow("邮箱", it) }
-          userInfo.idCardTypeName?.let { ProfileInfoRow("证件类型", it) }
-          userInfo.idCardNumber?.let { ProfileInfoRow("证件号码", maskIdCard(it)) }
-        }
+      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        PrivateBalanceCard(
+            "校园卡余额",
+            metrics.card?.value?.let { String.format(Locale.CHINA, "%.2f", it) },
+            metrics.loading,
+            metrics.cardError,
+            onCardClick,
+            Modifier.weight(1f),
+        )
+        PrivateBalanceCard(
+            "网费余额",
+            metrics.network?.value?.takeIf { it.isNotBlank() },
+            metrics.loading,
+            metrics.networkError,
+            onNetworkClick,
+            Modifier.weight(1f),
+        )
       }
     }
 
@@ -212,6 +250,7 @@ private fun ProfileInfoRow(label: String, value: String) {
     )
     Text(
         text = value,
+        modifier = Modifier.weight(1f).padding(start = 12.dp),
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.Medium,
         textAlign = TextAlign.End,
@@ -231,13 +270,42 @@ private fun ProfileActionRow(icon: ImageVector, title: String, onClick: () -> Un
   }
 }
 
-/** 对证件号进行脱敏处理。 */
-private fun maskIdCard(idCard: String): String =
-    if (idCard.length >= 8) {
-      idCard.substring(0, 4) + "****" + idCard.substring(idCard.length - 4)
-    } else {
-      idCard
+internal fun profileStudentType(value: String?): String =
+    value?.trim()?.takeIf { it.isNotBlank() } ?: "学生类型未提供"
+
+@Composable
+private fun PrivateBalanceCard(
+    title: String,
+    value: String?,
+    loading: Boolean,
+    failed: Boolean,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  var revealed by remember { mutableStateOf(false) }
+  UbaaSectionCard(
+      title = title,
+      modifier = modifier,
+      trailing = {
+        IconButton(onClick = { revealed = !revealed }) {
+          Icon(
+              if (revealed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+              contentDescription = if (revealed) "隐藏$title" else "显示$title",
+          )
+        }
+      },
+  ) {
+    Text(
+        text = if (!revealed) "••••" else value?.let { "$it 元" } ?: if (loading) "加载中" else "暂不可用",
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(vertical = 8.dp),
+    )
+    TextButton(onClick = onOpen, contentPadding = PaddingValues(0.dp)) {
+      Text(if (revealed && failed) "更新余额" else "查看详情")
     }
+  }
+}
 
 private fun profileQuips(): List<String> =
     listOf(

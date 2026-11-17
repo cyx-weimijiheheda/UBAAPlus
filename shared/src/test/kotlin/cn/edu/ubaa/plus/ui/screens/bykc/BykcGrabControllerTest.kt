@@ -23,6 +23,21 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 class BykcGrabControllerTest {
+  @Test
+  fun `关闭开关时不发送抢课请求`() = runTest {
+    val backend = FakeBykcBackend(mutableListOf(Result.success(BykcSuccessResponse("成功"))))
+    val controller =
+        BykcGrabController(
+            BykcApi(backend),
+            backgroundScope,
+            MutableStateFlow(true),
+            automationAllowed = { false },
+        )
+    controller.start(1L, "课程", null, 1.milliseconds, null) {}
+    advanceUntilIdle()
+    assertEquals(0, backend.selectCalls)
+    assertEquals(BykcGrabPhase.IDLE, controller.state.value.phase)
+  }
 
   @Test
   fun `满员后继续重试并抢课成功`() = runTest {

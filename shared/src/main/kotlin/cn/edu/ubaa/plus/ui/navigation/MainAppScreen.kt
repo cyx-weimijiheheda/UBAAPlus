@@ -415,6 +415,12 @@ fun MainAppScreen(
         )
       }
   val appPreferences by AppPreferencesStore.state.collectAsState()
+  LaunchedEffect(appPreferences.mysterySwitchEnabled) {
+    if (!appPreferences.mysterySwitchEnabled) {
+      bykcViewModel.stopGrab()
+      venueViewModel?.stopGrab()
+    }
+  }
   val features =
       remember(appPreferences.featureOrder, appPreferences.hiddenFeatures) {
         resolveFeatureItems(appPreferences.featureOrder, appPreferences.hiddenFeatures)

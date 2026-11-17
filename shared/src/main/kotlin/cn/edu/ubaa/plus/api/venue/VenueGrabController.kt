@@ -78,6 +78,7 @@ internal class VenueGrabController(
     private val scope: CoroutineScope,
     private val foreground: StateFlow<Boolean> = AppForegroundMonitor.foreground,
     private val now: () -> kotlin.time.Instant = { Clock.System.now() },
+    private val automationAllowed: () -> Boolean = { true },
     private val random: Random = Random.Default,
 ) {
   private val _state = MutableStateFlow(VenueGrabState())
@@ -92,7 +93,7 @@ internal class VenueGrabController(
   private var lastLogAt: kotlin.time.Instant? = null
 
   fun start(task: VenueGrabTask) {
-    if (job?.isActive == true) return
+    if (!automationAllowed() || job?.isActive == true) return
     stopReason = null
     cachedCaptcha = null
     lastLogMessage = null
@@ -244,6 +245,10 @@ internal class VenueGrabController(
               orderToken = day.orderToken.takeIf { it.isNotBlank() },
           )
 
+      if (!automationAllowed()) {
+        stopReason = VenueGrabStopReason.USER
+        throw kotlinx.coroutines.CancellationException("开关已关闭")
+      }
       val result = api.submitOrder(request)
       val order = result.getOrNull()
       if (order != null) {

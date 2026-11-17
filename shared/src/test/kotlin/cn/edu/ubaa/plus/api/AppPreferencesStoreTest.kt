@@ -13,6 +13,17 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AppPreferencesStoreTest {
+  @Test
+  fun `automation is hidden by default and explicit choice persists`() {
+    assertFalse(AppPreferencesStore.state.value.mysterySwitchEnabled)
+    AppPreferencesStore.setMysterySwitchEnabled(true)
+    AppPreferencesStore.reload()
+    assertTrue(AppPreferencesStore.state.value.mysterySwitchEnabled)
+    AppPreferencesStore.setMysterySwitchEnabled(false)
+    AppPreferencesStore.reload()
+    assertFalse(AppPreferencesStore.state.value.mysterySwitchEnabled)
+  }
+
   @BeforeTest
   fun setup() {
     AppPreferencesStore.settings = MapSettings()

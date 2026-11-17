@@ -15,6 +15,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
+@kotlinx.serialization.Serializable
 data class CampusCardBalanceDto(
     val value: Double?,
     val unclaimedAmount: Double?,
@@ -28,7 +29,10 @@ interface CampusCardApiBackend {
 class CampusCardApi internal constructor(private val backend: CampusCardApiBackend) {
   constructor() : this(LocalCampusCardApiBackend())
 
-  suspend fun getBalance(): Result<CampusCardBalanceDto> = backend.getBalance()
+  suspend fun getBalance(): Result<CampusCardBalanceDto> =
+      cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.read("card", "balance") {
+        backend.getBalance()
+      }
 }
 
 internal class LocalCampusCardApiBackend(

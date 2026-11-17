@@ -42,7 +42,7 @@ class BykcApi(
    * @return 用户基本信息。
    */
   suspend fun getProfile(): Result<BykcUserProfileDto> {
-    return currentBackend().getProfile()
+    return SchoolReadCoordinator.read("bykc", "profile") { currentBackend().getProfile() }
   }
 
   /**

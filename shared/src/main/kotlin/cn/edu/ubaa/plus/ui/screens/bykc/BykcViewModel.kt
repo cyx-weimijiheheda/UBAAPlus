@@ -57,7 +57,19 @@ class BykcViewModel(
         cn.edu.ubaa.plus.AppForegroundMonitor.foreground,
     now: () -> kotlin.time.Instant = { kotlin.time.Clock.System.now() },
 ) : ViewModel() {
-  private val grabController = BykcGrabController(bykcApi, viewModelScope, foreground, now)
+  private val grabController =
+      BykcGrabController(
+          bykcApi,
+          viewModelScope,
+          foreground,
+          now,
+          automationAllowed = {
+            runCatching {
+                  cn.edu.ubaa.plus.api.storage.AppPreferencesStore.state.value.mysterySwitchEnabled
+                }
+                .getOrDefault(false)
+          },
+      )
 
   /** 抢课状态。 */
   val grabState: StateFlow<BykcGrabState> = grabController.state

@@ -215,7 +215,19 @@ class VenueViewModel(
   private val _state = MutableStateFlow(VenueUiState())
   val state: StateFlow<VenueUiState> = _state.asStateFlow()
 
-  private val grabController = VenueGrabController(venueApi, viewModelScope, foreground, now)
+  private val grabController =
+      VenueGrabController(
+          venueApi,
+          viewModelScope,
+          foreground,
+          now,
+          automationAllowed = {
+            runCatching {
+                  cn.edu.ubaa.plus.api.storage.AppPreferencesStore.state.value.mysterySwitchEnabled
+                }
+                .getOrDefault(false)
+          },
+      )
   val grabState: StateFlow<VenueGrabState> = grabController.state
 
   private val _membershipCodeState = MutableStateFlow(VenueMembershipCodeUiState())

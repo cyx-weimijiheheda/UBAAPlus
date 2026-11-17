@@ -51,6 +51,7 @@ fun VenueScreen(
     viewModel: VenueViewModel,
     onOpenUrl: (String) -> Unit,
 ) {
+  val preferences by cn.edu.ubaa.plus.api.storage.AppPreferencesStore.state.collectAsState()
   val state by viewModel.state.collectAsState()
   val grabState by viewModel.grabState.collectAsState()
   val orderHistoryState by viewModel.orderHistoryState.collectAsState()
@@ -185,30 +186,33 @@ fun VenueScreen(
                     onManageClick = { showBuddyDialog = true },
                 )
               }
-              item {
-                VenueGrabPanel(
-                    state = state,
-                    grabState = grabState,
-                    onUseScheduleChange = viewModel::setUseSchedule,
-                    onGrabAtChange = viewModel::updateGrabAt,
-                    onPollIntervalChange = viewModel::updatePollInterval,
-                    onStart = viewModel::startGrab,
-                    onStop = viewModel::stopGrab,
-                    onOpenUrl = onOpenUrl,
-                )
-              }
+              if (preferences.mysterySwitchEnabled)
+                  item {
+                    VenueGrabPanel(
+                        state = state,
+                        grabState = grabState,
+                        onUseScheduleChange = viewModel::setUseSchedule,
+                        onGrabAtChange = viewModel::updateGrabAt,
+                        onPollIntervalChange = viewModel::updatePollInterval,
+                        onStart = viewModel::startGrab,
+                        onStop = viewModel::stopGrab,
+                        onOpenUrl = onOpenUrl,
+                    )
+                  }
             }
           }
     }
   }
 
-  grabState.pendingCaptcha?.let { challenge ->
-    VenueCaptchaDialog(
-        challenge = challenge,
-        onCancel = viewModel::cancelCaptcha,
-        onSubmit = viewModel::submitCaptcha,
-    )
-  }
+  grabState.pendingCaptcha
+      ?.takeIf { preferences.mysterySwitchEnabled }
+      ?.let { challenge ->
+        VenueCaptchaDialog(
+            challenge = challenge,
+            onCancel = viewModel::cancelCaptcha,
+            onSubmit = viewModel::submitCaptcha,
+        )
+      }
 
   if (showBuddyDialog) {
     VenueBuddyDialog(

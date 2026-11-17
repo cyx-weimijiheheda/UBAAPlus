@@ -1,5 +1,7 @@
 package cn.edu.ubaa.plus.ui.screens.menu
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +41,7 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.feature.DormElectricityApi
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
+import cn.edu.ubaa.plus.api.storage.LocalDiagnostics
 import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.api.storage.WidgetColorMode
 import cn.edu.ubaa.plus.model.dto.DormRoomDto
@@ -68,6 +71,24 @@ fun SettingsScreen(
     allowSchoolReads: Boolean = true,
     onLoginRequired: () -> Unit = {},
 ) {
+  val diagnosticContext = androidx.compose.ui.platform.LocalContext.current
+  var diagnosticCount by remember { mutableStateOf(LocalDiagnostics.issues().size) }
+  val diagnosticExport =
+      rememberLauncherForActivityResult(
+          ActivityResultContracts.CreateDocument("application/json")
+      ) { uri ->
+        if (uri != null) {
+          val result = runCatching {
+            diagnosticContext.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
+              it.write(LocalDiagnostics.export())
+            } ?: error("输出文件不可用")
+          }
+          cn.edu.ubaa.plus.ui.common.components.UbaaToast.show(
+              if (result.isSuccess) "诊断已导出" else "诊断导出失败，请重试"
+          )
+        }
+      }
+  var showMysteryDisclaimer by remember { mutableStateOf(false) }
   var pendingMode by remember { mutableStateOf<ConnectionMode?>(null) }
   val preferences by AppPreferencesStore.state.collectAsState()
   var showWidgetColorPicker by remember { mutableStateOf(false) }
@@ -80,6 +101,28 @@ fun SettingsScreen(
             showWidgetColorPicker = false
           },
       )
+  if (showMysteryDisclaimer) {
+    AlertDialog(
+        onDismissRequest = { showMysteryDisclaimer = false },
+        title = { Text("免责声明") },
+        text = {
+          Text(
+              "开启后显示博雅抢课与场地抢单控件。自动任务仅在应用前台运行，不保证成功；请求可能受学校规则、名额和网络状况影响。请遵守学校规定，确认课程时间、预约费用及取消规则。结果未确认时请先查询记录，避免重复操作。关闭开关会停止正在运行的自动任务。"
+          )
+        },
+        confirmButton = {
+          TextButton(
+              onClick = {
+                showMysteryDisclaimer = false
+                AppPreferencesStore.setMysterySwitchEnabled(true)
+              }
+          ) {
+            Text("我已了解，开启")
+          }
+        },
+        dismissButton = { TextButton(onClick = { showMysteryDisclaimer = false }) { Text("取消") } },
+    )
+  }
   var dormState by
       remember(allowSchoolReads) {
         mutableStateOf<DormRoomsState>(
@@ -156,6 +199,43 @@ fun SettingsScreen(
                 onClick = { AppPreferencesStore.setFeatureLayout(layout) },
                 label = { Text(layout.displayName) },
             )
+          }
+        }
+      }
+    }
+
+    item {
+      SettingsSection(title = "功能选项") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text("？！！？", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+          Switch(
+              checked = preferences.mysterySwitchEnabled,
+              onCheckedChange = { enabled ->
+                if (enabled) showMysteryDisclaimer = true
+                else AppPreferencesStore.setMysterySwitchEnabled(false)
+              },
+          )
+        }
+      }
+    }
+
+    item {
+      SettingsSection(title = "问题诊断") {
+        Text(
+            "本机已记录 $diagnosticCount 条诊断，仅包含功能、连接方式和错误分类。",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          TextButton(onClick = { diagnosticExport.launch("UBAAPlus-diagnostics.json") }) {
+            Text("导出脱敏诊断")
+          }
+          TextButton(
+              onClick = {
+                LocalDiagnostics.clear()
+                diagnosticCount = 0
+              }
+          ) {
+            Text("清除记录")
           }
         }
       }

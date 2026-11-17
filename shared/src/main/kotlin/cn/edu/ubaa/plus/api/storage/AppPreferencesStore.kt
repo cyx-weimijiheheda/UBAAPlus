@@ -50,6 +50,7 @@ data class AppPreferences(
     val followWallpaper: Boolean = false,
     val customBrandArgb: Int = DEFAULT_CUSTOM_BRAND_ARGB,
     val glassEnabled: Boolean = true,
+    val mysterySwitchEnabled: Boolean = false,
     val backgroundRemindersEnabled: Boolean = true,
     val featureLayout: FeatureLayout = FeatureLayout.GRID,
     val featureOrder: List<String> = emptyList(),
@@ -129,6 +130,11 @@ object AppPreferencesStore {
             themePalette = ThemePalette.CUSTOM,
             followWallpaper = false,
         )
+  }
+
+  fun setMysterySwitchEnabled(enabled: Boolean) {
+    settings.putBoolean("app_mystery_switch", enabled)
+    _state.value = _state.value.copy(mysterySwitchEnabled = enabled)
   }
 
   fun setGlassEnabled(enabled: Boolean) {
@@ -232,6 +238,7 @@ object AppPreferencesStore {
         followWallpaper = settings.getBoolean(KEY_FOLLOW_WALLPAPER, false),
         customBrandArgb = settings.getInt(KEY_CUSTOM_BRAND_ARGB, DEFAULT_CUSTOM_BRAND_ARGB),
         glassEnabled = settings.getBoolean(KEY_GLASS_ENABLED, true),
+        mysterySwitchEnabled = settings.getBoolean("app_mystery_switch", false),
         backgroundRemindersEnabled = settings.getBoolean(KEY_BACKGROUND_REMINDERS, true),
         featureLayout = layout,
         featureOrder = order,

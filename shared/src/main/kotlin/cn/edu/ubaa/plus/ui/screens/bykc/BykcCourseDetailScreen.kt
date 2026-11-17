@@ -53,6 +53,7 @@ fun BykcCourseDetailScreen(
     onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+  val preferences by cn.edu.ubaa.plus.api.storage.AppPreferencesStore.state.collectAsState()
   val conflictScope = rememberCoroutineScope()
   var checkingConflicts by remember { mutableStateOf(false) }
   var conflictReport by remember { mutableStateOf<BykcConflictReport?>(null) }
@@ -403,7 +404,7 @@ fun BykcCourseDetailScreen(
               }
             }
 
-            if (showGrabPanel) {
+            if (showGrabPanel && preferences.mysterySwitchEnabled) {
               item {
                 BykcGrabPanel(
                     courseId = course.id,

@@ -63,6 +63,7 @@ internal class BykcGrabController(
     private val scope: CoroutineScope,
     private val foreground: StateFlow<Boolean> = AppForegroundMonitor.foreground,
     private val now: () -> kotlin.time.Instant = { Clock.System.now() },
+    private val automationAllowed: () -> Boolean = { true },
 ) {
   private val _state = MutableStateFlow(BykcGrabState())
   val state: StateFlow<BykcGrabState> = _state.asStateFlow()
@@ -81,7 +82,7 @@ internal class BykcGrabController(
       selectEnd: LocalDateTime?,
       onSucceeded: () -> Unit,
   ) {
-    if (job?.isActive == true) return
+    if (!automationAllowed() || job?.isActive == true) return
     stopReason = null
     logs.clear()
     lastLogMessage = null
@@ -150,6 +151,10 @@ internal class BykcGrabController(
       val grabStartedAt = now()
       while (true) {
         currentCoroutineContext().ensureActive()
+        if (!automationAllowed()) {
+          stopReason = BykcGrabStopReason.USER
+          throw kotlinx.coroutines.CancellationException("开关已关闭")
+        }
         attempt++
         _state.update { it.copy(phase = BykcGrabPhase.RUNNING, attempt = attempt) }
 

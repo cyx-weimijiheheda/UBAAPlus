@@ -21,6 +21,7 @@ data class ItPersonalItemDto(
     val url: String?,
 )
 
+@kotlinx.serialization.Serializable
 data class ItPersonalDetailDto(
     val value: String,
     val url: String?,

@@ -11,6 +11,21 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
 class VenueGrabControllerTest {
+  @Test
+  fun `关闭开关时不发送场地抢单请求`() = runTest {
+    val backend = FakeVenueBackend(dayInfo(free = true))
+    val controller =
+        VenueGrabController(
+            VenueApi(backend),
+            backgroundScope,
+            MutableStateFlow(true),
+            automationAllowed = { false },
+        )
+    controller.start(task())
+    advanceUntilIdle()
+    assertEquals(0, backend.submitCalls)
+    assertEquals(VenueGrabPhase.IDLE, controller.state.value.phase)
+  }
 
   @Test
   fun `空闲场地立即提交并成功`() = runTest {

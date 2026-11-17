@@ -230,6 +230,9 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                 onSettingsClick = { navigateTo(AppScreen.SETTINGS) },
                 onAboutClick = { navigateTo(AppScreen.ABOUT) },
                 onLogoutClick = onLogoutClick,
+                isAuthenticated = isAuthenticated,
+                onCardClick = { navigateTo(AppScreen.CAMPUS_CARD) },
+                onNetworkClick = { navigateTo(AppScreen.CAMPUS_NETWORK) },
             )
         AppScreen.VENUE_HOME ->
             venueViewModel?.let { VenueScreen(viewModel = it, onOpenUrl = onOpenUrl) }
