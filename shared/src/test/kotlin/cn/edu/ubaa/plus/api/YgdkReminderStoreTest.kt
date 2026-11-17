@@ -15,15 +15,17 @@ class YgdkReminderStoreTest {
   }
 
   @Test
-  fun `reminder is enabled by default and isolated by user key`() {
+  fun `reminder defaults off without PE evidence and manual choice is isolated`() {
     YgdkReminderStore.settings = MapSettings()
 
-    assertTrue(YgdkReminderStore.isEnabled("test-user"))
+    assertFalse(YgdkReminderStore.isEnabled("test-user"))
 
+    YgdkReminderStore.setEnabled("test-user", true)
+    assertTrue(YgdkReminderStore.isEnabled("test-user"))
     YgdkReminderStore.setEnabled("test-user", false)
 
     assertFalse(YgdkReminderStore.isEnabled("test-user"))
-    assertTrue(YgdkReminderStore.isEnabled("other"))
+    assertFalse(YgdkReminderStore.isEnabled("other"))
   }
 
   @Test
@@ -53,7 +55,7 @@ class YgdkReminderStoreTest {
 
     YgdkReminderStore.clear("test-user")
 
-    assertTrue(YgdkReminderStore.isEnabled("test-user"))
+    assertFalse(YgdkReminderStore.isEnabled("test-user"))
     assertFalse(YgdkReminderStore.isWeekDone("test-user", "2025-2026-2:11"))
     assertFalse(YgdkReminderStore.isTermDone("test-user", "2025-2026-2"))
     assertFalse(YgdkReminderStore.isEnabled("other"))

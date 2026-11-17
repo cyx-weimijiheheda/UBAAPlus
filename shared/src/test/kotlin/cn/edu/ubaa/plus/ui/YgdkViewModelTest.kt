@@ -256,7 +256,7 @@ class YgdkViewModelTest {
   }
 
   @Test
-  fun `home reminder preference defaults enabled and can be toggled per user`() = runTest {
+  fun `home reminder defaults off without PE and preserves manual choice per user`() = runTest {
     YgdkReminderStore.clear("ygdk-viewmodel-test-user")
     YgdkReminderStore.clear("ygdk-viewmodel-test-other")
     val api =
@@ -271,11 +271,13 @@ class YgdkViewModelTest {
     val first = YgdkViewModel(api, userKey = "ygdk-viewmodel-test-user")
     val other = YgdkViewModel(api, userKey = "ygdk-viewmodel-test-other")
 
+    assertFalse(first.uiState.value.homeReminderEnabled)
+    first.setHomeReminderEnabled(true)
     assertTrue(first.uiState.value.homeReminderEnabled)
     first.setHomeReminderEnabled(false)
 
     assertFalse(first.uiState.value.homeReminderEnabled)
-    assertTrue(other.uiState.value.homeReminderEnabled)
+    assertFalse(other.uiState.value.homeReminderEnabled)
     assertFalse(
         YgdkViewModel(api, userKey = "ygdk-viewmodel-test-user").uiState.value.homeReminderEnabled
     )

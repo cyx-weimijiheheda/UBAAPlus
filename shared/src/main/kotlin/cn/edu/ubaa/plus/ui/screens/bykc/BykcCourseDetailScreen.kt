@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator
 import cn.edu.ubaa.plus.model.dto.BykcCourseDetailDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
@@ -23,7 +24,10 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -49,6 +53,80 @@ fun BykcCourseDetailScreen(
     onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+  val conflictScope = rememberCoroutineScope()
+  var checkingConflicts by remember { mutableStateOf(false) }
+  var conflictReport by remember { mutableStateOf<BykcConflictReport?>(null) }
+  var confirmedAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+  var checkedScope by remember { mutableStateOf<SchoolReadCoordinator.Scope?>(null) }
+  var checkedCourse by remember { mutableStateOf<Long?>(null) }
+  LaunchedEffect(course?.id) {
+    conflictReport = null
+    confirmedAction = null
+  }
+  fun checkEnrollment(action: () -> Unit) {
+    if (checkingConflicts || operationInProgress || course == null) return
+    val scope = SchoolReadCoordinator.capture()
+    val target = course
+    checkingConflicts = true
+    conflictScope.launch {
+      try {
+        val report = withContext(Dispatchers.IO) { checkBykcConflicts(target) }
+        if (!scope.isCurrent()) return@launch
+        if (report.conflicts.isEmpty() && !report.incomplete) action()
+        else {
+          conflictReport = report
+          confirmedAction = action
+          checkedScope = scope
+          checkedCourse = target.id
+        }
+      } finally {
+        checkingConflicts = false
+      }
+    }
+  }
+  conflictReport?.let { report ->
+    AlertDialog(
+        onDismissRequest = {
+          conflictReport = null
+          confirmedAction = null
+        },
+        title = { Text(if (report.conflicts.isEmpty()) "选课前确认" else "课程时间冲突") },
+        text = {
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            report.conflicts.take(8).forEach { item ->
+              Text("${item.title}\n${item.start.date} ${item.start.time}–${item.end.time}")
+            }
+            if (report.conflicts.size > 8) Text("另有 ${report.conflicts.size-8} 项冲突")
+            if (report.incomplete) Text("部分安排尚未同步，本次仅核对已保存的课表、考试和博雅课程，可能存在遗漏。")
+            Text("是否继续？")
+          }
+        },
+        confirmButton = {
+          TextButton(
+              onClick = {
+                val proceed = confirmedAction
+                val current = checkedScope?.isCurrent() == true && course?.id == checkedCourse
+                conflictReport = null
+                confirmedAction = null
+                if (current) proceed?.invoke()
+              }
+          ) {
+            Text("继续")
+          }
+        },
+        dismissButton = {
+          TextButton(
+              onClick = {
+                conflictReport = null
+                confirmedAction = null
+              }
+          ) {
+            Text("取消")
+          }
+        },
+    )
+  }
+
   LaunchedEffect(operationMessage) {
     operationMessage?.let { message ->
       UbaaToast.show(message)
@@ -332,7 +410,7 @@ fun BykcCourseDetailScreen(
                     courseName = course.courseName,
                     courseSelectStart = course.courseSelectStartDate,
                     grabState = grabState,
-                    onStart = onGrabStart,
+                    onStart = { start, retry -> checkEnrollment { onGrabStart(start, retry) } },
                     onStop = onGrabStop,
                 )
               }
@@ -353,7 +431,10 @@ fun BykcCourseDetailScreen(
                       Button(
                           onClick = onSignInClick,
                           modifier = Modifier.weight(1f),
-                          enabled = !operationInProgress && attendanceActionState.canSignIn,
+                          enabled =
+                              !operationInProgress &&
+                                  !checkingConflicts &&
+                                  attendanceActionState.canSignIn,
                       ) {
                         Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -363,7 +444,10 @@ fun BykcCourseDetailScreen(
                       Button(
                           onClick = onSignOutClick,
                           modifier = Modifier.weight(1f),
-                          enabled = !operationInProgress && attendanceActionState.canSignOut,
+                          enabled =
+                              !operationInProgress &&
+                                  !checkingConflicts &&
+                                  attendanceActionState.canSignOut,
                       ) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -398,7 +482,10 @@ fun BykcCourseDetailScreen(
                   OutlinedButton(
                       onClick = onDeselectClick,
                       modifier = Modifier.fillMaxWidth(),
-                      enabled = !operationInProgress && course.status != BykcCourseStatus.EXPIRED,
+                      enabled =
+                          !operationInProgress &&
+                              !checkingConflicts &&
+                              course.status != BykcCourseStatus.EXPIRED,
                       colors =
                           ButtonDefaults.outlinedButtonColors(
                               contentColor = MaterialTheme.colorScheme.error
@@ -410,7 +497,7 @@ fun BykcCourseDetailScreen(
                   }
                 } else {
                   Button(
-                      onClick = onSelectClick,
+                      onClick = { checkEnrollment(onSelectClick) },
                       modifier = Modifier.fillMaxWidth(),
                       enabled = canSelectCourse,
                   ) {

@@ -124,37 +124,38 @@ class LocalJudgeApiBackendTest {
   }
 
   @Test
-  fun `judge api fetches assignment details until six month cutoff per course`() = runTest {
-    val requestedUrls = mutableListOf<String>()
-    val engine = MockEngine { request ->
-      requestedUrls += request.url.toString()
-      when (request.url.toString()) {
-        "https://sso.buaa.edu.cn/login?service=http%3A%2F%2Fjudge.buaa.edu.cn%2F" ->
-            respond(
-                content = ByteReadChannel.Empty,
-                status = HttpStatusCode.Found,
-                headers = headersOf(HttpHeaders.Location, "https://judge.buaa.edu.cn/"),
-            )
-        "https://judge.buaa.edu.cn/" -> respondHtml("<html><body>judge ready</body></html>")
-        "https://judge.buaa.edu.cn/courselist.jsp?courseID=0" ->
-            respondHtml(
-                """<html><body><a href="courselist.jsp?courseID=1">软件工程</a></body></html>"""
-            )
-        "https://judge.buaa.edu.cn/courselist.jsp?courseID=1" ->
-            respondHtml("<html><body>course selected</body></html>")
-        "https://judge.buaa.edu.cn/assignment/index.jsp" ->
-            respondHtml(
-                """
+  fun `semester scan keeps current assignments after an older entry and never marks mixed course historical`() =
+      runTest {
+        val requestedUrls = mutableListOf<String>()
+        val engine = MockEngine { request ->
+          requestedUrls += request.url.toString()
+          when (request.url.toString()) {
+            "https://sso.buaa.edu.cn/login?service=http%3A%2F%2Fjudge.buaa.edu.cn%2F" ->
+                respond(
+                    content = ByteReadChannel.Empty,
+                    status = HttpStatusCode.Found,
+                    headers = headersOf(HttpHeaders.Location, "https://judge.buaa.edu.cn/"),
+                )
+            "https://judge.buaa.edu.cn/" -> respondHtml("<html><body>judge ready</body></html>")
+            "https://judge.buaa.edu.cn/courselist.jsp?courseID=0" ->
+                respondHtml(
+                    """<html><body><a href="courselist.jsp?courseID=1">软件工程</a></body></html>"""
+                )
+            "https://judge.buaa.edu.cn/courselist.jsp?courseID=1" ->
+                respondHtml("<html><body>course selected</body></html>")
+            "https://judge.buaa.edu.cn/assignment/index.jsp" ->
+                respondHtml(
+                    """
                 <html><body>
                   <a href="assignment/index.jsp?assignID=101">设计作业</a>
                   <a href="assignment/index.jsp?assignID=103">历史作业</a>
                   <a href="assignment/index.jsp?assignID=104">更早作业</a>
                 </body></html>
                 """
-            )
-        "https://judge.buaa.edu.cn/assignment/index.jsp?assignID=101" ->
-            respondHtml(
-                """
+                )
+            "https://judge.buaa.edu.cn/assignment/index.jsp?assignID=101" ->
+                respondHtml(
+                    """
                 <html><body>
                   作业时间：2026-04-20 19:00:00 至 2026-05-03 23:00:00
                   作业满分： 100.00 ，共 1道 题
@@ -163,10 +164,10 @@ class LocalJudgeApiBackendTest {
                   </tbody></table>
                 </body></html>
                 """
-            )
-        "https://judge.buaa.edu.cn/assignment/index.jsp?assignID=103" ->
-            respondHtml(
-                """
+                )
+            "https://judge.buaa.edu.cn/assignment/index.jsp?assignID=103" ->
+                respondHtml(
+                    """
                 <html><body>
                   作业时间：2025-10-30 08:00:00 至 2025-11-10 23:00:00
                   作业满分： 10.00 ，共 1道 题 总分：10.00
@@ -175,25 +176,38 @@ class LocalJudgeApiBackendTest {
                   </tbody></table>
                 </body></html>
                 """
+                )
+            "https://judge.buaa.edu.cn/assignment/index.jsp?assignID=104" ->
+                respondHtml(
+                    "<html><body>作业时间：2026-04-21 08:00:00 至 2026-05-04 23:00:00</body></html>"
+                )
+            else -> error("Unexpected request: ${request.method.value} ${request.url}")
+          }
+        }
+        useMockUpstream(engine)
+        val api =
+            JudgeApi(
+                LocalJudgeApiBackend(
+                    nowProvider = { LocalDateTime.parse("2026-05-01T12:00:00") },
+                    semesterProvider = {
+                      cn.edu.ubaa.plus.repository.SemesterBounds(
+                          "spring",
+                          kotlinx.datetime.LocalDate(2026, 2, 23),
+                          kotlinx.datetime.LocalDate(2026, 7, 5),
+                      )
+                    },
+                )
             )
-        "https://judge.buaa.edu.cn/assignment/index.jsp?assignID=104" ->
-            error("Assignment after six month cutoff should not be fetched")
-        else -> error("Unexpected request: ${request.method.value} ${request.url}")
+
+        val result = api.getAssignments()
+
+        assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
+        assertEquals(listOf("101", "104"), result.getOrNull()?.assignments?.map { it.assignmentId })
+        assertTrue(
+            requestedUrls.contains("https://judge.buaa.edu.cn/assignment/index.jsp?assignID=103")
+        )
+        assertEquals(emptyList(), result.getOrNull()?.historicalCutoffCourseIds)
       }
-    }
-    useMockUpstream(engine)
-    val api =
-        JudgeApi(LocalJudgeApiBackend(nowProvider = { LocalDateTime.parse("2026-05-01T12:00:00") }))
-
-    val result = api.getAssignments()
-
-    assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
-    assertEquals(listOf("101"), result.getOrNull()?.assignments?.map { it.assignmentId })
-    assertTrue(
-        requestedUrls.contains("https://judge.buaa.edu.cn/assignment/index.jsp?assignID=103")
-    )
-    assertEquals(listOf("1"), result.getOrNull()?.historicalCutoffCourseIds)
-  }
 
   @Test
   fun `judge api parses multiline course links and upstream assignment links`() = runTest {
@@ -284,7 +298,7 @@ class LocalJudgeApiBackendTest {
                 respondHtml(
                     """
                     <html><body>
-                      作业时间：2026-04-20 19:00:00 至 2026-05-03 23:00:00
+                      作业时间：2025-11-20 19:00:00 至 2025-12-03 23:00:00
                       作业满分： 100.00 ，共 1道 题
                       <table><tbody>
                         <tr><th>1.</th><td>设计说明</td><td>100.00</td><td>未提交答案</td></tr>
@@ -310,7 +324,16 @@ class LocalJudgeApiBackendTest {
         useMockUpstream(engine)
         val api =
             JudgeApi(
-                LocalJudgeApiBackend(nowProvider = { LocalDateTime.parse("2026-05-01T12:00:00") })
+                LocalJudgeApiBackend(
+                    nowProvider = { LocalDateTime.parse("2026-05-01T12:00:00") },
+                    semesterProvider = {
+                      cn.edu.ubaa.plus.repository.SemesterBounds(
+                          "spring",
+                          kotlinx.datetime.LocalDate(2026, 2, 23),
+                          kotlinx.datetime.LocalDate(2026, 7, 5),
+                      )
+                    },
+                )
             )
 
         val first = api.getAssignments()
@@ -324,7 +347,7 @@ class LocalJudgeApiBackendTest {
         assertTrue(first.isSuccess, first.exceptionOrNull()?.message.orEmpty())
         assertTrue(second.isSuccess, second.exceptionOrNull()?.message.orEmpty())
         assertTrue(includeExpired.isSuccess, includeExpired.exceptionOrNull()?.message.orEmpty())
-        assertEquals(listOf("101"), first.getOrNull()?.assignments?.map { it.assignmentId })
+        assertEquals(emptyList(), first.getOrNull()?.assignments)
         assertEquals(emptyList(), second.getOrNull()?.assignments)
         assertEquals(0, defaultRefreshCourseSelectionRequests)
         assertEquals(

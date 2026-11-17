@@ -11,6 +11,8 @@ import kotlinx.serialization.serializer
 
 /** 只保存白名单业务 DTO；安全存储不可用时不降级到明文。 */
 internal object FeatureReadCache {
+  private val revision = kotlinx.coroutines.flow.MutableStateFlow(0L)
+  val changes: kotlinx.coroutines.flow.StateFlow<Long> = revision
   private var backing: Settings? = null
   var settings: Settings
     get() = backing ?: SecureSettings.get().also { backing = it }
@@ -64,6 +66,7 @@ internal object FeatureReadCache {
       if (body.length > 2_000_000) return
       val now = Clock.System.now().toEpochMilliseconds()
       settings.putString(key(owner, feature, query), json.encodeToString(Entry(body, now, now)))
+      revision.value++
       val entries =
           settings.keys
               .filter { it.startsWith("business:") }

@@ -14,6 +14,9 @@ import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentsResponse
 import cn.edu.ubaa.plus.model.dto.JudgeProblemDto
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
+import cn.edu.ubaa.plus.repository.AcademicContext
+import cn.edu.ubaa.plus.repository.ScheduleStore
+import cn.edu.ubaa.plus.repository.SemesterBounds
 import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.cookies.CookiesStorage
@@ -42,7 +45,10 @@ import kotlinx.datetime.toLocalDateTime
 internal class LocalJudgeApiBackend(
     private val nowProvider: () -> LocalDateTime = {
       Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-    }
+    },
+    private val semesterProvider: () -> SemesterBounds? = {
+      AcademicContext.current(ScheduleStore.account(), nowProvider().date)?.bounds
+    },
 ) : JudgeApiBackend {
   private val clientMutex = Mutex()
   private val clientCache = mutableMapOf<LocalJudgeCacheScope, LocalJudgeClient>()
@@ -80,9 +86,11 @@ internal class LocalJudgeApiBackend(
       userKey: String,
   ): JudgeAssignmentsResponse {
     val courses = getCoursesCached()
+    val semester = semesterProvider()
+    val historyKey = "$userKey:semester:${semester?.code}:${semester?.start}"
     val skippedCourseIds =
-        if (includeExpired) emptySet()
-        else LocalJudgeHistoricalCourseStore.get(cacheScope.mode, userKey)
+        if (includeExpired || semester == null) emptySet()
+        else LocalJudgeHistoricalCourseStore.get(cacheScope.mode, historyKey)
     val courseResults =
         courses
             .filter { course -> includeExpired || course.courseId !in skippedCourseIds }
@@ -92,6 +100,7 @@ internal class LocalJudgeApiBackend(
                     course = course,
                     includeExpired = includeExpired,
                     worker = worker,
+                    semester = semester,
                 )
               }
             }
@@ -106,7 +115,7 @@ internal class LocalJudgeApiBackend(
             )
     LocalJudgeHistoricalCourseStore.add(
         mode = cacheScope.mode,
-        userKey = userKey,
+        userKey = historyKey,
         courseIds = historicalCutoffCourseIds,
     )
 
@@ -125,10 +134,11 @@ internal class LocalJudgeApiBackend(
       course: LocalJudgeCourseRaw,
       includeExpired: Boolean,
       worker: LocalJudgeClient,
+      semester: SemesterBounds?,
   ): LocalJudgeAssignmentSummaryResult {
     val assignments = getAssignmentsCached(course) { worker.getAssignments(course) }
     val summaries = mutableListOf<JudgeAssignmentSummaryDto>()
-    var reachedHistoricalCutoff = false
+    var pastCount = 0
     for (assignment in assignments) {
       val cacheKey =
           LocalJudgeDetailCacheKey(
@@ -145,18 +155,19 @@ internal class LocalJudgeApiBackend(
                 title = assignment.title,
             )
           }
-      if (detail.startedBeforeSixMonthCutoff()) {
-        reachedHistoricalCutoff = true
-        if (!includeExpired) {
-          break
-        }
-      }
+      val start = parseLocalJudgeDateTime(detail.startTime)
+      val end = parseLocalJudgeDateTime(detail.dueTime)
+      val known = semester != null && start != null && end != null && start <= end
+      val past = known && end!!.date < semester!!.start
+      if (past) pastCount++
+      if (!includeExpired && known && (past || start!!.date > semester!!.end)) continue
       summaries += detail.toSummary()
     }
     return LocalJudgeAssignmentSummaryResult(
         summaries = summaries,
         historicalCutoffCourseIds =
-            if (reachedHistoricalCutoff) setOf(course.courseId) else emptySet(),
+            if (assignments.isNotEmpty() && pastCount == assignments.size) setOf(course.courseId)
+            else emptySet(),
     )
   }
 
@@ -233,11 +244,6 @@ internal class LocalJudgeApiBackend(
       clientMutex.withLock {
         clientCache.getOrPut(cacheScope) { LocalJudgeClient(cacheScope = cacheScope) }
       }
-
-  private fun JudgeAssignmentDetailDto.startedBeforeSixMonthCutoff(): Boolean {
-    val startAt = parseLocalJudgeDateTime(startTime) ?: return false
-    return startAt < nowProvider().minusLocalJudgeMonths(6)
-  }
 }
 
 private class LocalJudgeClient(

@@ -1,6 +1,7 @@
 package cn.edu.ubaa.plus.api.storage
 
 import com.russhwolf.settings.Settings
+import kotlinx.datetime.toLocalDateTime
 
 object YgdkReminderStore {
   private const val KEY_ENABLED_PREFIX = "ygdk_home_reminder_enabled"
@@ -15,7 +16,16 @@ object YgdkReminderStore {
     }
 
   fun isEnabled(userKey: String): Boolean =
-      settings.getBoolean(enabledKey(userKey), defaultValue = true)
+      settings.getBooleanOrNull(enabledKey(userKey))
+          ?: runCatching {
+                cn.edu.ubaa.plus.repository.AcademicContext.hasPhysicalEducation(
+                    userKey,
+                    kotlin.time.Clock.System.now()
+                        .toLocalDateTime(kotlinx.datetime.TimeZone.of("Asia/Shanghai"))
+                        .date,
+                )
+              }
+              .getOrDefault(false)
 
   fun setEnabled(userKey: String, enabled: Boolean) {
     settings.putBoolean(enabledKey(userKey), enabled)
