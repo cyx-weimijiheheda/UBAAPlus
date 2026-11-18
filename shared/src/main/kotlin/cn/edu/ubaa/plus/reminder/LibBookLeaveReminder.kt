@@ -106,6 +106,7 @@ internal object LibBookLeaveReminder {
   }
 
   suspend fun check(context: Context, api: LibBookApi = LibBookApi()) {
+    if (cn.edu.ubaa.plus.api.storage.CredentialStore.requiresManualLogin()) return
     val owner = ScheduleStore.account() ?: return
     if (
         !AppPreferencesStore.state.value.backgroundRemindersEnabled ||
@@ -125,7 +126,11 @@ internal object LibBookLeaveReminder {
       )
           break
     }
-    if (owner != ScheduleStore.account()) return
+    if (
+        owner != ScheduleStore.account() ||
+            cn.edu.ubaa.plus.api.storage.CredentialStore.requiresManualLogin()
+    )
+        return
     val now = Clock.System.now().toLocalDateTime(LIB_BOOK_ZONE)
     syncBookings(context, owner, fresh, now)
     LibBookLeaveStore.claimDue(owner, fresh, now).forEach { booking ->

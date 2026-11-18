@@ -13,7 +13,12 @@ import androidx.core.content.ContextCompat
  */
 object ReminderServiceController {
   fun sync(context: Context, loggedIn: Boolean, enabled: Boolean) {
-    if (loggedIn && enabled && notificationsAllowed(context)) {
+    if (
+        loggedIn &&
+            enabled &&
+            !cn.edu.ubaa.plus.api.storage.CredentialStore.requiresManualLogin() &&
+            notificationsAllowed(context)
+    ) {
       start(context)
     } else {
       stop(context)

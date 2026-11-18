@@ -60,6 +60,9 @@ class AuthRecoveryTest {
       return Result.success(LoginResponse(UserData("Alice", username), "token", "refresh", "", ""))
     }
 
+    override suspend fun preloadLoginState(): Result<LoginPreloadResponse> =
+        Result.success(LoginPreloadResponse(captchaRequired = false))
+
     override suspend fun logout(): Result<Unit> = Result.failure(IllegalStateException("offline"))
   }
 
@@ -72,6 +75,17 @@ class AuthRecoveryTest {
     advanceUntilIdle()
     assertEquals(1, auth.logins)
     assertTrue(model.uiState.value.isLoggedIn)
+  }
+
+  @Test
+  fun firstLoginWithoutSavedCredentialsFinishesPreloading() = runTest {
+    CredentialStore.clear()
+    val model = AuthViewModel(FakeAuth())
+    model.initializeApp()
+    advanceUntilIdle()
+    assertFalse(model.uiState.value.isLoading)
+    assertFalse(model.uiState.value.isPreloading)
+    assertFalse(model.uiState.value.isLoggedIn)
   }
 
   @Test

@@ -257,10 +257,12 @@ class AuthViewModel(
     val epoch = authEpoch
     initializeJob =
         viewModelScope.launch {
+          _uiState.value = _uiState.value.copy(isLoading = true, error = null)
           val restoredAccessToken =
               runCatching { AuthTokensStore.get()?.accessToken?.takeIf { it.isNotBlank() } }
                   .getOrNull()
           if (!runCatching { authService.hasPersistedSession() }.getOrDefault(false)) {
+            _uiState.value = _uiState.value.copy(isLoading = false)
             if (CredentialStore.canAutomaticallyAuthenticate()) login(automatic = true)
             else preloadLoginState()
             return@launch

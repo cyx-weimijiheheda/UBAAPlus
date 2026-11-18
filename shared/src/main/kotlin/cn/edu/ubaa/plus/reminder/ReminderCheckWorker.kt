@@ -35,7 +35,10 @@ object ReminderCheckWorker {
   private suspend fun check(context: Context) =
       withContext(Dispatchers.IO) {
         val userKey = LocalAuthSessionStore.get()?.username
-        if (userKey.isNullOrBlank()) {
+        if (
+            userKey.isNullOrBlank() ||
+                cn.edu.ubaa.plus.api.storage.CredentialStore.requiresManualLogin()
+        ) {
           ReminderScheduler.cancel(context)
           return@withContext
         }
@@ -73,6 +76,7 @@ object ReminderCheckWorker {
       event: ReminderEvent,
       nowInstant: Instant,
   ) {
+    if (cn.edu.ubaa.plus.api.storage.CredentialStore.requiresManualLogin()) return
     val elapsed = nowInstant - event.fireAt.toInstant(ReminderScheduleBuilder.zone)
     if (elapsed < Duration.ZERO || elapsed > event.kind.catchUpWindow()) return
     val decision =

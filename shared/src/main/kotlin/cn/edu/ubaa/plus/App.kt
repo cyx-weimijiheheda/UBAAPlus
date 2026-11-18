@@ -362,12 +362,28 @@ fun App() {
                 showLogin = true
                 authViewModel.logout(clear)
               },
-              authMessage = if (uiState.captchaRequired) "需要补全验证码后登录" else uiState.error,
+              authMessage =
+                  when {
+                    uiState.isLoading || uiState.isPreloading -> null
+                    uiState.captchaRequired -> "需要补全验证码后登录"
+                    uiState.error != null -> uiState.error
+                    !uiState.isLoggedIn -> "当前显示已保存数据，登录后更新"
+                    else -> null
+                  },
               authAction =
-                  if (uiState.captchaRequired) "补全登录"
-                  else if (uiState.error?.contains("密码") == true) "重新登录" else "重试",
+                  when {
+                    uiState.captchaRequired -> "补全登录"
+                    !cn.edu.ubaa.plus.api.storage.CredentialStore.canAutomaticallyAuthenticate() ->
+                        "登录"
+                    uiState.error?.contains("密码") == true -> "重新登录"
+                    else -> "重试"
+                  },
               onAuthRetry = {
-                if (uiState.captchaRequired || uiState.error?.contains("密码") == true)
+                if (
+                    uiState.captchaRequired ||
+                        uiState.error?.contains("密码") == true ||
+                        !cn.edu.ubaa.plus.api.storage.CredentialStore.canAutomaticallyAuthenticate()
+                )
                     showLogin = true
                 else authViewModel.retryAuthentication()
               },
