@@ -26,6 +26,7 @@ class AuthViewModel(
     private val authService: AuthService = AuthService(),
     private val userService: UserService = UserService(),
 ) : ViewModel() {
+  private var initializationAttempted = false
   private var authEpoch = 0
   private var preloadJob: Job? = null
   private var captchaJob: Job? = null
@@ -61,7 +62,6 @@ class AuthViewModel(
   /** 从本地持久化存储加载保存的凭据。 */
   private fun loadSavedCredentials() {
     val remember = CredentialStore.isRememberPassword()
-    val auto = CredentialStore.isAutoLogin()
     if (remember) {
       val username = CredentialStore.getUsername() ?: ""
       val password = CredentialStore.getPassword() ?: ""
@@ -70,10 +70,9 @@ class AuthViewModel(
               username = username,
               password = password,
               rememberPassword = true,
-              autoLogin = auto,
           )
     } else {
-      _loginForm.value = _loginForm.value.copy(rememberPassword = false, autoLogin = false)
+      _loginForm.value = _loginForm.value.copy(rememberPassword = false)
     }
   }
 
@@ -95,18 +94,12 @@ class AuthViewModel(
   /** 更新“记住密码”勾选状态。 */
   fun updateRememberPassword(enabled: Boolean) {
     _loginForm.value = _loginForm.value.copy(rememberPassword = enabled)
-    if (!enabled) _loginForm.value = _loginForm.value.copy(autoLogin = false)
-  }
-
-  /** 更新“自动登录”勾选状态。 */
-  fun updateAutoLogin(enabled: Boolean) {
-    _loginForm.value = _loginForm.value.copy(autoLogin = enabled)
-    if (enabled) _loginForm.value = _loginForm.value.copy(rememberPassword = true)
   }
 
   /** 预加载登录状态。 访问服务端探测当前 SSO 是否已登录，并获取登录所需的执行标识（execution）或验证码。 */
   fun preloadLoginState() {
     if (preloadJob?.isActive == true) return
+    if (CredentialStore.requiresManualLogin()) return
     val epoch = authEpoch
     preloadJob =
         viewModelScope.launch {
@@ -178,7 +171,8 @@ class AuthViewModel(
   }
 
   /** 执行登录提交。 */
-  fun login() {
+  fun login(automatic: Boolean = false) {
+    if (!automatic) CredentialStore.allowLogin()
     val form = _loginForm.value
     val state = _uiState.value
     if (form.username.isBlank() || form.password.isBlank()) {
@@ -207,10 +201,12 @@ class AuthViewModel(
                         isLoading = false,
                         userData = loginResponse.user,
                         accessToken = loginResponse.accessToken.takeIf { it.isNotBlank() },
+                        error = null,
+                        captchaRequired = false,
                     )
                 resetUserInfoState()
                 CredentialStore.setRememberPassword(form.rememberPassword)
-                CredentialStore.setAutoLogin(form.autoLogin)
+                CredentialStore.setAutoLogin(form.rememberPassword)
                 if (form.rememberPassword)
                     CredentialStore.saveCredentials(form.username, form.password)
                 if (!form.rememberPassword) _loginForm.value = LoginFormState()
@@ -226,6 +222,7 @@ class AuthViewModel(
                           captchaRequired = true,
                           captchaInfo = exception.captcha,
                           execution = exception.execution,
+                          error = "需要补全验证码后登录",
                       )
                 } else {
                   val message = exception.message ?: "登录失败"
@@ -242,9 +239,21 @@ class AuthViewModel(
   }
 
   /** 应用全局初始化入口。 用于检查本地 Token 是否有效，若失效则根据设置决定跳转登录页或尝试自动登录。 */
+  fun retryAuthentication() {
+    initializationAttempted = false
+    initializeApp()
+  }
+
   fun initializeApp() {
+    if (CredentialStore.requiresManualLogin() || initializationAttempted) return
     if (ConnectionRuntime.currentMode() == null) return
-    if (initializeJob?.isActive == true) return
+    if (
+        initializeJob?.isActive == true ||
+            loginJob?.isActive == true ||
+            validationJob?.isActive == true
+    )
+        return
+    initializationAttempted = true
     val epoch = authEpoch
     initializeJob =
         viewModelScope.launch {
@@ -252,7 +261,8 @@ class AuthViewModel(
               runCatching { AuthTokensStore.get()?.accessToken?.takeIf { it.isNotBlank() } }
                   .getOrNull()
           if (!runCatching { authService.hasPersistedSession() }.getOrDefault(false)) {
-            if (CredentialStore.isAutoLogin()) login() else preloadLoginState()
+            if (CredentialStore.canAutomaticallyAuthenticate()) login(automatic = true)
+            else preloadLoginState()
             return@launch
           }
 
@@ -269,6 +279,7 @@ class AuthViewModel(
                         isLoading = false,
                         userData = status.user,
                         accessToken = restoredAccessToken,
+                        error = null,
                     )
                 resetUserInfoState()
               }
@@ -276,65 +287,56 @@ class AuthViewModel(
                 if (epoch != authEpoch) return@onFailure
                 cn.edu.ubaa.plus.api.storage.LocalDiagnostics.record("auth", "restore", error)
                 _uiState.value = _uiState.value.copy(isLoading = false)
-                if (error is ApiCallException && error.code == "auth_upstream_timeout") {
+                if (!isExpiredSession(error)) {
                   _uiState.value = _uiState.value.copy(error = error.message)
                   return@onFailure
                 }
                 authService.clearStoredSession()
-                if (CredentialStore.isAutoLogin()) login() else preloadLoginState()
+                if (CredentialStore.canAutomaticallyAuthenticate()) login(automatic = true)
+                else preloadLoginState()
               }
         }
   }
 
   fun switchConnectionMode(mode: ConnectionMode) {
     cancelAuthentication()
+    initializationAttempted = false
     _uiState.value = AuthUiState(isLoading = true)
     viewModelScope.launch {
       ConnectionRuntime.switchModeAsync(mode)
       resetUserInfoState()
       _uiState.value = AuthUiState()
       loadSavedCredentials()
-      preloadLoginState()
+      if (!CredentialStore.requiresManualLogin()) retryAuthentication()
     }
   }
 
-  /** 显式注销删除当前账户的数据，网络注销失败也清除本机凭据。 */
-  fun logout() {
+  /** Ordinary logout retains local data; destructive cleanup is an explicit second choice. */
+  fun logout(clearLocalData: Boolean = false) {
     val owner = _uiState.value.userData?.schoolid ?: ScheduleStore.account()
+    CredentialStore.requireManualLogin()
     cancelAuthentication()
+    initializationAttempted = false
     _uiState.value = AuthUiState(isLoading = true)
-    CachedUserStore.clear()
-    ScheduleStore.forgetAccount()
     viewModelScope.launch {
       val cleanup = runCatching {
-        if (owner != null) cn.edu.ubaa.plus.api.storage.CacheMaintenance.clearAccount(owner)
+        if (clearLocalData && owner != null)
+            cn.edu.ubaa.plus.api.storage.CacheMaintenance.clearAccount(owner)
       }
-      val result =
-          try {
-            authService.logout()
-          } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-          } catch (e: Exception) {
-            Result.failure(e)
-          } finally {
-            cn.edu.ubaa.plus.api.storage.CredentialStore.clear()
-            cn.edu.ubaa.plus.api.storage.AuthTokensStore.clearAllScopes()
-            cn.edu.ubaa.plus.api.local.LocalAuthSessionStore.clearAllScopes()
-            cn.edu.ubaa.plus.api.local.LocalCookieStore.clearAllScopes()
-            cn.edu.ubaa.plus.api.local.LocalUpstreamClientProvider.reset()
-          }
+      runCatching { authService.logout() }
+      AuthTokensStore.clearAllScopes()
+      cn.edu.ubaa.plus.api.local.LocalAuthSessionStore.clearAllScopes()
+      cn.edu.ubaa.plus.api.local.LocalCookieStore.clearAllScopes()
+      cn.edu.ubaa.plus.api.local.LocalUpstreamClientProvider.reset()
+      if (clearLocalData) {
+        CachedUserStore.clear()
+        ScheduleStore.forgetAccount()
+        CredentialStore.clear()
+      }
       resetUserInfoState()
       _loginForm.value = LoginFormState()
-      _uiState.value =
-          AuthUiState(
-              error =
-                  when {
-                    cleanup.isFailure -> "已退出登录，但本地数据清理失败，请重试清理"
-                    result.isFailure -> "已退出登录，本地数据已清除；服务器注销未完成"
-                    else -> null
-                  }
-          )
-      preloadLoginState()
+      loadSavedCredentials()
+      _uiState.value = AuthUiState(error = if (cleanup.isFailure) "已退出登录，但本地数据清理失败，请重试清理" else null)
     }
   }
 
@@ -382,7 +384,7 @@ class AuthViewModel(
               .onFailure { error ->
                 if (epoch != authEpoch) return@onFailure
                 cn.edu.ubaa.plus.api.storage.LocalDiagnostics.record("auth", "restore", error)
-                if (error is ApiCallException && error.code == "auth_upstream_timeout") {
+                if (!isExpiredSession(error)) {
                   // 网络暂时不可用，保留会话状态
                   return@onFailure
                 }
@@ -390,7 +392,8 @@ class AuthViewModel(
                 authService.clearStoredSession()
                 resetUserInfoState()
                 _uiState.value = AuthUiState()
-                if (CredentialStore.isAutoLogin()) login() else preloadLoginState()
+                if (CredentialStore.canAutomaticallyAuthenticate()) login(automatic = true)
+                else preloadLoginState()
               }
         }
   }
@@ -428,7 +431,6 @@ data class LoginFormState(
     val password: String = "",
     val captcha: String = "",
     val rememberPassword: Boolean = false,
-    val autoLogin: Boolean = false,
 )
 
 /**
@@ -455,3 +457,17 @@ private val captchaFailureKeywords =
         "参数不正确",
         "参数错误",
     )
+
+internal fun isExpiredSession(error: Throwable): Boolean =
+    error is ApiCallException &&
+        (error.status?.value == 401 ||
+            error.code in
+                setOf(
+                    "unauthorized",
+                    "unauthenticated",
+                    "invalid_token",
+                    "invalid_refresh_token",
+                    "auth_required",
+                    "session_expired",
+                    "not_logged_in",
+                ))

@@ -43,7 +43,7 @@ class AuthLogoutCleanupTest {
                 Result.failure(IllegalStateException("synthetic offline"))
           }
       val model = AuthViewModel(authService = auth)
-      model.logout()
+      model.logout(clearLocalData = true)
       advanceUntilIdle()
       assertNull(ScheduleStore.account())
       assertEquals(emptyList(), ScheduleStore.read("alice"))

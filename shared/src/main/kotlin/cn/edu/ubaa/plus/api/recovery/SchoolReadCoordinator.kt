@@ -88,7 +88,7 @@ internal object SchoolReadCoordinator {
     val scope = capture()
     val cacheGeneration = FeatureReadCache.generation
     val allowFallback = cache && currentCoroutineContext()[FreshSchoolRead.Key] == null
-    if (!onlineAllowed)
+    if (!onlineAllowed || CredentialStore.requiresManualLogin())
         return (if (allowFallback) FeatureReadCache.get(feature, query, serializer) else null)
             ?.let { Result.success(it) }
             ?: Result.failure(ApiCallException("登录后可更新此内容", code = "offline_cache_missing"))
@@ -156,11 +156,16 @@ internal object SchoolReadCoordinator {
   }
 
   private suspend fun restoreCurrentSession(): Boolean {
+    if (CredentialStore.requiresManualLogin()) return false
     val owner = ScheduleStore.account() ?: return false
     val service = AuthService()
-    val status = service.getAuthStatus().getOrNull()
-    if (status != null) return status.user.schoolid == owner
-    if (!CredentialStore.isAutoLogin() || CredentialStore.getUsername() != owner) return false
+    val status = service.getAuthStatus()
+    status.getOrNull()?.let {
+      return it.user.schoolid == owner
+    }
+    if (!isAuthenticationFailure(status.exceptionOrNull())) return false
+    if (!CredentialStore.canAutomaticallyAuthenticate() || CredentialStore.getUsername() != owner)
+        return false
     val password = CredentialStore.getPassword()?.takeIf { it.isNotBlank() } ?: return false
     return service.login(owner, password).getOrNull()?.user?.schoolid == owner
   }

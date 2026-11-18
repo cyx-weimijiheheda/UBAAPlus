@@ -147,7 +147,7 @@ internal class MainScreenActions(
     val onSelectedBykcCourseChange: (Long?, BykcCourseDto?) -> Unit,
     val onSelectedSpocAssignmentChange: (String?) -> Unit,
     val onSelectedJudgeAssignmentChange: (String?, String?) -> Unit,
-    val onLogoutClick: () -> Unit,
+    val onLogoutClick: (Boolean) -> Unit,
 )
 
 /**

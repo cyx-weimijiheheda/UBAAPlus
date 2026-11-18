@@ -66,7 +66,6 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * @param onPasswordChange 密码改变回调。
  * @param onCaptchaChange 验证码改变回调。
  * @param onRememberPasswordChange “记住密码”开关回调。
- * @param onAutoLoginChange “自动登录”开关回调。
  * @param onConnectionModeSelected 连接模式切换回调。
  * @param onLoginClick 点击登录按钮回调。
  * @param onRefreshCaptcha 点击验证码图片刷新回调。
@@ -85,7 +84,6 @@ fun LoginScreen(
     onPasswordChange: (String) -> Unit,
     onCaptchaChange: (String) -> Unit,
     onRememberPasswordChange: (Boolean) -> Unit,
-    onAutoLoginChange: (Boolean) -> Unit,
     onConnectionModeSelected: (ConnectionMode) -> Unit,
     onLoginClick: () -> Unit,
     onRefreshCaptcha: () -> Unit,
@@ -195,13 +193,6 @@ fun LoginScreen(
             label = "记住密码",
             checked = loginFormState.rememberPassword,
             onCheckedChange = onRememberPasswordChange,
-            enabled = !isLoading,
-            modifier = Modifier.weight(1f),
-        )
-        UbaaCheckboxRow(
-            label = "自动登录",
-            checked = loginFormState.autoLogin,
-            onCheckedChange = onAutoLoginChange,
             enabled = !isLoading,
             modifier = Modifier.weight(1f),
         )

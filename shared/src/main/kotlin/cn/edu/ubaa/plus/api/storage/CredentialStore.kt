@@ -46,6 +46,20 @@ object CredentialStore {
 
   fun isAutoLogin(): Boolean = settings.getBoolean(KEY_AUTO_LOGIN, false)
 
+  // Explicit sign-out must survive process restarts and block silent recovery too.
+  fun requiresManualLogin(): Boolean = settings.getBoolean("manual_auth_required", false)
+
+  fun requireManualLogin() {
+    settings.putBoolean("manual_auth_required", true)
+  }
+
+  fun allowLogin() {
+    settings.remove("manual_auth_required")
+  }
+
+  fun canAutomaticallyAuthenticate(): Boolean =
+      !requiresManualLogin() && !getUsername().isNullOrBlank() && !getPassword().isNullOrBlank()
+
   fun clear() {
     settings.remove(KEY_USERNAME)
     settings.remove(KEY_PASSWORD)

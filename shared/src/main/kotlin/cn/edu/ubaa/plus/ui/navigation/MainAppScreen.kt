@@ -143,10 +143,13 @@ fun MainAppScreen(
     availableConnectionModes: List<ConnectionMode>,
     onEnsureUserInfo: () -> Unit,
     onConnectionModeSelected: (ConnectionMode) -> Unit,
-    onLogoutClick: () -> Unit,
+    onLogoutClick: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     isAuthenticated: Boolean = true,
     onLoginRequired: () -> Unit = {},
+    authMessage: String? = null,
+    authAction: String = "重试",
+    onAuthRetry: () -> Unit = {},
 ) {
   val revision by cn.edu.ubaa.plus.api.storage.CacheMaintenance.changes.collectAsState()
   val businessStore = remember(userData.schoolid, revision) { androidx.lifecycle.ViewModelStore() }
@@ -172,6 +175,9 @@ fun MainAppScreen(
         modifier,
         isAuthenticated,
         onLoginRequired,
+        authMessage,
+        authAction,
+        onAuthRetry,
     )
   }
 }
@@ -186,10 +192,13 @@ private fun MainAppContent(
     availableConnectionModes: List<ConnectionMode>,
     onEnsureUserInfo: () -> Unit,
     onConnectionModeSelected: (ConnectionMode) -> Unit,
-    onLogoutClick: () -> Unit,
+    onLogoutClick: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     isAuthenticated: Boolean = true,
     onLoginRequired: () -> Unit = {},
+    authMessage: String? = null,
+    authAction: String = "重试",
+    onAuthRetry: () -> Unit = {},
 ) {
   val scope = rememberCoroutineScope()
   val appContext = LocalContext.current
@@ -222,13 +231,19 @@ private fun MainAppContent(
   }
   var homeSyncStarted by
       remember(userData.schoolid, isAuthenticated, cacheRevision) { mutableStateOf(false) }
-  LaunchedEffect(isAuthenticated) {
+  LaunchedEffect(isAuthenticated, authMessage) {
+    homeSnackbarHostState.currentSnackbarData?.dismiss()
     if (
         !isAuthenticated &&
-            homeSnackbarHostState.showSnackbar("当前显示已保存数据，登录后更新", actionLabel = "登录") ==
-                SnackbarResult.ActionPerformed
-    )
-        onLoginRequired()
+            authMessage != null &&
+            homeSnackbarHostState.showSnackbar(
+                authMessage,
+                actionLabel = authAction,
+                duration = androidx.compose.material3.SnackbarDuration.Indefinite,
+            ) == SnackbarResult.ActionPerformed
+    ) {
+      onAuthRetry()
+    }
   }
   val homeBootstrapCoordinator = remember(scope) { HomeBootstrapCoordinator(scope) }
   val homeBootstrapRunning by homeBootstrapCoordinator.isRunning.collectAsState()
@@ -789,10 +804,10 @@ private fun MainAppContent(
   }
 
   /** 退出登录前先停止所有前台抢单任务，避免带着已清理的会话继续请求。 */
-  fun performLogout() {
+  fun performLogout(clearLocalData: Boolean) {
     bykcViewModel.stopGrab(BykcGrabStopReason.LOGOUT)
     venueViewModel?.stopGrabForLogout()
-    onLogoutClick()
+    onLogoutClick(clearLocalData)
   }
 
   fun handleHomeTodoClick(todoItem: HomeTodoItem) {
@@ -1351,7 +1366,7 @@ private fun MainAppContent(
                 selectedJudgeCourseId = courseId
                 selectedJudgeAssignmentId = assignmentId
               },
-              onLogoutClick = { performLogout() },
+              onLogoutClick = { performLogout(it) },
           )
 
       Box(modifier = Modifier.fillMaxWidth().weight(1f)) {

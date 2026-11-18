@@ -13,6 +13,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -98,7 +99,9 @@ fun App() {
     }
     val cachedUserRevision by CachedUserStore.changes.collectAsState()
     val cachedUser = remember(cachedUserRevision) { CachedUserStore.current() }
-    var showLogin by rememberSaveable { mutableStateOf(false) }
+    var showLogin by rememberSaveable {
+      mutableStateOf(cn.edu.ubaa.plus.api.storage.CredentialStore.requiresManualLogin())
+    }
     LaunchedEffect(uiState.isLoggedIn) { if (uiState.isLoggedIn) showLogin = false }
     BackHandler(enabled = showLogin && cachedUser != null) { showLogin = false }
 
@@ -174,7 +177,11 @@ fun App() {
       val preferred = ConnectionRuntime.preferredMode()
       selectedConnectionMode = preferred
       modeResolved = true
-      if (CachedUserStore.current() != null || ScheduleStore.hasSavedSchedule())
+      if (
+          CachedUserStore.current() != null ||
+              ScheduleStore.hasSavedSchedule() ||
+              cn.edu.ubaa.plus.api.storage.CredentialStore.canAutomaticallyAuthenticate()
+      )
           isSplashFinished = true
       if (preferred != null) {
         ConnectionRuntime.resolveStartupMode()?.let { bootstrapForMode(it) }
@@ -226,8 +233,7 @@ fun App() {
                   !uiState.isPreloading &&
                   !uiState.isRefreshingCaptcha &&
                   !uiState.isLoggedIn &&
-                  uiState.error == null &&
-                  !loginForm.autoLogin)
+                  uiState.error == null)
 
       if (shouldEndSplash) isSplashFinished = true
     }
@@ -352,9 +358,47 @@ fun App() {
                 authViewModel.switchConnectionMode(mode)
                 appScope.launch { checkStartupPrompts() }
               },
-              onLogoutClick = { authViewModel.logout() },
+              onLogoutClick = { clear ->
+                showLogin = true
+                authViewModel.logout(clear)
+              },
+              authMessage = if (uiState.captchaRequired) "需要补全验证码后登录" else uiState.error,
+              authAction =
+                  if (uiState.captchaRequired) "补全登录"
+                  else if (uiState.error?.contains("密码") == true) "重新登录" else "重试",
+              onAuthRetry = {
+                if (uiState.captchaRequired || uiState.error?.contains("密码") == true)
+                    showLogin = true
+                else authViewModel.retryAuthentication()
+              },
               modifier = Modifier.fillMaxSize(),
           )
+        }
+      }
+      !showLogin && cn.edu.ubaa.plus.api.storage.CredentialStore.canAutomaticallyAuthenticate() -> {
+        androidx.compose.foundation.layout.Column(
+            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(24.dp),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        ) {
+          Text("首页", style = MaterialTheme.typography.headlineMedium)
+          Text(
+              if (uiState.isLoading || uiState.isPreloading) "正在恢复登录…"
+              else uiState.error ?: "登录后加载课程与待办"
+          )
+          if (!uiState.isLoading && !uiState.isPreloading) {
+            cn.edu.ubaa.plus.ui.common.components.UbaaButton(
+                onClick = {
+                  if (uiState.captchaRequired || uiState.error?.contains("密码") == true)
+                      showLogin = true
+                  else authViewModel.retryAuthentication()
+                }
+            ) {
+              Text(if (uiState.captchaRequired) "补全登录" else "重试")
+            }
+            cn.edu.ubaa.plus.ui.common.components.UbaaTextButton(onClick = { showLogin = true }) {
+              Text("修改登录信息")
+            }
+          }
         }
       }
       else -> {
@@ -366,7 +410,6 @@ fun App() {
             onPasswordChange = { authViewModel.updatePassword(it) },
             onCaptchaChange = { authViewModel.updateCaptcha(it) },
             onRememberPasswordChange = { authViewModel.updateRememberPassword(it) },
-            onAutoLoginChange = { authViewModel.updateAutoLogin(it) },
             onConnectionModeSelected = { mode ->
               selectedConnectionMode = mode
               authViewModel.switchConnectionMode(mode)

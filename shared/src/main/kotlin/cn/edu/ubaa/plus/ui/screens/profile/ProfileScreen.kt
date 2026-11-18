@@ -5,7 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -50,7 +50,7 @@ fun ProfileScreen(
     connectionMode: ConnectionMode,
     onSettingsClick: () -> Unit,
     onAboutClick: () -> Unit,
-    onLogoutClick: () -> Unit,
+    onLogoutClick: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     isAuthenticated: Boolean = true,
     onCardClick: () -> Unit = {},
@@ -84,6 +84,50 @@ fun ProfileScreen(
         confirmButton = {},
     )
   }
+  var showLogout by remember { mutableStateOf(false) }
+  var confirmClear by remember { mutableStateOf(false) }
+  if (showLogout)
+      UbaaAlertDialog(
+          onDismissRequest = { showLogout = false },
+          title = { Text("退出登录") },
+          text = {
+            Column {
+              UbaaTextButton(
+                  onClick = {
+                    showLogout = false
+                    onLogoutClick(false)
+                  }
+              ) {
+                Text("退出登录（保留本地数据）")
+              }
+              UbaaTextButton(
+                  onClick = {
+                    showLogout = false
+                    confirmClear = true
+                  }
+              ) {
+                Text("退出登录并清除本地数据", color = MaterialTheme.colorScheme.error)
+              }
+            }
+          },
+          confirmButton = {},
+      )
+  if (confirmClear)
+      UbaaAlertDialog(
+          onDismissRequest = { confirmClear = false },
+          title = { Text("清除当前账户的本地数据？") },
+          text = { Text("将删除当前账户的密码、课表、业务缓存及提醒记录，其他账户和外观设置保留。") },
+          confirmButton = {
+            UbaaTextButton(
+                onClick = {
+                  confirmClear = false
+                  onLogoutClick(true)
+                }
+            ) {
+              Text("清除并退出")
+            }
+          },
+      )
   val quips = remember { profileQuips() }
   var quipIndex by remember { mutableIntStateOf(Random.nextInt(quips.size)) }
   val nextQuip = { quipIndex = (quipIndex + 1 + Random.nextInt(quips.size - 1)) % quips.size }
@@ -108,45 +152,56 @@ fun ProfileScreen(
                   containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
               ),
       ) {
-        Column(
+        Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
           Box(
               modifier =
-                  Modifier.size(56.dp)
-                      .clip(CircleShape)
+                  Modifier.size(60.dp)
+                      .clip(RoundedCornerShape(16.dp))
                       .background(MaterialTheme.colorScheme.primary)
           ) {
-            Icon(
-                imageVector = Icons.Default.AccountCircle,
-                contentDescription = "用户头像",
-                modifier = Modifier.fillMaxSize().padding(10.dp),
-                tint = MaterialTheme.colorScheme.onPrimary,
-            )
+            val initials = profileInitials(userData.name)
+            if (initials.isNotEmpty())
+                Text(
+                    initials,
+                    modifier = Modifier.align(Alignment.Center),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+            else
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "用户头像",
+                    modifier = Modifier.fillMaxSize().padding(10.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
           }
-          Spacer(modifier = Modifier.height(12.dp))
-          Text(
-              text = userData.name,
-              style = MaterialTheme.typography.titleLarge,
-              fontWeight = FontWeight.SemiBold,
-              textAlign = TextAlign.Center,
-          )
-          Spacer(modifier = Modifier.height(8.dp))
-          FlowRow(
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
-              verticalArrangement = Arrangement.spacedBy(4.dp),
-          ) {
-            SuggestionChip(
-                onClick = { showDetails = true },
-                label = {
-                  Text(metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "学院未提供")
-                },
+          Spacer(modifier = Modifier.width(16.dp))
+          Column(Modifier.weight(1f)) {
+            Text(
+                text = userData.name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
             )
-            SuggestionChip(
-                onClick = { showDetails = true },
-                label = { Text(profileStudentType(metrics.profile?.studentType)) },
-            )
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+              SuggestionChip(
+                  onClick = { showDetails = true },
+                  label = {
+                    Text(metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "学院未提供")
+                  },
+              )
+              SuggestionChip(
+                  onClick = { showDetails = true },
+                  label = { Text(profileStudentType(metrics.profile?.studentType)) },
+              )
+            }
           }
         }
       }
@@ -184,7 +239,7 @@ fun ProfileScreen(
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PrivateBalanceCard(
             "校园卡余额",
-            metrics.card?.value?.let { String.format(Locale.CHINA, "%.2f", it) },
+            metrics.card?.value?.let { cn.edu.ubaa.plus.util.formatMoney(it) },
             metrics.loading,
             metrics.cardError,
             onCardClick,
@@ -192,7 +247,7 @@ fun ProfileScreen(
         )
         PrivateBalanceCard(
             "网费余额",
-            metrics.network?.value?.takeIf { it.isNotBlank() },
+            cn.edu.ubaa.plus.util.formatMoney(metrics.network?.value),
             metrics.loading,
             metrics.networkError,
             onNetworkClick,
@@ -211,7 +266,7 @@ fun ProfileScreen(
 
     item {
       UbaaSecondaryButton(
-          onClick = onLogoutClick,
+          onClick = { showLogout = true },
           modifier = Modifier.fillMaxWidth(),
           colors =
               ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -342,3 +397,15 @@ private fun profileQuips(): List<String> =
         "愿你所求皆如愿，所抢皆有票。",
         "今天的风很温柔，适合去操场走一走。",
     )
+
+internal fun profileInitials(name: String): String {
+  val clean = name.trim()
+  val chinese =
+      clean.codePoints().toArray().firstOrNull {
+        Character.UnicodeScript.of(it) == Character.UnicodeScript.HAN
+      }
+  if (chinese != null) return String(Character.toChars(chinese))
+  val words = clean.split(Regex("\\s+")).filter { it.isNotBlank() }
+  return if (words.size >= 2) (words.first().take(1) + words.last().take(1)).uppercase(Locale.ROOT)
+  else clean.take(2).uppercase(Locale.ROOT)
+}
