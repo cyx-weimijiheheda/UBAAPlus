@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 internal data class ProfileMetricsState(
+    val avatar: SchoolAvatarDto? = FeatureReadCache.get("profile", "school-avatar"),
     val profile: BykcUserProfileDto? = FeatureReadCache.get("bykc", "profile"),
     val card: CampusCardBalanceDto? = FeatureReadCache.get("card", "balance"),
     val network: ItPersonalDetailDto? = FeatureReadCache.get("network", "fee"),
@@ -42,6 +43,11 @@ internal class ProfileMetricsViewModel(
     val scope = SchoolReadCoordinator.capture()
     mutable.value = mutable.value.copy(loading = true)
     viewModelScope.launch {
+      launch {
+        val result = portal.getAvatar()
+        if (scope.isCurrent())
+            mutable.value = mutable.value.copy(avatar = result.getOrNull() ?: mutable.value.avatar)
+      }
       val profile = async { bykc.getProfile().getOrNull() }
       val balance = async { card.getBalance() }
       val fee = async {

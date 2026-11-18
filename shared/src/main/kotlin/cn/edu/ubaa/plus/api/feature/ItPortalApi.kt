@@ -44,12 +44,19 @@ interface ItPortalApiBackend {
   suspend fun getPersonalDetail(id: String): Result<ItPersonalDetailDto>
 
   suspend fun getCardBalance(): Result<ItCardBalanceDto>
+
+  suspend fun getAvatar(): Result<SchoolAvatarDto> = Result.failure(ApiCallException("学校头像暂不可用"))
 }
 
 class ItPortalApi internal constructor(private val backend: ItPortalApiBackend) {
   constructor() : this(LocalItPortalApiBackend())
 
   suspend fun getPersonalItems(): Result<List<ItPersonalItemDto>> = backend.getPersonalItems()
+
+  suspend fun getAvatar(): Result<SchoolAvatarDto> =
+      cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.read("profile", "school-avatar") {
+        backend.getAvatar()
+      }
 
   suspend fun getPersonalDetail(id: String): Result<ItPersonalDetailDto> =
       backend.getPersonalDetail(id)
@@ -123,6 +130,25 @@ internal class LocalItPortalApiBackend : ItPortalApiBackend {
         )
       }
 
+  override suspend fun getAvatar(): Result<SchoolAvatarDto> =
+      execute("学校头像加载失败") {
+        val owner =
+            cn.edu.ubaa.plus.repository.ScheduleStore.account()
+                ?: throw ApiCallException("请先登录", code = "unauthenticated")
+        val root = parseObject(getText("/personal/frontend/data/info"))
+        val info =
+            ((root["d"] ?: root["data"]) as? JsonObject)?.get("info") as? JsonObject
+                ?: throw ApiCallException("门户资料格式异常", code = "portal_parse_error")
+        if (info.string("xgh") != owner)
+            throw ApiCallException("门户账户与当前账户不一致", code = "portal_account_mismatch")
+        val source = info.string("avatar").ifBlank { info.string("avatar_url") }
+        if (
+            source.isBlank() || source.contains("headpic", true) || source.contains("default", true)
+        )
+            SchoolAvatarDto(owner)
+        else fetchSchoolAvatar(owner, source)
+      }
+
   private suspend fun getText(path: String, allowActivation: Boolean = true): String {
     val response =
         LocalUpstreamClientProvider.shared().get(localUpstreamUrl("https://it.buaa.edu.cn$path")) {
@@ -147,7 +173,7 @@ internal class LocalItPortalApiBackend : ItPortalApiBackend {
       }
       throw ApiCallException("校园门户登录状态已失效，请重新登录", code = "portal_unauthenticated")
     }
-    if (error != null && error != "0") {
+    if (error != null && error !in setOf("0", "OK")) {
       throw ApiCallException("校园门户数据暂不可用", code = "portal_upstream_error")
     }
     return body

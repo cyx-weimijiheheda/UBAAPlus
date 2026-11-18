@@ -301,6 +301,8 @@ internal object LocalUpstreamClientProvider {
   }
 }
 
+internal val LocalPrivateRead = io.ktor.util.AttributeKey<Boolean>("private-school-read")
+
 private fun buildLocalUpstreamClient(
     followRedirects: Boolean,
     cookieStorage: CookiesStorage,
@@ -316,7 +318,10 @@ private fun buildLocalUpstreamClient(
           }
       )
     }
-    install(Logging) { level = LogLevel.INFO }
+    install(Logging) {
+      level = LogLevel.INFO
+      filter { it.attributes.getOrNull(LocalPrivateRead) != true }
+    }
     install(HttpCookies) { storage = cookieStorage }
     install(HttpTimeout) {
       requestTimeoutMillis = 30_000

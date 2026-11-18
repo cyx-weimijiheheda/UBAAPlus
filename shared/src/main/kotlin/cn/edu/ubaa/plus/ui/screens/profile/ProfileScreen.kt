@@ -150,7 +150,10 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-          ProfileAvatar(userData.schoolid, userData.name)
+          ProfileAvatar(
+              userData.name,
+              metrics.avatar?.takeIf { it.owner == userData.schoolid }?.encodedImage,
+          )
           Spacer(modifier = Modifier.width(16.dp))
           Column(Modifier.weight(1f)) {
             Text(
