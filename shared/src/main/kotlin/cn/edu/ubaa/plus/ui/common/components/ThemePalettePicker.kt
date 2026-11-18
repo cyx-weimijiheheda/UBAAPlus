@@ -30,8 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.storage.ThemePalette
 import cn.edu.ubaa.plus.ui.theme.customBrandArgbToHex
@@ -64,53 +62,19 @@ fun ThemePalettePicker(
   }
 
   Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-      presets.forEach { palette ->
-        Column(
-            modifier =
-                Modifier.weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(enabled = !followWallpaper) { onPaletteSelected(palette) }
-                    .padding(horizontal = 2.dp, vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-          val swatch = palette.swatchColor(customBrandArgb)
+    UbaaSegmentedTabs(
+        labels = presets.map { it.displayName },
+        selectedIndex = if (followWallpaper) -1 else presets.indexOf(selected),
+        onSelected = { onPaletteSelected(presets[it]) },
+        enabled = !followWallpaper,
+        leadingContent = { index ->
           Box(
-              modifier =
-                  Modifier.size(38.dp)
-                      .clip(CircleShape)
-                      .background(swatch)
-                      .border(
-                          BorderStroke(
-                              width = if (!followWallpaper && palette == selected) 2.dp else 0.dp,
-                              color = MaterialTheme.colorScheme.onSurface,
-                          ),
-                          CircleShape,
-                      ),
-              contentAlignment = Alignment.Center,
-          ) {
-            if (!followWallpaper && palette == selected) {
-              Icon(
-                  imageVector = Icons.Default.Check,
-                  contentDescription = null,
-                  tint = if (swatch.luminance() > 0.5f) Color(0xFF111318) else Color.White,
-                  modifier = Modifier.size(18.dp),
-              )
-            }
-          }
-          Text(
-              text = palette.displayName,
-              style = MaterialTheme.typography.labelSmall,
-              fontWeight = if (palette == selected) FontWeight.Bold else FontWeight.Normal,
-              maxLines = 1,
+              Modifier.size(16.dp)
+                  .clip(CircleShape)
+                  .background(presets[index].swatchColor(customBrandArgb))
           )
-        }
-      }
-    }
+        },
+    )
 
     Row(
         modifier =

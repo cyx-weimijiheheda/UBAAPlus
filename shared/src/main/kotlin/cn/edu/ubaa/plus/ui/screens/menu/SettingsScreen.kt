@@ -16,13 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,7 +47,6 @@ import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
-import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.coroutines.launch
 
 private sealed interface DormRoomsState {
@@ -255,15 +250,11 @@ fun SettingsScreen(
         }
         Spacer(modifier = Modifier.height(12.dp))
         Text("功能页布局", style = MaterialTheme.typography.bodyLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          FeatureLayout.entries.forEach { layout ->
-            FilterChip(
-                selected = preferences.featureLayout == layout,
-                onClick = { AppPreferencesStore.setFeatureLayout(layout) },
-                label = { Text(layout.displayName) },
-            )
-          }
-        }
+        UbaaSegmentedTabs(
+            labels = FeatureLayout.entries.map { it.displayName },
+            selectedIndex = preferences.featureLayout.ordinal,
+            onSelected = { AppPreferencesStore.setFeatureLayout(FeatureLayout.entries[it]) },
+        )
       }
     }
 
@@ -439,38 +430,18 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        availableModes.forEach { mode ->
-          Card(
-              modifier =
-                  Modifier.padding(vertical = 6.dp).ubaaGlassSurface().fillMaxWidth().clickable {
-                    if (mode != currentMode) pendingMode = mode
-                  },
-              colors =
-                  CardDefaults.cardColors(
-                      containerColor =
-                          if (mode == currentMode) {
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
-                          } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
-                          }
-                  ),
-          ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-              RadioButton(selected = mode == currentMode, onClick = null)
-              Column(modifier = Modifier.padding(start = 10.dp)) {
-                Text(text = mode.displayName, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = mode.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-              }
-            }
-          }
-        }
+        UbaaSegmentedTabs(
+            labels = availableModes.map { it.displayName },
+            selectedIndex = availableModes.indexOf(currentMode),
+            onSelected = { index ->
+              availableModes[index].takeIf { it != currentMode }?.let { pendingMode = it }
+            },
+        )
+        Text(
+            currentMode.description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
       }
     }
 

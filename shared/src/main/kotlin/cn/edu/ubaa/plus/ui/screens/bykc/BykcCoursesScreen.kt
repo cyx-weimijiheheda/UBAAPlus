@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedMultiSelect
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -240,14 +241,14 @@ internal fun BykcCourseFiltersDialog(
               iconTint = MaterialTheme.colorScheme.primary,
               supportingText = "全部取消则表示状态不限",
           ) {
-            filterOptions.statuses.forEach { status ->
-              BykcFilterChip(
-                  selected = status in filters.statuses,
-                  onClick = { onFiltersChange(filters.toggleStatus(status)) },
-                  label = status.displayName,
-                  accentColor = MaterialTheme.colorScheme.primary,
-              )
-            }
+            UbaaSegmentedMultiSelect(
+                labels = filterOptions.statuses.map { it.displayName },
+                selectedIndices =
+                    filterOptions.statuses.indices
+                        .filter { filterOptions.statuses[it] in filters.statuses }
+                        .toSet(),
+                onToggle = { onFiltersChange(filters.toggleStatus(filterOptions.statuses[it])) },
+            )
           }
 
           if (filterOptions.categories.isNotEmpty()) {
@@ -259,14 +260,16 @@ internal fun BykcCourseFiltersDialog(
                 iconTint = MaterialTheme.colorScheme.tertiary,
                 supportingText = "可任选多项",
             ) {
-              filterOptions.categories.forEach { category ->
-                BykcFilterChip(
-                    selected = category in filters.categories,
-                    onClick = { onFiltersChange(filters.toggleCategory(category)) },
-                    label = category,
-                    accentColor = MaterialTheme.colorScheme.tertiary,
-                )
-              }
+              UbaaSegmentedMultiSelect(
+                  labels = filterOptions.categories.toList(),
+                  selectedIndices =
+                      filterOptions.categories.indices
+                          .filter { filterOptions.categories[it] in filters.categories }
+                          .toSet(),
+                  onToggle = {
+                    onFiltersChange(filters.toggleCategory(filterOptions.categories[it]))
+                  },
+              )
             }
           }
 
@@ -279,48 +282,18 @@ internal fun BykcCourseFiltersDialog(
                 iconTint = MaterialTheme.colorScheme.secondary,
                 supportingText = "未指定即教师未设置开课地点所在校区",
             ) {
-              filterOptions.campuses.forEach { campus ->
-                BykcFilterChip(
-                    selected = campus in filters.campuses,
-                    onClick = { onFiltersChange(filters.toggleCampus(campus)) },
-                    label = campus,
-                    accentColor = MaterialTheme.colorScheme.secondary,
-                )
-              }
+              UbaaSegmentedMultiSelect(
+                  labels = filterOptions.campuses.toList(),
+                  selectedIndices =
+                      filterOptions.campuses.indices
+                          .filter { filterOptions.campuses[it] in filters.campuses }
+                          .toSet(),
+                  onToggle = { onFiltersChange(filters.toggleCampus(filterOptions.campuses[it])) },
+              )
             }
           }
         }
       },
-  )
-}
-
-@Composable
-private fun BykcFilterChip(
-    selected: Boolean,
-    onClick: () -> Unit,
-    label: String,
-    accentColor: Color,
-) {
-  FilterChip(
-      selected = selected,
-      onClick = onClick,
-      label = { Text(label) },
-      leadingIcon =
-          if (selected) {
-            {
-              Icon(
-                  imageVector = Icons.Default.Check,
-                  contentDescription = null,
-                  tint = accentColor,
-              )
-            }
-          } else null,
-      colors =
-          FilterChipDefaults.filterChipColors(
-              selectedContainerColor = accentColor.copy(alpha = 0.14f),
-              selectedLabelColor = accentColor,
-              selectedLeadingIconColor = accentColor,
-          ),
   )
 }
 
@@ -332,7 +305,7 @@ private fun BykcFilterSectionCard(
     icon: ImageVector,
     iconTint: Color,
     supportingText: String,
-    content: @Composable FlowRowScope.() -> Unit,
+    content: @Composable () -> Unit,
 ) {
   // 与其他卡片一致：磨砂层负责底色与描边，Surface 本身透明，避免实色块 + 双描边。
   Surface(
@@ -386,11 +359,7 @@ private fun BykcFilterSectionCard(
         }
       }
       Spacer(modifier = Modifier.height(14.dp))
-      FlowRow(
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp),
-          content = content,
-      )
+      content()
     }
   }
 }

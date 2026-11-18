@@ -3,7 +3,6 @@ package cn.edu.ubaa.plus.ui.screens.classroom
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -135,19 +134,12 @@ fun ClassroomQueryScreen(
     }
 
     if (uiState is ClassroomUiState.Success && availableBuildings.isNotEmpty()) {
-      LazyRow(
-          modifier = Modifier.fillMaxWidth(),
-          contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-      ) {
-        items(availableBuildings) { building ->
-          FilterChip(
-              selected = selectedBuilding == building,
-              onClick = { viewModel.toggleBuilding(building) },
-              label = { Text(building) },
-          )
-        }
-      }
+      UbaaSegmentedTabs(
+          labels = availableBuildings,
+          selectedIndex = availableBuildings.indexOfFirst { it == selectedBuilding },
+          onSelected = { viewModel.toggleBuilding(availableBuildings[it]) },
+          modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+      )
     }
 
     // 简单的图例
@@ -191,11 +183,6 @@ fun ClassroomQueryScreen(
       }
     }
   }
-}
-
-@Composable
-fun CampusButton(name: String, id: Int, selected: Boolean, onClick: () -> Unit) {
-  FilterChip(selected = selected, onClick = onClick, label = { Text(name) })
 }
 
 /** 教室排布表。 使用 LazyColumn 实现，包含表头和楼栋分组。 */

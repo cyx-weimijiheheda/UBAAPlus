@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -30,7 +29,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -55,6 +53,7 @@ import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -135,68 +134,29 @@ fun CgyyReservePickerScreen(
                   modifier = Modifier.weight(1f),
               )
           else -> {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-              items(campusOptions) { campus ->
-                FilterChip(
-                    selected = selectedCampus == campus,
-                    onClick = { viewModel.setReserveCampus(campus) },
-                    label = {
-                      Text(
-                          text = campusDisplayName(campus),
-                          maxLines = 1,
-                          overflow = TextOverflow.Ellipsis,
-                      )
-                    },
-                )
-              }
-            }
+            UbaaSegmentedTabs(
+                labels = campusOptions.map(::campusDisplayName),
+                selectedIndex = campusOptions.indexOf(selectedCampus),
+                onSelected = { viewModel.setReserveCampus(campusOptions[it]) },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
 
             if (availableDates.isNotEmpty()) {
-              LazyRow(
-                  modifier = Modifier.fillMaxWidth(),
-                  contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                  horizontalArrangement = Arrangement.spacedBy(8.dp),
-              ) {
-                items(availableDates) { date ->
-                  FilterChip(
-                      selected = uiState.selectedDate == date,
-                      onClick = { viewModel.selectDate(date) },
-                      label = {
-                        Text(
-                            text = formatCompactDateLabel(date),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                      },
-                  )
-                }
-              }
+              UbaaSegmentedTabs(
+                  labels = availableDates.map(::formatCompactDateLabel),
+                  selectedIndex = availableDates.indexOf(uiState.selectedDate),
+                  onSelected = { viewModel.selectDate(availableDates[it]) },
+                  modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+              )
             }
 
             if (visibleSites.isNotEmpty()) {
-              LazyRow(
-                  modifier = Modifier.fillMaxWidth(),
-                  contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                  horizontalArrangement = Arrangement.spacedBy(8.dp),
-              ) {
-                items(visibleSites) { site ->
-                  FilterChip(
-                      selected = uiState.selectedSiteId == site.id,
-                      onClick = { viewModel.selectSite(site.id) },
-                      label = {
-                        Text(
-                            text = siteSelectionLabel(site),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                      },
-                  )
-                }
-              }
+              UbaaSegmentedTabs(
+                  labels = visibleSites.map(::siteSelectionLabel),
+                  selectedIndex = visibleSites.indexOfFirst { it.id == uiState.selectedSiteId },
+                  onSelected = { viewModel.selectSite(visibleSites[it].id) },
+                  modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+              )
             }
 
             when {

@@ -20,7 +20,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -41,6 +40,7 @@ import cn.edu.ubaa.plus.model.dto.canCancelAt
 import cn.edu.ubaa.plus.model.dto.displayReservationDateText
 import cn.edu.ubaa.plus.model.dto.displayStatus
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -158,18 +158,11 @@ internal fun CgyyPurposeTypeDialog(
       onDismissRequest = onDismiss,
       title = { Text("选择活动类型") },
       text = {
-        Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-          options.forEach { option ->
-            FilterChip(
-                selected = selected == option.key,
-                onClick = { onSelect(option.key) },
-                label = { Text(option.name) },
-            )
-          }
-        }
+        UbaaSegmentedTabs(
+            labels = options.map { it.name },
+            selectedIndex = options.indexOfFirst { it.key == selected },
+            onSelected = { onSelect(options[it].key) },
+        )
       },
       confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
   )

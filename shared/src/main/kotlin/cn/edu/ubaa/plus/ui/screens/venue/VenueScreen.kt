@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -39,6 +38,8 @@ import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.model.format.formatUbaaFlexibleRange
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedMultiSelect
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -466,19 +467,11 @@ private fun VenueSiteDateCard(
 
       Spacer(modifier = Modifier.height(12.dp))
 
-      Row(
-          modifier = Modifier.horizontalScroll(rememberScrollState()),
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-      ) {
-        state.availableDates.forEach { date ->
-          val selected = date.toString() == state.selectedDate
-          FilterChip(
-              selected = selected,
-              onClick = { onDateSelected(date) },
-              label = { Text(formatUbaaCompactDate(date.toString())) },
-          )
-        }
-      }
+      UbaaSegmentedTabs(
+          labels = state.availableDates.map { formatUbaaCompactDate(it.toString()) },
+          selectedIndex = state.availableDates.indexOfFirst { it.toString() == state.selectedDate },
+          onSelected = { onDateSelected(state.availableDates[it]) },
+      )
 
       state.dayInfoMessage?.let {
         Spacer(modifier = Modifier.height(8.dp))
@@ -918,31 +911,20 @@ private fun VenueTargetOptionsCard(
       Spacer(modifier = Modifier.height(8.dp))
 
       Text("时长", style = MaterialTheme.typography.labelMedium)
-      FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        state.durationOptions.forEach { minutes ->
-          FilterChip(
-              selected = state.durationMinutes == minutes,
-              onClick = { onDurationChange(minutes) },
-              label = { Text(venueDurationLabel(minutes)) },
-          )
-        }
-      }
+      UbaaSegmentedTabs(
+          labels = state.durationOptions.map(::venueDurationLabel),
+          selectedIndex = state.durationOptions.indexOf(state.durationMinutes),
+          onSelected = { onDurationChange(state.durationOptions[it]) },
+      )
 
       Spacer(modifier = Modifier.height(8.dp))
       if (automationEnabled) {
         Text("场地模式", style = MaterialTheme.typography.labelMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          FilterChip(
-              selected = state.spaceMode == VenueSpaceMode.FIXED,
-              onClick = { onSpaceModeChange(VenueSpaceMode.FIXED) },
-              label = { Text("指定场地") },
-          )
-          FilterChip(
-              selected = state.spaceMode == VenueSpaceMode.AUTO,
-              onClick = { onSpaceModeChange(VenueSpaceMode.AUTO) },
-              label = { Text("自动选场地") },
-          )
-        }
+        UbaaSegmentedTabs(
+            labels = listOf("指定场地", "自动选场地"),
+            selectedIndex = state.spaceMode.ordinal,
+            onSelected = { onSpaceModeChange(VenueSpaceMode.entries[it]) },
+        )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
           Checkbox(
@@ -1028,18 +1010,14 @@ private fun VenueBuddiesCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
       } else {
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-          state.buddies.forEach { buddy ->
-            FilterChip(
-                selected = buddy.id in state.selectedBuddyIds,
-                onClick = { onToggleBuddy(buddy.id) },
-                label = { Text(buddy.name.ifBlank { buddy.userUid }) },
-            )
-          }
-        }
+        UbaaSegmentedMultiSelect(
+            labels = state.buddies.map { it.name.ifBlank { it.userUid } },
+            selectedIndices =
+                state.buddies.indices
+                    .filter { state.buddies[it].id in state.selectedBuddyIds }
+                    .toSet(),
+            onToggle = { onToggleBuddy(state.buddies[it].id) },
+        )
       }
     }
   }

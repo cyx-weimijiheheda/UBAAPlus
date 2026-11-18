@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -35,7 +33,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,6 +65,7 @@ import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.shared.R
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -229,15 +227,13 @@ fun LibBookReserveScreen(
                     uiState.areas.isEmpty() ->
                         Text("当前楼层暂无可预约分区", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     else ->
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                          items(uiState.areas) { area ->
-                            FilterChip(
-                                selected = area.id == uiState.selectedAreaId,
-                                onClick = { viewModel.selectArea(area.id) },
-                                label = { Text("${area.name} ${area.freeNum}/${area.totalNum}") },
-                            )
-                          }
-                        }
+                        UbaaSegmentedTabs(
+                            labels =
+                                uiState.areas.map { "${it.name} ${it.freeNum}/${it.totalNum}" },
+                            selectedIndex =
+                                uiState.areas.indexOfFirst { it.id == uiState.selectedAreaId },
+                            onSelected = { viewModel.selectArea(uiState.areas[it].id) },
+                        )
                   }
                 }
 
