@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import cn.edu.ubaa.plus.api.feature.CampusNetworkInfoDto
 import cn.edu.ubaa.plus.api.feature.CampusTrafficDto
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
 import cn.edu.ubaa.plus.ui.common.components.UbaaButton
@@ -36,7 +35,6 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
-import java.util.Locale
 
 @Composable
 fun CampusNetworkScreen(
@@ -100,7 +98,18 @@ fun CampusNetworkScreen(
         }
 
         state.traffic?.let { traffic -> item { TrafficCard(traffic) } }
-        state.info?.let { info -> item { SrunInfoCard(info) } }
+        state.info
+            ?.onlineIp
+            ?.takeIf { it.isNotBlank() }
+            ?.let { ip ->
+              item {
+                Text(
+                    "当前设备在线 IP：$ip",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
+            }
         state.netFee?.let { fee -> item { StatCard(title = "网费余额", value = fee, unit = "元") } }
 
         item {
@@ -119,35 +128,6 @@ fun CampusNetworkScreen(
           )
         }
       }
-    }
-  }
-}
-
-@Composable
-private fun SrunInfoCard(info: CampusNetworkInfoDto) {
-  Card(
-      modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
-      colors = ubaaGlassCardColors(),
-  ) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-      Text(
-          text = info.realName.ifBlank { info.userName },
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-      )
-      if (info.onlineIp.isNotBlank()) {
-        Text("在线 IP：${info.onlineIp}", style = MaterialTheme.typography.bodySmall)
-      }
-      if (info.productsName.isNotBlank()) {
-        Text("当前套餐：${info.productsName}")
-      }
-      Text("已用流量：${formatBytes(info.sumBytes)}")
-      Text("剩余流量：${formatBytes(info.remainBytes)}")
-      Text("套餐余额：${formatMoney(info.userBalance)} 元")
-      Text("电子钱包：${formatMoney(info.walletBalance)} 元")
     }
   }
 }
@@ -202,13 +182,3 @@ private fun StatCard(title: String, value: String, unit: String) {
     }
   }
 }
-
-private fun formatBytes(bytes: Long): String {
-  if (bytes <= 0) return "0 GB"
-  val gb = bytes / 1024.0 / 1024.0 / 1024.0
-  return if (gb >= 1) "${formatGb(gb)} GB" else "${formatGb(bytes / 1024.0 / 1024.0)} MB"
-}
-
-private fun formatGb(value: Double): String = String.format(Locale.US, "%.2f", value)
-
-private fun formatMoney(value: Double): String = cn.edu.ubaa.plus.util.formatMoney(value)

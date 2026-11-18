@@ -1,15 +1,13 @@
 package cn.edu.ubaa.plus.ui.screens.profile
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -19,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -147,62 +144,37 @@ fun ProfileScreen(
     item {
       Card(
           modifier = Modifier.ubaaGlassSurface().fillMaxWidth().clickable { showDetails = true },
-          colors =
-              CardDefaults.cardColors(
-                  containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
-              ),
+          colors = cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors(),
       ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-          Box(
-              modifier =
-                  Modifier.size(60.dp)
-                      .clip(RoundedCornerShape(16.dp))
-                      .background(MaterialTheme.colorScheme.primary)
-          ) {
-            val initials = profileInitials(userData.name)
-            if (initials.isNotEmpty())
-                Text(
-                    initials,
-                    modifier = Modifier.align(Alignment.Center),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-            else
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "用户头像",
-                    modifier = Modifier.fillMaxSize().padding(10.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                )
-          }
+          ProfileAvatar(userData.schoolid, userData.name)
           Spacer(modifier = Modifier.width(16.dp))
           Column(Modifier.weight(1f)) {
             Text(
                 text = userData.name,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
+                textAlign = TextAlign.Start,
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-              SuggestionChip(
-                  onClick = { showDetails = true },
-                  label = {
-                    Text(metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "学院未提供")
-                  },
-              )
-              SuggestionChip(
-                  onClick = { showDetails = true },
-                  label = { Text(profileStudentType(metrics.profile?.studentType)) },
-              )
-            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "学院未提供",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge(
+                profileStudentType(metrics.profile?.studentType)
+            )
           }
+          Icon(
+              Icons.AutoMirrored.Filled.KeyboardArrowRight,
+              contentDescription = "查看个人资料",
+              tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
         }
       }
     }
@@ -318,7 +290,16 @@ private fun ProfileActionRow(icon: ImageVector, title: String, onClick: () -> Un
 }
 
 internal fun profileStudentType(value: String?): String =
-    value?.trim()?.takeIf { it.isNotBlank() } ?: "学生类型未提供"
+    when (value?.trim()?.uppercase(Locale.ROOT)) {
+      "BENKE",
+      "UNDERGRADUATE" -> "本科生"
+      "YANJIUSHENG",
+      "POSTGRADUATE",
+      "GRADUATE" -> "研究生"
+      "BOSHI",
+      "DOCTOR" -> "博士生"
+      else -> value?.trim()?.takeIf { it.isNotBlank() } ?: "学生类型未提供"
+    }
 
 @Composable
 private fun PrivateBalanceCard(
@@ -331,25 +312,30 @@ private fun PrivateBalanceCard(
 ) {
   var revealed by remember { mutableStateOf(false) }
   UbaaSectionCard(
-      title = title,
       modifier = modifier,
-      trailing = {
+      contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+  ) {
+    Column {
+      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         UbaaIconButton(onClick = { revealed = !revealed }) {
           Icon(
               if (revealed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
               contentDescription = if (revealed) "隐藏$title" else "显示$title",
+              modifier = Modifier.size(20.dp),
           )
         }
-      },
-  ) {
-    Text(
-        text = if (!revealed) "••••" else value?.let { "$it 元" } ?: if (loading) "加载中" else "暂不可用",
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(vertical = 8.dp),
-    )
-    UbaaTextButton(onClick = onOpen, contentPadding = PaddingValues(0.dp)) {
-      Text(if (revealed && failed) "更新余额" else "查看详情")
+      }
+      Text(
+          text =
+              if (!revealed) "••••" else value?.let { "$it 元" } ?: if (loading) "加载中" else "暂不可用",
+          style = MaterialTheme.typography.titleLarge,
+          fontWeight = FontWeight.SemiBold,
+          modifier = Modifier.heightIn(min = 32.dp),
+      )
+      UbaaTextButton(onClick = onOpen, contentPadding = PaddingValues(0.dp)) {
+        Text(if (revealed && failed) "更新余额" else "查看详情")
+      }
     }
   }
 }

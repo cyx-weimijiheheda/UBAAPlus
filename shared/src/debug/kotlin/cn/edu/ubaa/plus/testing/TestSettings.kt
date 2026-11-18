@@ -33,6 +33,7 @@ object TestSettings {
     AuthTokensStore.settings = MapSettings()
     cn.edu.ubaa.plus.api.storage.PublicNoticeStore.settings = MapSettings()
     CredentialStore.settings = MapSettings()
+    cn.edu.ubaa.plus.api.storage.ProfileAvatarStore.settings = MapSettings()
     cn.edu.ubaa.plus.api.storage.CachedUserStore.settings = MapSettings()
     cn.edu.ubaa.plus.api.storage.CachedHomeStore.settings = MapSettings()
     ConnectionModeStore.settings = MapSettings()

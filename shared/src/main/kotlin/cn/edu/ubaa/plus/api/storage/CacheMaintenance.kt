@@ -32,7 +32,8 @@ internal object CacheMaintenance {
               settings.keys.filter(matches).sumOf { key ->
                 settings.getString(key, "").toByteArray(Charsets.UTF_8).size.toLong()
               }
-          size(FeatureReadCache.settings) { it.startsWith("business:") } +
+          ProfileAvatarStore.sizeBytes() +
+              size(FeatureReadCache.settings) { it.startsWith("business:") } +
               size(CachedHomeStore.settings) { it.startsWith("home_snapshot:") } +
               runCatching {
                     size(com.russhwolf.settings.Settings()) { it.startsWith("home_snapshot:") }
@@ -51,6 +52,7 @@ internal object CacheMaintenance {
         withContext(kotlinx.coroutines.NonCancellable + BusinessDispatchers.io) {
           try {
             SchoolReadCoordinator.invalidate()
+            ProfileAvatarStore.clearAccount(owner)
             FeatureReadCache.clearAccount(owner)
             CachedHomeStore.clearAccount(owner)
             WidgetTodoStore.clearAccount(owner)
@@ -74,6 +76,7 @@ internal object CacheMaintenance {
         withContext(kotlinx.coroutines.NonCancellable + BusinessDispatchers.io) {
           try {
             SchoolReadCoordinator.invalidate()
+            ProfileAvatarStore.clear()
             FeatureReadCache.clearChecked()
             CachedHomeStore.clear()
             WidgetTodoStore.clear()
