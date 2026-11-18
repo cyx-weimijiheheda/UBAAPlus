@@ -565,10 +565,9 @@ private fun LibBookAreaMapDialog(
         modifier =
             Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 12.dp, vertical = 16.dp)
-                .ubaaGlassSurface(shape = UbaaDialogShape),
+                .padding(horizontal = 12.dp, vertical = 16.dp),
         shape = UbaaDialogShape,
-        color = androidx.compose.ui.graphics.Color.Transparent,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 0.dp,
     ) {
       Column(

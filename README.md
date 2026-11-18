@@ -164,7 +164,7 @@ Card(
 
 ### 选择类控件
 
-其余控件统一使用 `UbaaControls.kt` 中的组件：普通/次要/文字/柔和按钮分别为 `UbaaButton`、`UbaaSecondaryButton`、`UbaaTextButton`、`UbaaTonalButton`；输入框为 `UbaaTextField`，搜索用 `UbaaSearchField`；开关/复选整行用 `UbaaToggleRow` / `UbaaCheckboxRow`。普通控件圆角 14dp、动作点击区域至少 48dp；图标动作使用带说明与长按提示的 `UbaaIconAction`。弹窗使用 `UbaaAlertDialog`，统一 24dp 磨砂外框、标题区关闭图标及有界内容区；关闭/复制/日历/刷新/重置等工具动作使用图标，预约、支付、取消预约等明确业务操作保留文字。只读状态用 `UbaaStatusBadge`，可点击的次要操作用 `UbaaActionChip`。提交中显示进度并禁止重复点击，危险操作沿用确认流程；字段错误就近展示，首次加载、空状态和失败状态复用已有共用组件。
+其余控件统一使用 `UbaaControls.kt` 中的组件：普通/次要/文字/柔和按钮分别为 `UbaaButton`、`UbaaSecondaryButton`、`UbaaTextButton`、`UbaaTonalButton`；输入框为 `UbaaTextField`，搜索用 `UbaaSearchField`；开关/复选整行用 `UbaaToggleRow` / `UbaaCheckboxRow`。普通控件圆角 14dp、动作点击区域至少 48dp；图标动作使用带说明与长按提示的 `UbaaIconAction`。弹窗使用 `UbaaAlertDialog`，统一 24dp 圆角不透明主题底色（弹窗不使用磨砂）、标题区关闭图标及有界内容区；关闭/复制/日历/刷新/重置等工具动作使用图标，预约、支付、取消预约等明确业务操作保留文字。只读状态用 `UbaaStatusBadge`，可点击的次要操作用 `UbaaActionChip`。提交中显示进度并禁止重复点击，危险操作沿用确认流程；字段错误就近展示，首次加载、空状态和失败状态复用已有共用组件。
 
 并列选择统一为一栏磨砂分段选框：单选使用 `UbaaSegmentedTabs`，多选使用 `UbaaSegmentedMultiSelect`，不得将多选改成单选。组件按文字宽度与系统字号自动决定等宽铺满或横向滚动，不截断选项；单选选中项自动滚入可见区域，触控高度至少 48dp。既有下拉框保留；主题配色保留色样，选项说明放在选择栏下方。不要另写分散的 `FilterChip`、`RadioButton` 选项组。
 

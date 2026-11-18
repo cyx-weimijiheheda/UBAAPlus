@@ -25,7 +25,6 @@ import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
-import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 val UbaaControlShape = RoundedCornerShape(14.dp)
 val UbaaDialogShape = RoundedCornerShape(24.dp)
@@ -258,6 +257,7 @@ fun UbaaToggleRow(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(12.dp),
   ) {
+    if (checkbox) Checkbox(checked, onCheckedChange = null, enabled = enabled)
     Column(Modifier.weight(1f)) {
       Text(
           label,
@@ -271,8 +271,7 @@ fun UbaaToggleRow(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
     }
-    if (checkbox) Checkbox(checked, onCheckedChange = null, enabled = enabled)
-    else Switch(checked, onCheckedChange = null, enabled = enabled)
+    if (!checkbox) Switch(checked, onCheckedChange = null, enabled = enabled)
   }
 }
 
@@ -365,7 +364,7 @@ fun UbaaAlertDialog(
       onDismissRequest = onDismissRequest,
       confirmButton = confirmButton,
       dismissButton = dismissButton,
-      modifier = modifier.ubaaGlassSurface(shape = UbaaDialogShape),
+      modifier = modifier,
       icon = icon,
       title = {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -381,7 +380,7 @@ fun UbaaAlertDialog(
             ({ Box(Modifier.heightIn(max = maxContentHeight)) { content() } })
           },
       shape = UbaaDialogShape,
-      containerColor = Color.Transparent,
+      containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
       tonalElevation = 0.dp,
       properties = properties,
   )
