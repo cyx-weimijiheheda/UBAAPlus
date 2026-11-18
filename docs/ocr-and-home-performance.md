@@ -17,6 +17,24 @@ APK 的主要膨胀来自四个架构的未压缩 ONNX Runtime 原生库。因�
 
 依据：[ONNX Runtime 量化文档](https://onnxruntime.ai/docs/performance/model-optimizations/quantization.html)、[Android 原生库打包选项](https://developer.android.com/reference/tools/gradle-api/9.0/com/android/build/api/dsl/JniLibsPackaging)。
 
+## 与 UBAA 安装包的差异及 Release 裁剪
+
+对照 UBAA `6c4dba8d` 的 `crates/ubaa_core/src/auth/captcha.rs` 和工作区 Cargo 配置，它使用 Rust `tract-onnx`（关闭默认特性）执行同源 ddddocr 模型。Plus 使用 ONNX Runtime Android 通用推理库；两者的推理库、应用框架、资源与发布方式不同，不能将 APK 大小直接归因于验证码模型优劣。此处未取得同版本同架构的 UBAA APK 做逐文件比较。
+
+此前 Plus Release 未开启 R8。现在启用代码优化与资源裁剪，并为 ONNX Runtime 的 JNI 桥保留原始类、构造与字段名称，避免 native 查找失效；不增加全应用保留规则。CI 另行保存每次 Release 的 mapping，供异常堆栈还原。
+
+同一份 1.6.0 构建 19 的源码及模型，裁剪前后实测：
+
+| 构件 | 裁剪前 | 裁剪后 |
+|---|---:|---:|
+| arm64 Release | 38.97 MiB | 25.98 MiB |
+| 通用 Release | 60.91 MiB | 47.91 MiB |
+| x86 Release | 40.23 MiB | 27.23 MiB |
+
+arm64 包内压缩后 DEX 从 15.42 MiB 降到 2.70 MiB；模型仍约 7.40 MiB，ORT 原生库仍约 6.68 MiB，图书馆楼层座位图等其他资源约 9.14 MiB。Debug 保持不混淆，通用调试包仍约 71 MiB；日常安装应比较相同 ABI 的 Release 包。上述数字属于 APK 分发体积，不等于安装后的占用。
+
+依据：[Android R8 官方说明](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization)。如要进一步缩减 ORT 本身，需要按模型算子定制原生运行库或移植推理引擎；[ORT 官方定制构建](https://onnxruntime.ai/docs/build/custom.html) 需要独立的原生编译与 Android 验证，不以更换一个模型文件替代。
+
 ## 首页
 
 代码审计发现的主线程成本及处理：
