@@ -162,6 +162,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
       when (currentScreen) {
         AppScreen.HOME ->
             HomeScreen(
+                scheduleViewModel = scheduleViewModel,
                 todayClasses = todayScheduleState.todayClasses,
                 isLoading = todayScheduleState.isLoading,
                 isRefreshing = homeIsRefreshing,

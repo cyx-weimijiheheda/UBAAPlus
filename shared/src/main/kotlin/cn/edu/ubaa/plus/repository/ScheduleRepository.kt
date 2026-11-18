@@ -106,6 +106,54 @@ class ScheduleRepository(
   suspend fun loadTodayClasses(offlineOnly: Boolean = false): Result<List<TodayClass>> =
       onlineOrSaved(offlineOnly, { api.getTodaySchedule() }, ::todayClasses)
 
+  /**
+   * Read the requested date from its actual teaching week, including Sunday/semester boundaries.
+   */
+  suspend fun loadDateClasses(
+      date: LocalDate,
+      offlineOnly: Boolean = false,
+  ): Result<List<TodayClass>> =
+      onlineOrSaved(
+          offlineOnly,
+          {
+            runCatching {
+                  val terms = api.getTerms().getOrThrow().sortedByDescending { it.selected }
+                  var failure: Throwable? = null
+                  var found: WeeklySchedule? = null
+                  for (term in terms) {
+                    val weeks = api.getWeeks(term.itemCode)
+                    if (weeks.isFailure) {
+                      failure = weeks.exceptionOrNull()
+                      continue
+                    }
+                    val week =
+                        normalizeWeeks(weeks.getOrThrow()).firstOrNull {
+                          date.toString() >= it.startDate && date.toString() <= it.endDate
+                        } ?: continue
+                    found = api.getWeeklySchedule(term.itemCode, week.serialNumber).getOrThrow()
+                    break
+                  }
+                  if (found == null && failure != null) throw failure
+                  check(terms.isNotEmpty()) { "未获取到可用学期" }
+                  found
+                      ?.arrangedList
+                      .orEmpty()
+                      .filter { it.dayOfWeek == date.dayOfWeek.ordinal + 1 }
+                      .sortedBy { it.beginTime ?: "" }
+                      .map {
+                        TodayClass(
+                            it.courseName,
+                            it.placeName,
+                            listOfNotNull(it.beginTime, it.endTime).joinToString("-"),
+                            it.courseName,
+                        )
+                      }
+                }
+                .onFailure { if (it is CancellationException) throw it }
+          },
+          { classesOn(date) },
+      )
+
   private suspend fun <T> onlineOrSaved(
       offlineOnly: Boolean,
       online: suspend () -> Result<T>,
@@ -173,10 +221,11 @@ class ScheduleRepository(
   fun updatedAt(code: String?): String? =
       runCatching { saved().firstOrNull { it.termCode == code }?.updatedAt }.getOrNull()
 
-  fun todayClasses(): Result<List<TodayClass>> = runCatching {
+  fun todayClasses(): Result<List<TodayClass>> = classesOn(today())
+
+  fun classesOn(date: LocalDate): Result<List<TodayClass>> = runCatching {
     val snapshots = saved()
     check(snapshots.isNotEmpty()) { "尚未导入课表，请进入课表页点击课表本地化" }
-    val date = today()
     // 位图的尾部空周可能跨到下一学期，优先使用开学日期更晚的已保存学期。
     val snapshot =
         snapshots

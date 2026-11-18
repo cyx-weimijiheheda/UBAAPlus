@@ -362,6 +362,7 @@ fun App() {
                 showLogin = true
                 authViewModel.logout(clear)
               },
+              authLoading = uiState.isLoading || uiState.isPreloading,
               authMessage =
                   when {
                     uiState.isLoading || uiState.isPreloading -> null
@@ -396,7 +397,7 @@ fun App() {
             Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(24.dp),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         ) {
-          Text("首页", style = MaterialTheme.typography.headlineMedium)
+          Text("主页", style = MaterialTheme.typography.headlineMedium)
           Text(
               if (uiState.isLoading || uiState.isPreloading) "正在恢复登录…"
               else uiState.error ?: "登录后加载课程与待办"

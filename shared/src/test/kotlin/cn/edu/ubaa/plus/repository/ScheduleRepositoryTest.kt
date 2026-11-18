@@ -231,6 +231,42 @@ class ScheduleRepositoryTest {
         assertEquals("B课", repo.loadTodayClasses(offlineOnly = true).getOrThrow().single().bizName)
       }
 
+  @Test
+  fun `tomorrow uses actual week instead of the current week and offline preview never connects`() =
+      runTest {
+        cn.edu.ubaa.plus.testing.TestSettings.installInMemorySettings()
+        ScheduleStore.useAccount("A")
+        val backend = Backend()
+        val repo =
+            ScheduleRepository(ScheduleApi { backend }, today = { LocalDate.parse("2026-09-13") })
+        repo.update().getOrThrow()
+        assertEquals(
+            "B课",
+            repo.loadDateClasses(LocalDate.parse("2026-09-14")).getOrThrow().single().bizName,
+        )
+        val calls = backend.calls
+        backend.fail = true
+        assertEquals(
+            "B课",
+            repo
+                .loadDateClasses(LocalDate.parse("2026-09-14"), offlineOnly = true)
+                .getOrThrow()
+                .single()
+                .bizName,
+        )
+        assertTrue(
+            repo
+                .loadDateClasses(LocalDate.parse("2026-09-15"), offlineOnly = true)
+                .getOrThrow()
+                .isEmpty()
+        )
+        assertEquals(calls, backend.calls)
+        ScheduleStore.useAccount("B")
+        assertTrue(
+            repo.loadDateClasses(LocalDate.parse("2026-09-14"), offlineOnly = true).isFailure
+        )
+      }
+
   private class Backend : ScheduleApiBackend {
     var calls = 0
     var fail = false

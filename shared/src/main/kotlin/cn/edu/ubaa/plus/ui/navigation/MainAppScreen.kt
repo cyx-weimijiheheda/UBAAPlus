@@ -147,6 +147,7 @@ fun MainAppScreen(
     modifier: Modifier = Modifier,
     isAuthenticated: Boolean = true,
     onLoginRequired: () -> Unit = {},
+    authLoading: Boolean = false,
     authMessage: String? = null,
     authAction: String = "重试",
     onAuthRetry: () -> Unit = {},
@@ -175,6 +176,7 @@ fun MainAppScreen(
         modifier,
         isAuthenticated,
         onLoginRequired,
+        authLoading,
         authMessage,
         authAction,
         onAuthRetry,
@@ -196,6 +198,7 @@ private fun MainAppContent(
     modifier: Modifier = Modifier,
     isAuthenticated: Boolean = true,
     onLoginRequired: () -> Unit = {},
+    authLoading: Boolean = false,
     authMessage: String? = null,
     authAction: String = "重试",
     onAuthRetry: () -> Unit = {},
@@ -249,11 +252,11 @@ private fun MainAppContent(
   val homeBootstrapRunning by homeBootstrapCoordinator.isRunning.collectAsState()
   val homeNow by
       produceState(
-          initialValue = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+          initialValue = Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai"))
       ) {
         while (true) {
           delay(60_000)
-          value = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+          value = Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai"))
         }
       }
   var hasVisitedCgyy by remember { mutableStateOf(false) }
@@ -271,6 +274,7 @@ private fun MainAppContent(
       }
   val scheduleUiState by scheduleViewModel.uiState.collectAsState()
   val todayScheduleState by scheduleViewModel.todayScheduleState.collectAsState()
+  val previewScheduleState by scheduleViewModel.previewScheduleState.collectAsState()
   var observedHomeDate by remember { mutableStateOf(homeNow.date) }
   LaunchedEffect(homeNow.date) {
     if (observedHomeDate != homeNow.date) {
@@ -1101,7 +1105,7 @@ private fun MainAppContent(
 
   val screenTitle =
       when (currentScreen) {
-        AppScreen.HOME -> "首页"
+        AppScreen.HOME -> "主页"
         AppScreen.REGULAR -> "功能"
         AppScreen.PROFILE -> "个人中心"
         AppScreen.SETTINGS -> "设置"
@@ -1154,6 +1158,13 @@ private fun MainAppContent(
       if (showGlobalTopBar) {
         AppTopBar(
             title = screenTitle,
+            loading =
+                currentScreen == AppScreen.HOME &&
+                    (homeBootstrapRunning ||
+                        homeContentLoading ||
+                        previewScheduleState.isLoading ||
+                        authLoading) &&
+                    !homeIsRefreshing,
             canNavigateBack = !isRootScreen,
             onNavigationIconClick = { navigateBack() },
             actions = {

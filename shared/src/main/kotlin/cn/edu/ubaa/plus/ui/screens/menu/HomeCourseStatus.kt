@@ -5,6 +5,7 @@ import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.parseUbaaTime
 import cn.edu.ubaa.plus.ui.screens.schedule.displayCourseName
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.plus
 
 internal enum class HomeCourseStatus {
   PENDING,
@@ -94,4 +95,24 @@ internal fun homeCourseEntries(
                 )
               })
       .sortedBy { parseUbaaTime(it.course.time)?.toSecondOfDay() ?: Int.MAX_VALUE }
+}
+
+/** Unknown end times keep today's schedule visible instead of guessing a switching time. */
+internal fun homeScheduleDate(
+    now: LocalDateTime,
+    courses: List<TodayClass>,
+): kotlinx.datetime.LocalDate {
+  if (courses.isEmpty()) return now.date
+  val ends =
+      courses.map { course ->
+        course.time
+            ?.replace('–', '-')
+            ?.replace('—', '-')
+            ?.substringAfter('-', "")
+            ?.let(::parseUbaaTime) ?: return now.date
+      }
+  val last = ends.maxOf { it.toSecondOfDay() }
+  return if (now.time.toSecondOfDay() >= last + 3600)
+      now.date.plus(kotlinx.datetime.DatePeriod(days = 1))
+  else now.date
 }

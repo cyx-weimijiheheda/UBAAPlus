@@ -25,6 +25,9 @@ class ScheduleViewModel(
   private var scheduleLoadedOnce = false
   private var currentWeekLoadedOnce = false
   private var todayJob: Job? = null
+  private var previewJob: Job? = null
+  private val _previewScheduleState = MutableStateFlow(DatedScheduleState())
+  val previewScheduleState = _previewScheduleState.asStateFlow()
   private var currentWeekJob: Job? = null
   private var scheduleJob: Job? = null
   private var weekJob: Job? = null
@@ -68,12 +71,38 @@ class ScheduleViewModel(
 
   fun resetLoadedState() {
     generation++
-    listOf(todayJob, currentWeekJob, scheduleJob, weekJob, updateJob).forEach { it?.cancel() }
+    listOf(todayJob, previewJob, currentWeekJob, scheduleJob, weekJob, updateJob).forEach {
+      it?.cancel()
+    }
     todayLoadedOnce = false
     scheduleLoadedOnce = false
     currentWeekLoadedOnce = false
     _uiState.value = ScheduleUiState()
     _todayScheduleState.value = TodayScheduleState()
+    _previewScheduleState.value = DatedScheduleState()
+  }
+
+  fun loadPreview(date: kotlinx.datetime.LocalDate, force: Boolean = false) {
+    if (
+        !force &&
+            _previewScheduleState.value.date == date &&
+            (_previewScheduleState.value.isLoading || _previewScheduleState.value.error == null)
+    )
+        return
+    previewJob?.cancel()
+    val request = generation
+    _previewScheduleState.value = DatedScheduleState(date = date, isLoading = true)
+    previewJob =
+        viewModelScope.launch {
+          val result = repository.loadDateClasses(date, offlineOnly)
+          if (generation != request) return@launch
+          _previewScheduleState.value =
+              DatedScheduleState(
+                  date = date,
+                  classes = result.getOrDefault(emptyList()),
+                  error = result.exceptionOrNull()?.message,
+              )
+        }
   }
 
   fun loadTodaySchedule() {
@@ -323,5 +352,12 @@ data class ScheduleUiState(
 data class TodayScheduleState(
     val isLoading: Boolean = false,
     val todayClasses: List<TodayClass> = emptyList(),
+    val error: String? = null,
+)
+
+data class DatedScheduleState(
+    val date: kotlinx.datetime.LocalDate? = null,
+    val isLoading: Boolean = false,
+    val classes: List<TodayClass> = emptyList(),
     val error: String? = null,
 )

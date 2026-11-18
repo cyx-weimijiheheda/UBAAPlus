@@ -34,6 +34,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,15 +68,13 @@ import cn.edu.ubaa.plus.ui.screens.schedule.displayCourseName
 import cn.edu.ubaa.plus.ui.screens.schedule.toCourseDetailInfo
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalTime::class)
 @Composable
 internal fun HomeScreen(
+    scheduleViewModel: cn.edu.ubaa.plus.ui.screens.schedule.ScheduleViewModel,
     todayClasses: List<TodayClass>,
     isLoading: Boolean,
     isRefreshing: Boolean,
@@ -103,17 +103,36 @@ internal fun HomeScreen(
     onOpenLibBookBookings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+  val today = libBookNow.date
+  val todayEntries =
+      homeCourseEntries(todayClasses, signinClasses, !signinLoading && signinError == null)
+  val displayDate = homeScheduleDate(libBookNow, todayEntries.map { it.course })
+  val tomorrow = displayDate != today
+  val preview by scheduleViewModel.previewScheduleState.collectAsState()
+  LaunchedEffect(displayDate) { if (tomorrow) scheduleViewModel.loadPreview(displayDate) }
+  val scheduleLoading =
+      if (tomorrow) preview.date != displayDate || preview.isLoading else isLoading
+  val scheduleError = if (tomorrow) preview.error.takeIf { preview.date == displayDate } else error
+  val dayLabel = if (tomorrow) "明日" else "今日"
   var selectedCourseInfo by remember { mutableStateOf<CourseDetailInfo?>(null) }
   var pendingLibBookAction by remember {
     mutableStateOf<Pair<LibBookBookingDto, LibBookCardAction>?>(null)
   }
   val todoLoadingSummary = todoLoadingSources.joinToString("、") { it.label }
   val courseEntries =
-      homeCourseEntries(todayClasses, signinClasses, !signinLoading && signinError == null)
+      if (tomorrow)
+          homeCourseEntries(
+              preview.classes.takeIf { preview.date == displayDate }.orEmpty(),
+              emptyList(),
+              false,
+          )
+      else todayEntries
   UbaaPullToRefresh(
       refreshing = isRefreshing,
-      onRefresh = onRefresh,
+      onRefresh = {
+        onRefresh()
+        if (tomorrow) scheduleViewModel.loadPreview(displayDate, force = true)
+      },
       modifier = modifier.fillMaxSize(),
   ) {
     LazyColumn(
@@ -128,16 +147,16 @@ internal fun HomeScreen(
               verticalAlignment = Alignment.Bottom,
           ) {
             Text(
-                text = "今日课表",
+                text = "${dayLabel}课表",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
-            if (isLoading && courseEntries.isEmpty()) {
+            if (scheduleLoading && courseEntries.isEmpty()) {
               HomeSectionLoadingChip(text = "加载中")
             }
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = formatUbaaDate(today),
+                text = formatUbaaDate(displayDate),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -156,17 +175,30 @@ internal fun HomeScreen(
       }
 
       when {
-        error != null && courseEntries.isEmpty() ->
-            item { HomeErrorCard(message = error, onRetry = onRetrySchedule) }
-        isLoading && courseEntries.isEmpty() ->
+        scheduleError != null && courseEntries.isEmpty() ->
             item {
-              HomeLoadingCard(
-                  title = "今日课表正在后台加载",
-                  subtitle = "课程安排会在这里补齐，不影响先浏览首页其他内容。",
+              HomeErrorCard(
+                  message = scheduleError,
+                  onRetry = {
+                    if (tomorrow) scheduleViewModel.loadPreview(displayDate, force = true)
+                    else onRetrySchedule()
+                  },
               )
             }
-        courseEntries.isEmpty() && !isLoading ->
-            item { HomeEmptyCard(title = "今天没有课程安排", subtitle = "今天可以安心处理其他事项。") }
+        scheduleLoading && courseEntries.isEmpty() ->
+            item {
+              HomeLoadingCard(
+                  title = "${dayLabel}课表正在后台加载",
+                  subtitle = "课程安排会在这里补齐，不影响先浏览主页其他内容。",
+              )
+            }
+        courseEntries.isEmpty() && !scheduleLoading ->
+            item {
+              HomeEmptyCard(
+                  title = if (tomorrow) "明天没有课程安排" else "今天没有课程安排",
+                  subtitle = "可以安心处理其他事项。",
+              )
+            }
         else ->
             items(courseEntries) { entry ->
               TodayClassCard(
@@ -174,10 +206,11 @@ internal fun HomeScreen(
                   signin = entry.signin,
                   now = libBookNow,
                   attendanceKnown = entry.attendanceKnown,
+                  preview = tomorrow,
                   isSigningIn =
                       signingCourseId != null && signingCourseId == entry.signin?.courseId,
                   onSigninClick = onSigninClick,
-                  onClick = { selectedCourseInfo = entry.course.toCourseDetailInfo(today) },
+                  onClick = { selectedCourseInfo = entry.course.toCourseDetailInfo(displayDate) },
               )
             }
       }
@@ -363,6 +396,7 @@ internal fun TodayClassCard(
     onSigninClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
+    preview: Boolean = false,
 ) {
   val status = homeCourseStatus(todayClass, signin, now, attendanceKnown)
   val tint =
@@ -415,7 +449,7 @@ internal fun TodayClassCard(
             when (status) {
               HomeCourseStatus.COMPLETE -> if (signin != null) "已签到" else "已结束"
               HomeCourseStatus.MISSED -> "未签到 · 缺勤"
-              HomeCourseStatus.UNKNOWN -> "考勤状态未确认"
+              HomeCourseStatus.UNKNOWN -> if (preview) "明日课程" else "考勤状态未确认"
               HomeCourseStatus.PENDING -> if (signin != null) "待签到" else "无需签到"
             },
             color = tint,
