@@ -10,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -22,12 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cn.edu.ubaa.plus.AppInfo
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
@@ -83,7 +80,6 @@ fun ProfileScreen(
         confirmButton = { TextButton(onClick = { showDetails = false }) { Text("关闭") } },
     )
   }
-  val uriHandler = LocalUriHandler.current
   val quips = remember { profileQuips() }
   var quipIndex by remember { mutableIntStateOf(Random.nextInt(quips.size)) }
   val nextQuip = { quipIndex = (quipIndex + 1 + Random.nextInt(quips.size - 1)) % quips.size }
@@ -206,25 +202,6 @@ fun ProfileScreen(
         ProfileActionRow(Icons.Default.Settings, "设置", onSettingsClick)
         HorizontalDivider()
         ProfileActionRow(Icons.Default.Info, "关于", onAboutClick)
-      }
-    }
-
-    item {
-      ProfileSection(title = "应用信息") {
-        ProfileInfoRow("版本", AppInfo.version)
-        ProfileInfoRow("连接模式", connectionMode.displayName)
-      }
-    }
-
-    item {
-      ProfileSection(title = "开发者") {
-        ProfileActionRow(Icons.Default.Code, "作者 GitHub") {
-          uriHandler.openUri("https://github.com/cyx-weimijiheheda")
-        }
-        HorizontalDivider()
-        ProfileActionRow(Icons.Default.Code, "项目仓库") {
-          uriHandler.openUri("https://github.com/cyx-weimijiheheda/UBAAPlus")
-        }
       }
     }
 

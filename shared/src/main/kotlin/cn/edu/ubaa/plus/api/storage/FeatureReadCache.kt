@@ -220,6 +220,19 @@ internal object FeatureReadCache {
         runCatching { ensureIndex().values.sumOf { it.size.toLong() } }.getOrDefault(0)
       }
 
+  fun clearAccount(owner: String): Unit =
+      synchronized(lock) {
+        cacheGeneration++
+        val prefix = "business:${hash(owner)}:"
+        settings.keys.filter { it.startsWith(prefix) }.forEach(settings::remove)
+        entries.clear()
+        decoded.clear()
+        index = null
+        keys.clear()
+        revision.value++
+        scheduleRevision.value++
+      }
+
   fun clearChecked(): Unit =
       synchronized(lock) {
         cacheGeneration++

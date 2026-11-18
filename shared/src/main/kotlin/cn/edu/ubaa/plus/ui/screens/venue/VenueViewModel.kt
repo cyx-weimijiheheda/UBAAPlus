@@ -10,6 +10,7 @@ import cn.edu.ubaa.plus.api.venue.VenueBuddy
 import cn.edu.ubaa.plus.api.venue.VenueCaptchaAnswer
 import cn.edu.ubaa.plus.api.venue.VenueDayInfo
 import cn.edu.ubaa.plus.api.venue.VenueGrabController
+import cn.edu.ubaa.plus.api.venue.VenueGrabPhase
 import cn.edu.ubaa.plus.api.venue.VenueGrabState
 import cn.edu.ubaa.plus.api.venue.VenueGrabTask
 import cn.edu.ubaa.plus.api.venue.VenueMembershipCode
@@ -108,6 +109,20 @@ data class VenueUiState(
     val grabAtText: String = "07:00:00",
     val message: String? = null,
 ) {
+  val canReserveOnce: Boolean
+    get() {
+      if (
+          authPhase != VenueAuthPhase.READY || isLoadingDayInfo || spaceMode != VenueSpaceMode.FIXED
+      )
+          return false
+      val day = dayInfo ?: return false
+      val resolution = targetResolution ?: return false
+      val space = day.spaces.firstOrNull { it.spaceId == selectedSpaceId } ?: return false
+      return resolution.isComplete &&
+          !resolution.exceedsTwoHours &&
+          spaceFreeForResolution(space, resolution)
+    }
+
   val selectedSite: VenueSite?
     get() = sites.firstOrNull { it.id == selectedSiteId }
 
@@ -230,6 +245,16 @@ class VenueViewModel(
       )
   val grabState: StateFlow<VenueGrabState> = grabController.state
 
+  private val reservationController = VenueGrabController(venueApi, viewModelScope, foreground, now)
+  val reservationState: StateFlow<VenueGrabState> = reservationController.state
+
+  fun cancelReservation() = reservationController.stop()
+
+  fun submitReservationCaptcha(points: List<VenuePoint>, imageWidth: Int, imageHeight: Int) =
+      reservationController.submitCaptcha(VenueCaptchaAnswer(points, imageWidth, imageHeight))
+
+  fun cancelReservationCaptcha() = reservationController.cancelCaptcha()
+
   private val _membershipCodeState = MutableStateFlow(VenueMembershipCodeUiState())
   val membershipCodeState: StateFlow<VenueMembershipCodeUiState> =
       _membershipCodeState.asStateFlow()
@@ -253,6 +278,7 @@ class VenueViewModel(
 
   fun resetLoadedState() {
     grabController.stop()
+    reservationController.reset()
     venueApi.logout()
     initialized = false
     autoLoginAttempted = false
@@ -834,7 +860,15 @@ class VenueViewModel(
     _state.update { it.copy(message = null) }
   }
 
-  fun startGrab() {
+  fun startGrab() = startReservation(automated = true)
+
+  fun reserveOnce() = startReservation(automated = false)
+
+  private fun startReservation(automated: Boolean) {
+    val activePhases =
+        setOf(VenueGrabPhase.RUNNING, VenueGrabPhase.WAITING, VenueGrabPhase.NEEDS_CAPTCHA)
+    if (grabState.value.phase in activePhases || reservationState.value.phase in activePhases)
+        return
     val current = _state.value
     if (current.authPhase != VenueAuthPhase.READY) {
       _state.update { it.copy(message = "请先登录运动场地系统") }
@@ -851,10 +885,14 @@ class VenueViewModel(
       _state.update { it.copy(message = "所选时长超出当日剩余时段，请调整时长或开始时间") }
       return
     }
+    if (!automated && !current.canReserveOnce) {
+      _state.update { it.copy(message = "请选择整段时长都空闲的具体场地") }
+      return
+    }
     val pollSeconds = current.pollIntervalText.toDoubleOrNull()?.coerceIn(0.2, 10.0) ?: 0.35
     val alreadyReleased = current.dayInfo != null
     val grabAt =
-        if (!alreadyReleased && current.useSchedule) {
+        if (automated && !alreadyReleased && current.useSchedule) {
           parseGrabTime(current.grabAtText)
               ?: run {
                 _state.update { it.copy(message = "开抢时间格式应为 HH:mm 或 HH:mm:ss") }
@@ -871,7 +909,7 @@ class VenueViewModel(
           emptyMap()
         }
 
-    grabController.start(
+    val task =
         VenueGrabTask(
             siteId = siteId,
             date = current.selectedDate,
@@ -886,7 +924,7 @@ class VenueViewModel(
             pollInterval = (pollSeconds * 1000).toLong().milliseconds,
             grabAt = grabAt,
         )
-    )
+    if (automated) grabController.start(task) else reservationController.reserveOnce(task)
   }
 
   fun stopGrab() {
@@ -902,6 +940,8 @@ class VenueViewModel(
   }
 
   fun stopGrabForLogout() {
+    venueApi.logout()
+    reservationController.stop(cn.edu.ubaa.plus.api.venue.VenueGrabStopReason.LOGOUT)
     grabController.stop(cn.edu.ubaa.plus.api.venue.VenueGrabStopReason.LOGOUT)
   }
 }

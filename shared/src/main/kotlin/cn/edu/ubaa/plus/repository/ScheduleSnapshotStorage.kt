@@ -51,6 +51,16 @@ internal class ScheduleSnapshotStorage(private val settings: Settings) {
     runCatching { settings.remove(legacyKey(account)) }
   }
 
+  fun removeAccount(account: String) {
+    val snapshot =
+        settings.getStringOrNull(indexKey(account))?.let {
+          runCatching { Snapshot.parse(it) }.getOrNull()
+        }
+    settings.remove(indexKey(account))
+    settings.remove(legacyKey(account))
+    snapshot?.let(::remove)
+  }
+
   private fun remove(snapshot: Snapshot) {
     repeat(snapshot.parts) { part -> runCatching { settings.remove(snapshot.partKey(part)) } }
   }

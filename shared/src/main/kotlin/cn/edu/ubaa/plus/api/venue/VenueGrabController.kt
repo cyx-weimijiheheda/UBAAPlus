@@ -93,7 +93,25 @@ internal class VenueGrabController(
   private var lastLogAt: kotlin.time.Instant? = null
 
   fun start(task: VenueGrabTask) {
-    if (!automationAllowed() || job?.isActive == true) return
+    if (!automationAllowed()) return
+    launchTask(task, singleAttempt = false)
+  }
+
+  /** 普通预约只核对并提交一次，不等待放票、不轮询、不更换用户指定场地。 */
+  fun reserveOnce(task: VenueGrabTask) {
+    if (
+        task.spaceMode != VenueSpaceMode.FIXED ||
+            task.preferredSpaceByBegin[task.startBeginTime] == null
+    )
+        return
+    launchTask(
+        task.copy(grabAt = null, fallbackAnySpace = false, randomSpace = false),
+        singleAttempt = true,
+    )
+  }
+
+  private fun launchTask(task: VenueGrabTask, singleAttempt: Boolean) {
+    if (job?.isActive == true) return
     stopReason = null
     cachedCaptcha = null
     lastLogMessage = null
@@ -104,7 +122,7 @@ internal class VenueGrabController(
             phase = if (task.grabAt != null) VenueGrabPhase.WAITING else VenueGrabPhase.RUNNING,
             message = "准备开始",
         )
-    val newJob = scope.launch(start = CoroutineStart.LAZY) { runGrab(task) }
+    val newJob = scope.launch(start = CoroutineStart.LAZY) { runGrab(task, singleAttempt) }
     job = newJob
     newJob.start()
   }
@@ -128,7 +146,7 @@ internal class VenueGrabController(
     _state.value = VenueGrabState()
   }
 
-  private suspend fun runGrab(task: VenueGrabTask) {
+  private suspend fun runGrab(task: VenueGrabTask, singleAttempt: Boolean) {
     val selfJob = currentCoroutineContext()[Job]
     val watcher =
         scope.launch {
@@ -140,7 +158,7 @@ internal class VenueGrabController(
           }
         }
     try {
-      executeTask(task)
+      executeTask(task, singleAttempt)
       if (stopReason == null) stopReason = VenueGrabStopReason.SUCCESS
     } catch (cancelled: CancellationException) {
       if (stopReason == null) stopReason = VenueGrabStopReason.USER
@@ -150,8 +168,8 @@ internal class VenueGrabController(
       log(fatal.message.orEmpty())
     } catch (error: Exception) {
       stopReason = VenueGrabStopReason.FATAL
-      _state.update { it.copy(message = error.message ?: "抢场地失败") }
-      log("抢场地失败：${error.message}")
+      _state.update { it.copy(message = error.message ?: "预约失败") }
+      log("预约失败：${error.message}")
     } finally {
       watcher.cancel()
       captchaDeferred?.complete(null)
@@ -164,16 +182,17 @@ internal class VenueGrabController(
     }
   }
 
-  private suspend fun executeTask(task: VenueGrabTask) {
-    log("开始抢场地：${task.date} ${task.startBeginTime} · ${task.durationMinutes} 分钟")
+  private suspend fun executeTask(task: VenueGrabTask, singleAttempt: Boolean) {
+    log("开始预约：${task.date} ${task.startBeginTime} · ${task.durationMinutes} 分钟")
 
-    val preflight = api.getDayInfo(task.siteId, task.date)
-    preflight
-        .onSuccess { day ->
-          log(if (day == null) "该日期尚未放票，将持续重试" else "该日期已放票，共 ${day.spaces.size} 个场地")
-        }
-        .onFailure { log("预检失败：${it.message}") }
-
+    if (!singleAttempt) {
+      val preflight = api.getDayInfo(task.siteId, task.date)
+      preflight
+          .onSuccess { day ->
+            log(if (day == null) "该日期尚未放票，将持续重试" else "该日期已放票，共 ${day.spaces.size} 个场地")
+          }
+          .onFailure { log("预检失败：${it.message}") }
+    }
     if (task.grabAt != null) {
       _state.update { it.copy(phase = VenueGrabPhase.WAITING) }
       waitUntil(task.grabAt)
@@ -189,6 +208,8 @@ internal class VenueGrabController(
       val dayResult = api.getDayInfo(task.siteId, task.date)
       val day = dayResult.getOrNull()
       if (day == null) {
+        if (singleAttempt)
+            throw VenueGrabFatalException(dayResult.exceptionOrNull()?.message ?: "该日期尚未放票，请稍后刷新")
         if (dayResult.isFailure) {
           val action = handleFailure(dayResult.exceptionOrNull(), reloginDone)
           if (action == VenueFailureAction.RELOGIN) reloginDone = true
@@ -204,6 +225,7 @@ internal class VenueGrabController(
 
       val resolution = resolveVenueTargetSlots(day.slots, task.startBeginTime, task.durationMinutes)
       if (resolution.slots.isEmpty()) {
+        if (singleAttempt) throw VenueGrabFatalException("所选时段已不可用，请刷新后重新选择")
         logThrottled("未找到目标时段 ${task.startBeginTime}，重试中")
         delay(task.pollInterval)
         continue
@@ -212,6 +234,7 @@ internal class VenueGrabController(
         throw VenueGrabFatalException("所选时长超出当日剩余时段，请调整时长或开始时间")
       }
       if (resolution.exceedsTwoHours) {
+        if (singleAttempt) throw VenueGrabFatalException("所选时段实际跨度超过 2 小时，请调整后重试")
         logThrottled("所选时段实际跨度 ${resolution.spanMinutes} 分钟，超过连续 2 小时限制")
       }
 
@@ -219,12 +242,18 @@ internal class VenueGrabController(
           pickVenueSelection(
               dayInfo = day,
               targetSlots = resolution.slots,
-              preferredSpaceByBegin = task.preferredSpaceByBegin,
+              preferredSpaceByBegin =
+                  if (singleAttempt) {
+                    resolution.slots.associate {
+                      it.beginTime to task.preferredSpaceByBegin.getValue(task.startBeginTime)
+                    }
+                  } else task.preferredSpaceByBegin,
               fallbackAnySpace = task.fallbackAnySpace,
               randomSpace = task.randomSpace,
               random = random,
           )
       if (selections == null) {
+        if (singleAttempt) throw VenueGrabFatalException("所选场地已不可用，请刷新后重新选择")
         logThrottled("目标时段暂无空闲场地，等待空位（第 $attempt 次）")
         delay(task.pollInterval)
         continue
@@ -245,7 +274,7 @@ internal class VenueGrabController(
               orderToken = day.orderToken.takeIf { it.isNotBlank() },
           )
 
-      if (!automationAllowed()) {
+      if (!singleAttempt && !automationAllowed()) {
         stopReason = VenueGrabStopReason.USER
         throw kotlinx.coroutines.CancellationException("开关已关闭")
       }
@@ -267,6 +296,8 @@ internal class VenueGrabController(
         return
       }
 
+      if (singleAttempt)
+          throw VenueGrabFatalException(result.exceptionOrNull()?.message ?: "预约失败，请查询预约记录后重试")
       val action = handleFailure(result.exceptionOrNull(), reloginDone)
       if (action == VenueFailureAction.RELOGIN) reloginDone = true
       if (!resolveAction(action, task.pollInterval)) {
@@ -433,7 +464,7 @@ internal class VenueGrabController(
                 phase = VenueGrabPhase.STOPPED,
                 stopReason = VenueGrabStopReason.BACKGROUND,
                 pendingCaptcha = null,
-                message = "应用进入后台，抢场地已停止",
+                message = "应用进入后台，预约操作已停止",
             )
           }
       VenueGrabStopReason.CAPTCHA_CANCELLED ->
@@ -442,7 +473,7 @@ internal class VenueGrabController(
                 phase = VenueGrabPhase.STOPPED,
                 stopReason = VenueGrabStopReason.CAPTCHA_CANCELLED,
                 pendingCaptcha = null,
-                message = "验证码已取消，抢场地已停止",
+                message = "验证码已取消，预约操作已停止",
             )
           }
       VenueGrabStopReason.LOGOUT ->
@@ -460,7 +491,7 @@ internal class VenueGrabController(
                 phase = VenueGrabPhase.STOPPED,
                 stopReason = VenueGrabStopReason.USER,
                 pendingCaptcha = null,
-                message = "已停止抢场地",
+                message = "已停止预约操作",
             )
           }
       VenueGrabStopReason.FATAL ->

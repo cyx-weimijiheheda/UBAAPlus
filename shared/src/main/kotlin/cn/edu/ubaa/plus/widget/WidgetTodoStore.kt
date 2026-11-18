@@ -90,6 +90,17 @@ internal object WidgetTodoStore {
         }
   }
 
+  fun clearAccount(owner: String) {
+    val snapshot =
+        runCatching {
+              json.decodeFromString<WidgetTodoSnapshot>(
+                  settings.getString("widget_todo_snapshot", "")
+              )
+            }
+            .getOrNull()
+    if (snapshot?.owner == owner) clear()
+  }
+
   fun clear() {
     settings.remove("widget_todo_snapshot")
   }

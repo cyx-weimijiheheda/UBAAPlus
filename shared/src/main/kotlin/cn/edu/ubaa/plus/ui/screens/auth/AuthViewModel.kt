@@ -9,7 +9,6 @@ import cn.edu.ubaa.plus.api.auth.AuthService
 import cn.edu.ubaa.plus.api.auth.CaptchaRequiredClientException
 import cn.edu.ubaa.plus.api.auth.UserService
 import cn.edu.ubaa.plus.api.storage.AuthTokensStore
-import cn.edu.ubaa.plus.api.storage.CachedHomeStore
 import cn.edu.ubaa.plus.api.storage.CachedUserStore
 import cn.edu.ubaa.plus.api.storage.CredentialStore
 import cn.edu.ubaa.plus.model.dto.CaptchaInfo
@@ -299,31 +298,43 @@ class AuthViewModel(
     }
   }
 
-  /** 注销登录，清理所有本地状态。 */
+  /** 显式注销删除当前账户的数据，网络注销失败也清除本机凭据。 */
   fun logout() {
+    val owner = _uiState.value.userData?.schoolid ?: ScheduleStore.account()
     cancelAuthentication()
     _uiState.value = AuthUiState(isLoading = true)
     CachedUserStore.clear()
-    CachedHomeStore.clear()
-    cn.edu.ubaa.plus.api.storage.FeatureReadCache.clear()
-    cn.edu.ubaa.plus.reminder.LibBookLeaveStore.clear()
-    cn.edu.ubaa.plus.widget.WidgetTodoStore.clear()
     ScheduleStore.forgetAccount()
     viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(isLoading = true)
-      authService
-          .logout()
-          .onSuccess {
-            resetUserInfoState()
-            _uiState.value = AuthUiState()
-            _loginForm.value = LoginFormState()
-            preloadLoginState()
+      val cleanup = runCatching {
+        if (owner != null) cn.edu.ubaa.plus.api.storage.CacheMaintenance.clearAccount(owner)
+      }
+      val result =
+          try {
+            authService.logout()
+          } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+          } catch (e: Exception) {
+            Result.failure(e)
+          } finally {
+            cn.edu.ubaa.plus.api.storage.CredentialStore.clear()
+            cn.edu.ubaa.plus.api.storage.AuthTokensStore.clearAllScopes()
+            cn.edu.ubaa.plus.api.local.LocalAuthSessionStore.clearAllScopes()
+            cn.edu.ubaa.plus.api.local.LocalCookieStore.clearAllScopes()
+            cn.edu.ubaa.plus.api.local.LocalUpstreamClientProvider.reset()
           }
-          .onFailure {
-            resetUserInfoState()
-            _uiState.value = AuthUiState(error = "注销完成但有警告: ${it.message}")
-            preloadLoginState()
-          }
+      resetUserInfoState()
+      _loginForm.value = LoginFormState()
+      _uiState.value =
+          AuthUiState(
+              error =
+                  when {
+                    cleanup.isFailure -> "已退出登录，但本地数据清理失败，请重试清理"
+                    result.isFailure -> "已退出登录，本地数据已清除；服务器注销未完成"
+                    else -> null
+                  }
+          )
+      preloadLoginState()
     }
   }
 

@@ -77,11 +77,32 @@ fun SettingsScreen(
   val cacheScope = androidx.compose.runtime.rememberCoroutineScope()
   var showClearCache by remember { mutableStateOf(false) }
   var clearingCache by remember { mutableStateOf(false) }
+  var cacheBytes by remember { mutableStateOf<Long?>(null) }
+  var cacheSizeFailed by remember { mutableStateOf(false) }
+  val cacheRevision by cn.edu.ubaa.plus.api.storage.CacheMaintenance.changes.collectAsState()
+  LaunchedEffect(cacheRevision) {
+    val result = runCatching { cn.edu.ubaa.plus.api.storage.CacheMaintenance.cachedSizeBytes() }
+    cacheBytes = result.getOrNull()
+    cacheSizeFailed = result.isFailure
+  }
+  val cacheSizeLabel =
+      cacheBytes?.let { bytes ->
+        when {
+          bytes == 0L -> "0.00 MB"
+          bytes < 10_486 -> "小于 0.01 MB"
+          else -> String.format(java.util.Locale.CHINA, "%.2f MB", bytes / (1024.0 * 1024.0))
+        }
+      } ?: if (cacheSizeFailed) "暂时无法计算" else "计算中…"
+
   if (showClearCache) {
     AlertDialog(
         onDismissRequest = { if (!clearingCache) showClearCache = false },
         title = { Text("清理缓存") },
-        text = { Text("清除首页、成绩、考试、作业和余额等临时缓存。登录信息、设置、已本地化课表和待确认操作记录会保留；再次访问功能时重新加载。") },
+        text = {
+          Text(
+              "可清理缓存约 $cacheSizeLabel。清除首页、成绩、考试、作业和余额等临时缓存。登录信息、设置、已本地化课表和待确认操作记录会保留；再次访问功能时重新加载。"
+          )
+        },
         confirmButton = {
           TextButton(
               enabled = !clearingCache,
@@ -233,7 +254,6 @@ fun SettingsScreen(
           )
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Spacer(modifier = Modifier.height(12.dp))
         Text("功能页布局", style = MaterialTheme.typography.bodyLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
           FeatureLayout.entries.forEach { layout ->
@@ -248,51 +268,28 @@ fun SettingsScreen(
     }
 
     item {
-      SettingsSection(title = "问题诊断") {
-        Text(
-            "本机已记录 $diagnosticCount 条诊断，仅包含功能、连接方式和错误分类。",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          TextButton(onClick = { diagnosticExport.launch("UBAAPlus-diagnostics.json") }) {
-            Text("导出脱敏诊断")
+      SettingsSection(title = "功能") {
+        Row(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .clickable(onClick = onFeatureOrderClick)
+                    .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text("功能排序与显示", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = "分显示/隐藏两层，用上下按钮调整顺序",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
           }
-          TextButton(
-              onClick = {
-                LocalDiagnostics.clear()
-                diagnosticCount = 0
-              }
-          ) {
-            Text("清除记录")
-          }
+          Icon(
+              imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
         }
-      }
-    }
-
-    item {
-      SettingsSection(title = "桌面小组件") {
-        Text("显示模式", style = MaterialTheme.typography.bodyLarge)
-        UbaaSegmentedTabs(
-            labels = ThemeMode.entries.map { it.displayName },
-            selectedIndex = preferences.widgetThemeMode.ordinal,
-            onSelected = { AppPreferencesStore.setWidgetAppearance(mode = ThemeMode.entries[it]) },
-        )
-        UbaaDropdownSelector(
-            selectedText = preferences.widgetColorMode.displayName,
-            options = WidgetColorMode.entries.map { it.displayName },
-            onSelected = {
-              AppPreferencesStore.setWidgetAppearance(color = WidgetColorMode.entries[it])
-            },
-            label = "配色",
-        )
-        if (preferences.widgetColorMode == WidgetColorMode.CUSTOM) {
-          TextButton(onClick = { showWidgetColorPicker = true }) { Text("设置小组件颜色") }
-        }
-        Text(
-            "今日课程小组件同时显示待办，也可单独添加待办小组件。待办来自应用同步快照；打开首页可更新。Android 12 以下壁纸配色回退到应用配色。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
       }
     }
 
@@ -333,28 +330,29 @@ fun SettingsScreen(
     }
 
     item {
-      SettingsSection(title = "功能") {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .clickable(onClick = onFeatureOrderClick)
-                    .padding(vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text("功能排序与显示", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = "分显示/隐藏两层，用上下按钮调整顺序",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-          Icon(
-              imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
+      SettingsSection(title = "桌面小组件") {
+        Text("显示模式", style = MaterialTheme.typography.bodyLarge)
+        UbaaSegmentedTabs(
+            labels = ThemeMode.entries.map { it.displayName },
+            selectedIndex = preferences.widgetThemeMode.ordinal,
+            onSelected = { AppPreferencesStore.setWidgetAppearance(mode = ThemeMode.entries[it]) },
+        )
+        UbaaDropdownSelector(
+            selectedText = preferences.widgetColorMode.displayName,
+            options = WidgetColorMode.entries.map { it.displayName },
+            onSelected = {
+              AppPreferencesStore.setWidgetAppearance(color = WidgetColorMode.entries[it])
+            },
+            label = "配色",
+        )
+        if (preferences.widgetColorMode == WidgetColorMode.CUSTOM) {
+          TextButton(onClick = { showWidgetColorPicker = true }) { Text("设置小组件颜色") }
         }
+        Text(
+            "今日课程小组件同时显示待办，也可单独添加待办小组件。待办来自应用同步快照；打开首页可更新。Android 12 以下壁纸配色回退到应用配色。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
       }
     }
 
@@ -475,8 +473,10 @@ fun SettingsScreen(
         }
       }
     }
+
     item {
       SettingsSection(title = "缓存") {
+        Text("可清理缓存约 $cacheSizeLabel", style = MaterialTheme.typography.bodyLarge)
         Text(
             "清理临时业务数据，保留登录信息、设置和已本地化课表。",
             style = MaterialTheme.typography.bodySmall,
@@ -487,6 +487,29 @@ fun SettingsScreen(
         }
       }
     }
+
+    item {
+      SettingsSection(title = "问题诊断") {
+        Text(
+            "本机已记录 $diagnosticCount 条诊断，仅包含功能、连接方式和错误分类。",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          TextButton(onClick = { diagnosticExport.launch("UBAAPlus-diagnostics.json") }) {
+            Text("导出脱敏诊断")
+          }
+          TextButton(
+              onClick = {
+                LocalDiagnostics.clear()
+                diagnosticCount = 0
+              }
+          ) {
+            Text("清除记录")
+          }
+        }
+      }
+    }
+
     item {
       SettingsSection(title = "功能选项") {
         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -35,6 +35,70 @@ class VenueGrabControllerTest {
     assertEquals(VenueGrabPhase.IDLE, controller.state.value.phase)
   }
 
+  private fun manualTask() =
+      task().copy(spaceMode = VenueSpaceMode.FIXED, preferredSpaceByBegin = mapOf("19:00" to 236))
+
+  @Test
+  fun `开关关闭仍允许人工预约并完成验证码`() = runTest {
+    val backend = FakeVenueBackend(dayInfo(free = true, captcha = true))
+    val controller =
+        VenueGrabController(
+            VenueApi(backend),
+            this,
+            MutableStateFlow(true),
+            automationAllowed = { false },
+        )
+    controller.reserveOnce(manualTask())
+    runCurrent()
+    assertEquals(VenueGrabPhase.NEEDS_CAPTCHA, controller.state.value.phase)
+    controller.submitCaptcha(VenueCaptchaAnswer(listOf(VenuePoint(1f, 2f)), 100, 50))
+    advanceUntilIdle()
+    assertEquals(VenueGrabPhase.SUCCESS, controller.state.value.phase)
+    assertEquals(1, backend.submitCalls)
+  }
+
+  @Test
+  fun `普通预约遇到冲突只提交一次`() = runTest {
+    val backend =
+        FakeVenueBackend(
+            dayInfo(free = true),
+            mutableListOf(
+                Result.failure(ApiCallException("该场地已被预约", code = "venue_conflict")),
+                Result.success(order()),
+            ),
+        )
+    val controller = controller(backend)
+    controller.reserveOnce(manualTask())
+    advanceUntilIdle()
+    assertEquals(VenueGrabPhase.FAILED, controller.state.value.phase)
+    assertEquals(1, backend.submitCalls)
+  }
+
+  @Test
+  fun `普通预约无空位不轮询也不换场地`() = runTest {
+    val backend = FakeVenueBackend(dayInfo(free = false))
+    val controller = controller(backend)
+    controller.reserveOnce(manualTask())
+    advanceUntilIdle()
+    assertEquals(VenueGrabPhase.FAILED, controller.state.value.phase)
+    assertEquals(0, backend.submitCalls)
+  }
+
+  @Test
+  fun `普通预约后续时段不可用不偷偷更换场地`() = runTest {
+    val day = dayInfo(free = true)
+    val next = VenueTimeSlot(7701, "20:00", "21:00")
+    val fixed = day.spaces.first()
+    val other = fixed.copy(spaceId = 999, slots = mapOf(7701 to fixed.slots.getValue(7700)))
+    val backend =
+        FakeVenueBackend(day.copy(slots = day.slots + next, spaces = listOf(fixed, other)))
+    val controller = controller(backend)
+    controller.reserveOnce(manualTask().copy(durationMinutes = 120))
+    advanceUntilIdle()
+    assertEquals(VenueGrabPhase.FAILED, controller.state.value.phase)
+    assertEquals(0, backend.submitCalls)
+  }
+
   @Test
   fun `空闲场地立即提交并成功`() = runTest {
     val backend = FakeVenueBackend(dayInfo(free = true))

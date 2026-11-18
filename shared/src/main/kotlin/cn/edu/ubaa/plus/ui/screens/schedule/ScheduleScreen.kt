@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -44,8 +46,11 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import cn.edu.ubaa.plus.ui.theme.ubaaLiquidGlass
+import kotlin.time.Clock
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 val LocalScheduleResponseExporter = staticCompositionLocalOf<((String) -> Unit)?> { null }
 
@@ -355,7 +360,7 @@ internal fun ScheduleWeekPager(
     if (schedule != null)
         WeeklyScheduleView(
             schedule,
-            week.headerDayLabels(),
+            week,
             { course -> onCourseClick(course, week.startDate) },
             modifier = Modifier.fillMaxSize(),
         )
@@ -465,17 +470,27 @@ private fun WeekSelectionSheet(
 @Composable
 private fun WeeklyScheduleView(
     schedule: WeeklySchedule,
-    headerDayLabels: List<ScheduleHeaderDayLabel>,
+    week: Week,
     onCourseClick: (CourseClass) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   // 时间轴只认校方作息表，与上游返回的节次数据无关。
   val slots = remember { sectionSlots() }
   val totalPeriods = slots.size
+  var now by remember {
+    mutableStateOf(Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai")))
+  }
+  LaunchedEffect(Unit) {
+    while (true) {
+      now = Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai"))
+      delay(30_000)
+    }
+  }
+  val marker = scheduleNowMarker(week, now)
 
   // 不滚动：整周课表必须在一屏内看全，行高由可用高度均分得出。
   Column(modifier = modifier.padding(horizontal = 6.dp)) {
-    HeaderRow(headerDayLabels)
+    HeaderRow(week.headerDayLabels())
     Spacer(modifier = Modifier.height(2.dp))
     BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
       val availableHeight = if (maxHeight.value.isFinite()) maxHeight.value else 40f * totalPeriods
@@ -498,6 +513,7 @@ private fun WeeklyScheduleView(
             totalPeriods,
             rowHeight,
             Modifier.weight(1f),
+            nowMarker = marker,
         )
       }
     }
@@ -696,6 +712,7 @@ private fun WeeklyScheduleGrid(
     totalPeriods: Int,
     rowHeight: Dp,
     modifier: Modifier = Modifier,
+    nowMarker: ScheduleNowMarker? = null,
 ) {
   val totalDays = 7
   val gridColor = MaterialTheme.colorScheme.onSurface.copy(0.1f)
@@ -731,6 +748,24 @@ private fun WeeklyScheduleGrid(
                     .size(cellWidth, rowHeight * span)
                     .padding(1.dp),
         )
+      }
+    }
+    nowMarker?.let { marker ->
+      val markerColor = MaterialTheme.colorScheme.error
+      Canvas(
+          Modifier.fillMaxSize().testTag("schedule-now-line").semantics {
+            contentDescription = "当前时间位置"
+          }
+      ) {
+        val left = marker.dayIndex * cellWidth.toPx()
+        val y = marker.rowOffset * cellHeightPx
+        drawLine(
+            markerColor,
+            Offset(left, y),
+            Offset(left + cellWidth.toPx(), y),
+            strokeWidth = 2.dp.toPx(),
+        )
+        drawCircle(markerColor, radius = 3.dp.toPx(), center = Offset(left + 3.dp.toPx(), y))
       }
     }
   }

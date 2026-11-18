@@ -56,6 +56,9 @@ object GradeScoreCacheStore {
 
   fun clearKnownUserAllModes(userKey: String) {
     ConnectionMode.entries.forEach { mode -> settings.remove(storageKey(userKey, mode)) }
+    val remaining = loadUserKeys() - userKey
+    if (remaining.isEmpty()) settings.remove(KEY_USER_INDEX)
+    else settings.putString(KEY_USER_INDEX, json.encodeToString(remaining))
   }
 
   private fun storageKey(

@@ -64,6 +64,12 @@ object ScheduleStore {
     revision.update { it + 1 }
   }
 
+  fun removeAccount(account: String) {
+    ScheduleSnapshotStorage(settings).removeAccount(account)
+    if (account() == account) settings.remove(ACCOUNT)
+    revision.update { it + 1 }
+  }
+
   fun hasSavedSchedule(): Boolean =
       runCatching { account()?.let { read(it).isNotEmpty() } == true }.getOrDefault(false)
 }

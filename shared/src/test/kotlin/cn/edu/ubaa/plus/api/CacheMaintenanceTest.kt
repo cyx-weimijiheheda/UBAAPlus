@@ -32,7 +32,9 @@ class CacheMaintenanceTest {
     FeatureReadCache.save("alice", "grades", "term", serializer<List<String>>(), listOf("old"))
     FeatureReadCache.settings.putBoolean("write_pending:synthetic", true)
     val revision = CacheMaintenance.changes.value
+    assertTrue(CacheMaintenance.cachedSizeBytes() > 0)
     CacheMaintenance.clear()
+    assertEquals(0L, CacheMaintenance.cachedSizeBytes())
     assertNull(FeatureReadCache.get<List<String>>("grades", "term"))
     assertNull(CachedHomeStore.read("alice"))
     assertEquals("alice", ScheduleStore.account())
@@ -48,5 +50,38 @@ class CacheMaintenanceTest {
     assertFalse(CacheMaintenance.writeIfCurrent(revision) { staleWrite = true })
     assertFalse(staleWrite)
     assertEquals(revision + 1, CacheMaintenance.changes.value)
+  }
+
+  @Test
+  fun logoutCleanupDeletesOnlyCurrentAccountSnapshotsAndAllScheduleChunks() = runTest {
+    TestSettings.installInMemorySettings()
+    val localized = listOf(SemesterSchedule(emptyList(), "term", emptyList(), emptyMap()))
+    for (owner in listOf("alice", "bob")) {
+      ScheduleStore.useAccount(owner)
+      ScheduleStore.write(owner, localized)
+      CachedHomeStore.write(CachedHomeSnapshot(owner))
+      FeatureReadCache.save(owner, "grades", "term", serializer<List<String>>(), listOf(owner))
+      GradeScoreCacheStore.save(owner, StoredGradeScoreCache("term"))
+    }
+    ScheduleStore.useAccount("alice")
+    ScheduleStore.settings.putString("schedule_v1_alice", "legacy")
+    val before = ScheduleStore.settings.keys.filter { it.startsWith("schedule_part_") }.toSet()
+    AppPreferencesStore.setMysterySwitchEnabled(true)
+    CacheMaintenance.clearAccount("alice")
+    assertEquals(emptyList(), ScheduleStore.read("alice"))
+    assertNull(ScheduleStore.settings.getStringOrNull("schedule_v1_alice"))
+    assertNull(ScheduleStore.settings.getStringOrNull("schedule_v2_alice"))
+    assertTrue(ScheduleStore.settings.keys.count { it.startsWith("schedule_part_") } < before.size)
+    assertNull(GradeScoreCacheStore.get("alice"))
+    assertNull(ScheduleStore.account())
+    assertTrue(AppPreferencesStore.state.value.mysterySwitchEnabled)
+    ScheduleStore.useAccount("alice")
+    assertNull(FeatureReadCache.get<List<String>>("grades", "term"))
+    assertNull(CachedHomeStore.read("alice"))
+    ScheduleStore.useAccount("bob")
+    assertEquals(localized, ScheduleStore.read("bob"))
+    assertEquals(listOf("bob"), FeatureReadCache.get<List<String>>("grades", "term"))
+    assertNotNull(CachedHomeStore.read("bob"))
+    assertNotNull(GradeScoreCacheStore.get("bob"))
   }
 }

@@ -32,7 +32,7 @@ internal fun Week.headerDayLabels(): List<ScheduleHeaderDayLabel> {
   }
 }
 
-private fun parseWeekBoundaryDate(raw: String?): LocalDate? {
+internal fun parseWeekBoundaryDate(raw: String?): LocalDate? {
   val normalized = raw?.trim().orEmpty()
   if (normalized.isEmpty()) return null
 

@@ -54,13 +54,25 @@ fun VenueScreen(
   val preferences by cn.edu.ubaa.plus.api.storage.AppPreferencesStore.state.collectAsState()
   val state by viewModel.state.collectAsState()
   val grabState by viewModel.grabState.collectAsState()
+  val reservation by viewModel.reservationState.collectAsState()
+  var confirmReservation by remember { mutableStateOf(false) }
+  LaunchedEffect(preferences.mysterySwitchEnabled) {
+    if (!preferences.mysterySwitchEnabled) viewModel.setSpaceMode(VenueSpaceMode.FIXED)
+  }
+  LaunchedEffect(reservation.phase) {
+    if (reservation.phase == VenueGrabPhase.SUCCESS) {
+      viewModel.refreshDayInfo()
+      viewModel.loadOrderHistory()
+    }
+  }
   val orderHistoryState by viewModel.orderHistoryState.collectAsState()
   val foreground by cn.edu.ubaa.plus.AppForegroundMonitor.foreground.collectAsState()
   var showBuddyDialog by remember { mutableStateOf(false) }
   var showOrderHistoryDialog by remember { mutableStateOf(false) }
 
   val grabbing =
-      grabState.phase == VenueGrabPhase.WAITING ||
+      reservation.phase in setOf(VenueGrabPhase.RUNNING, VenueGrabPhase.NEEDS_CAPTCHA) ||
+          grabState.phase == VenueGrabPhase.WAITING ||
           grabState.phase == VenueGrabPhase.RUNNING ||
           grabState.phase == VenueGrabPhase.NEEDS_CAPTCHA
 
@@ -173,6 +185,7 @@ fun VenueScreen(
               item {
                 VenueTargetOptionsCard(
                     state = state,
+                    automationEnabled = preferences.mysterySwitchEnabled,
                     onDurationChange = viewModel::setDurationMinutes,
                     onSpaceModeChange = viewModel::setSpaceMode,
                     onRandomChange = viewModel::setRandomSpace,
@@ -185,6 +198,57 @@ fun VenueScreen(
                     onToggleBuddy = viewModel::toggleBuddy,
                     onManageClick = { showBuddyDialog = true },
                 )
+              }
+              item {
+                Card(
+                    modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
+                    colors = ubaaGlassCardColors(),
+                ) {
+                  Column(
+                      Modifier.fillMaxWidth().padding(16.dp),
+                      verticalArrangement = Arrangement.spacedBy(8.dp),
+                  ) {
+                    Text(
+                        "场地预约",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        "选择场地、时间和同伴后提交一次；如需付款，请在预约成功后完成支付。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (reservation.phase != VenueGrabPhase.IDLE)
+                        Text(reservation.message, style = MaterialTheme.typography.bodyMedium)
+                    if (
+                        state.selectedSpaceId != null &&
+                            state.selectedStartBegin != null &&
+                            !state.canReserveOnce &&
+                            !state.isLoadingDayInfo
+                    ) {
+                      Text(
+                          "所选场地在该时长内没有连续空位，请调整时长或重新选择。",
+                          style = MaterialTheme.typography.bodySmall,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      )
+                    }
+                    Button(
+                        onClick = { confirmReservation = true },
+                        enabled = state.canReserveOnce && !grabbing,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                      Text("确认预约")
+                    }
+                    if (
+                        reservation.phase in
+                            setOf(VenueGrabPhase.RUNNING, VenueGrabPhase.NEEDS_CAPTCHA)
+                    ) {
+                      TextButton(onClick = viewModel::cancelReservation) { Text("取消操作") }
+                    }
+                    reservation.payUrl?.let { url ->
+                      TextButton(onClick = { onOpenUrl(url) }) { Text("前往支付") }
+                    }
+                  }
+                }
               }
               if (preferences.mysterySwitchEnabled)
                   item {
@@ -202,6 +266,36 @@ fun VenueScreen(
             }
           }
     }
+  }
+
+  if (confirmReservation) {
+    AlertDialog(
+        onDismissRequest = { confirmReservation = false },
+        title = { Text("确认场地预约") },
+        text = {
+          Text(
+              "${state.selectedDate} ${state.selectedTargetRangeLabel}\n${state.dayInfo?.spaces?.firstOrNull { it.spaceId == state.selectedSpaceId }?.spaceName.orEmpty()}\n请核对同伴、费用和学校取消规则。"
+          )
+        },
+        confirmButton = {
+          TextButton(
+              onClick = {
+                confirmReservation = false
+                viewModel.reserveOnce()
+              }
+          ) {
+            Text("提交预约")
+          }
+        },
+        dismissButton = { TextButton(onClick = { confirmReservation = false }) { Text("取消") } },
+    )
+  }
+  reservation.pendingCaptcha?.let { challenge ->
+    VenueCaptchaDialog(
+        challenge = challenge,
+        onCancel = viewModel::cancelReservationCaptcha,
+        onSubmit = viewModel::submitReservationCaptcha,
+    )
   }
 
   grabState.pendingCaptcha
@@ -644,7 +738,7 @@ private fun VenueAvailabilityCard(
 
       if (day == null) {
         Text(
-            text = "该日期暂无场地数据。尚未放票时也可以直接设置时间并开始抢场地。",
+            text = "该日期暂无场地数据，请在放票后刷新。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -805,6 +899,7 @@ private fun VenueSlotCell(
 @Composable
 private fun VenueTargetOptionsCard(
     state: VenueUiState,
+    automationEnabled: Boolean,
     onDurationChange: (Int) -> Unit,
     onSpaceModeChange: (VenueSpaceMode) -> Unit,
     onRandomChange: (Boolean) -> Unit,
@@ -816,7 +911,7 @@ private fun VenueTargetOptionsCard(
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       Text(
-          text = "抢场地设置",
+          text = "预约设置",
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
       )
@@ -834,36 +929,37 @@ private fun VenueTargetOptionsCard(
       }
 
       Spacer(modifier = Modifier.height(8.dp))
-      Text("场地模式", style = MaterialTheme.typography.labelMedium)
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = state.spaceMode == VenueSpaceMode.FIXED,
-            onClick = { onSpaceModeChange(VenueSpaceMode.FIXED) },
-            label = { Text("指定场地") },
-        )
-        FilterChip(
-            selected = state.spaceMode == VenueSpaceMode.AUTO,
-            onClick = { onSpaceModeChange(VenueSpaceMode.AUTO) },
-            label = { Text("自动选场地") },
-        )
-      }
+      if (automationEnabled) {
+        Text("场地模式", style = MaterialTheme.typography.labelMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          FilterChip(
+              selected = state.spaceMode == VenueSpaceMode.FIXED,
+              onClick = { onSpaceModeChange(VenueSpaceMode.FIXED) },
+              label = { Text("指定场地") },
+          )
+          FilterChip(
+              selected = state.spaceMode == VenueSpaceMode.AUTO,
+              onClick = { onSpaceModeChange(VenueSpaceMode.AUTO) },
+              label = { Text("自动选场地") },
+          )
+        }
 
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            checked = state.randomSpace,
-            onCheckedChange = onRandomChange,
-            enabled = state.spaceMode == VenueSpaceMode.AUTO,
-        )
-        Text("自动时随机选择场地", style = MaterialTheme.typography.bodySmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Checkbox(
+              checked = state.randomSpace,
+              onCheckedChange = onRandomChange,
+              enabled = state.spaceMode == VenueSpaceMode.AUTO,
+          )
+          Text("自动时随机选择场地", style = MaterialTheme.typography.bodySmall)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Checkbox(
+              checked = state.fallbackAnySpace,
+              onCheckedChange = onFallbackChange,
+          )
+          Text("指定场地不足时换其它空闲场地", style = MaterialTheme.typography.bodySmall)
+        }
       }
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            checked = state.fallbackAnySpace,
-            onCheckedChange = onFallbackChange,
-        )
-        Text("指定场地不足时换其它空闲场地", style = MaterialTheme.typography.bodySmall)
-      }
-
       Spacer(modifier = Modifier.height(8.dp))
       val start = state.selectedStartBegin
       val spaceName =

@@ -42,6 +42,8 @@ object TestSettings {
     AnnouncementReadStore.settings = MapSettings()
     CgyyReservationFormStore.settings = MapSettings()
     YgdkReminderStore.settings = MapSettings()
+    cn.edu.ubaa.plus.reminder.LibBookLeaveStore.settings = MapSettings()
+    cn.edu.ubaa.plus.reminder.ReminderSeenStore.settings = MapSettings()
     LocalAuthSessionStore.settings = MapSettings()
     LocalCookieStore.settings = MapSettings()
   }

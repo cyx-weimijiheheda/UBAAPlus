@@ -58,6 +58,11 @@ internal object LibBookLeaveStore {
   }
 
   @Synchronized
+  fun clearAccount(owner: String) {
+    settings.remove(key(owner))
+  }
+
+  @Synchronized
   fun clear() {
     settings.keys.filter { it.startsWith("libbook_leaves:") }.forEach(settings::remove)
   }

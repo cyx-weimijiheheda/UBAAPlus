@@ -128,6 +128,11 @@ internal object CachedHomeStore {
     }
   }
 
+  fun clearAccount(owner: String) {
+    settings.remove("home_snapshot:$owner")
+    runCatching { Settings().remove("home_snapshot:$owner") }
+  }
+
   fun clear() {
     settings.keys.filter { it.startsWith("home_snapshot:") }.forEach(settings::remove)
     runCatching {

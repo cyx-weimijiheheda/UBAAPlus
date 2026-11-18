@@ -4,13 +4,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -44,6 +48,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.SigninClassDto
 import cn.edu.ubaa.plus.model.dto.TodayClass
@@ -361,8 +366,33 @@ internal fun TodayClassCard(
       modifier = modifier.ubaaGlassSurface().fillMaxWidth().clickable(onClick = onClick),
       colors = CardDefaults.cardColors(containerColor = tint.copy(alpha = 0.16f)),
   ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+      Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        Text(
+            text = todayClass.displayCourseName(),
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
+        )
+        Button(
+            onClick = { signin?.let { onSigninClick(it.courseId) } },
+            enabled = signin != null && status == HomeCourseStatus.PENDING && !isSigningIn,
+            modifier = Modifier.heightIn(min = 48.dp).widthIn(min = 72.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+          Text(if (isSigningIn) "签到中…" else "签到")
+        }
+      }
+      FlowRow(
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp),
+      ) {
         Text(
             when (status) {
               HomeCourseStatus.COMPLETE -> if (signin != null) "已签到" else "已结束"
@@ -372,59 +402,36 @@ internal fun TodayClassCard(
             },
             color = tint,
             style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.weight(1f),
         )
-        Button(
-            onClick = { signin?.let { onSigninClick(it.courseId) } },
-            enabled = signin != null && status == HomeCourseStatus.PENDING && !isSigningIn,
-        ) {
-          Text(if (isSigningIn) "签到中…" else "签到")
-        }
-      }
-      Text(
-          text = todayClass.displayCourseName(),
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-      )
-
-      Spacer(modifier = Modifier.height(8.dp))
-
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Column(modifier = Modifier.weight(1f)) {
-          todayClass.time?.let { time ->
-            Text(
-                text = "时间：$time",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-
-          todayClass.place?.let { place ->
-            Text(
-                text = "地点：$place",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-        }
-
+        todayClass.time
+            ?.takeIf { it.isNotBlank() }
+            ?.let { time ->
+              Text(
+                  text = time,
+                  style = MaterialTheme.typography.bodyMedium,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
         todayClass.shortName
             ?.trim()
             ?.takeIf { it.isNotEmpty() && it != todayClass.displayCourseName() && it != "课" }
             ?.let { shortName ->
-              Surface(
-                  color = MaterialTheme.colorScheme.primaryContainer,
-                  contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                  shape = MaterialTheme.shapes.small,
-              ) {
-                Text(
-                    text = shortName,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-              }
+              Text(
+                  text = shortName,
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
             }
       }
+      todayClass.place
+          ?.takeIf { it.isNotBlank() }
+          ?.let { place ->
+            Text(
+                text = place,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
     }
   }
 }
@@ -436,7 +443,7 @@ private fun HomeTodoCard(item: HomeTodoItem, onClick: () -> Unit) {
       colors = ubaaGlassCardColors(),
   ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -446,18 +453,18 @@ private fun HomeTodoCard(item: HomeTodoItem, onClick: () -> Unit) {
           shape = MaterialTheme.shapes.medium,
       ) {
         Box(
-            modifier = Modifier.size(44.dp),
+            modifier = Modifier.size(36.dp),
             contentAlignment = Alignment.Center,
         ) {
           Icon(
               imageVector = sourceIcon(item.source),
               contentDescription = item.source.label,
-              modifier = Modifier.size(22.dp),
+              modifier = Modifier.size(20.dp),
           )
         }
       }
 
-      Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+      Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
