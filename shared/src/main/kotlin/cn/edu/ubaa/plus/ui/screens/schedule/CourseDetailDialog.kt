@@ -9,16 +9,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Event
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -32,6 +29,8 @@ import cn.edu.ubaa.plus.model.format.formatUbaaTime
 import cn.edu.ubaa.plus.model.format.formatUbaaWeekdayLabel
 import cn.edu.ubaa.plus.model.format.parseUbaaDate
 import cn.edu.ubaa.plus.model.format.parseUbaaTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.util.addCourseToCalendar
 import kotlinx.datetime.DatePeriod
@@ -135,7 +134,7 @@ private fun CourseDetailInfo.timeText(): String? {
 fun CourseDetailDialog(info: CourseDetailInfo, onDismiss: () -> Unit) {
   val clipboard = LocalClipboardManager.current
   val context = LocalContext.current
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text(info.courseName, fontWeight = FontWeight.Bold) },
       text = {
@@ -155,53 +154,44 @@ fun CourseDetailDialog(info: CourseDetailInfo, onDismiss: () -> Unit) {
           info.teachingTarget?.takeIf { it.isNotBlank() }?.let { DetailLine("教学班组成", it) }
         }
       },
-      confirmButton = {
-        // 与其他卡片一致：复制与添加到日历都用图标，不再占文字按钮的位置。
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
+      titleActions = {
+        UbaaIconButton(
+            onClick = {
+              clipboard.setText(AnnotatedString(info.toClipboardText()))
+              UbaaToast.show("课程信息已复制")
+            },
+            modifier = Modifier.size(48.dp),
         ) {
-          IconButton(
-              onClick = {
-                clipboard.setText(AnnotatedString(info.toClipboardText()))
-                UbaaToast.show("课程信息已复制")
-              },
-              modifier = Modifier.size(48.dp),
-          ) {
-            Icon(
-                imageVector = Icons.Default.ContentCopy,
-                contentDescription = "复制详细信息",
-                modifier = Modifier.size(18.dp),
-            )
-          }
-          IconButton(
-              onClick = {
-                val ok =
-                    addCourseToCalendar(
-                        context = context,
-                        title = info.courseName,
-                        location = info.placeName,
-                        description = info.toClipboardText(),
-                        date = info.date,
-                        beginTime = info.beginTime,
-                        endTime = info.endTime,
-                    )
-                UbaaToast.show(if (ok) "已打开日历" else "未找到可用的日历应用")
-              },
-              modifier = Modifier.size(48.dp),
-          ) {
-            Icon(
-                imageVector = Icons.Default.Event,
-                contentDescription = "添加到日历",
-                modifier = Modifier.size(18.dp),
-            )
-          }
-          TextButton(onClick = onDismiss, modifier = Modifier.size(width = 64.dp, height = 48.dp)) {
-            Text("关闭")
-          }
+          Icon(
+              imageVector = Icons.Default.ContentCopy,
+              contentDescription = "复制详细信息",
+              modifier = Modifier.size(18.dp),
+          )
+        }
+        UbaaIconButton(
+            onClick = {
+              val ok =
+                  addCourseToCalendar(
+                      context = context,
+                      title = info.courseName,
+                      location = info.placeName,
+                      description = info.toClipboardText(),
+                      date = info.date,
+                      beginTime = info.beginTime,
+                      endTime = info.endTime,
+                  )
+              UbaaToast.show(if (ok) "已打开日历" else "未找到可用的日历应用")
+            },
+            modifier = Modifier.size(48.dp),
+        ) {
+          Icon(
+              imageVector = Icons.Default.Event,
+              contentDescription = "添加到日历",
+              modifier = Modifier.size(18.dp),
+          )
         }
       },
+      confirmButton = {},
   )
 }
 

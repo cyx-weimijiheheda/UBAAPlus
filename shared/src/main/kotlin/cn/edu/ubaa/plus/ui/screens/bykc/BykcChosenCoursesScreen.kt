@@ -22,6 +22,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
 import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -126,19 +127,9 @@ fun BykcChosenCourseCard(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-          course.subCategory?.let { subCategory ->
-            SuggestionChip(
-                onClick = {},
-                label = {
-                  Text(subCategory.displayName, style = MaterialTheme.typography.labelSmall)
-                },
-            )
-          }
+          course.subCategory?.let { subCategory -> UbaaStatusBadge(text = subCategory.displayName) }
           if (hasSignPoints) {
-            SuggestionChip(
-                onClick = {},
-                label = { Text("自主签到", style = MaterialTheme.typography.labelSmall) },
-            )
+            UbaaStatusBadge(text = "自主签到")
           }
         }
       }

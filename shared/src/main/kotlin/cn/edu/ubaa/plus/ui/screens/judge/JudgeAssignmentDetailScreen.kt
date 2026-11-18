@@ -19,13 +19,10 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedAssistChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,9 +37,13 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentDetailDto
 import cn.edu.ubaa.plus.model.dto.JudgeProblemDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
+import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.common.util.addAssignmentDeadlineToCalendar
@@ -83,14 +84,11 @@ fun JudgeAssignmentDetailScreen(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 contentAlignment = Alignment.Center,
             ) {
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = uiState.detailError!!, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = onRetry) { Text("重试") }
-              }
+              UbaaErrorState(message = uiState.detailError!!, onRetry = onRetry)
             }
         detail == null ->
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              Text("暂无作业详情")
+              UbaaEmptyState(title = "暂无作业详情")
             }
         else ->
             Column(
@@ -190,7 +188,7 @@ private fun DetailInfoCard(
       // 与标题同一行右对齐，避免按钮单独占一行。
       trailing = {
         if (onAddToCalendar != null) {
-          IconButton(onClick = onAddToCalendar, modifier = Modifier.size(32.dp)) {
+          UbaaIconButton(onClick = onAddToCalendar, modifier = Modifier.size(48.dp)) {
             Icon(
                 imageVector = Icons.Default.Event,
                 contentDescription = "添加到日程",
@@ -198,12 +196,12 @@ private fun DetailInfoCard(
             )
           }
         }
-        IconButton(
+        UbaaIconButton(
             onClick = {
               clipboard.setText(AnnotatedString("${title}\n" + lines.joinToString("\n")))
               UbaaToast.show("已复制$title")
             },
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(48.dp),
         ) {
           Icon(
               imageVector = Icons.Default.ContentCopy,
@@ -244,7 +242,7 @@ private fun JudgeProblemCard(problem: JudgeProblemDto) {
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
-        ElevatedAssistChip(onClick = {}, label = { Text(problem.statusText) })
+        UbaaStatusBadge(text = problem.statusText)
       }
 
       problem.maxScore

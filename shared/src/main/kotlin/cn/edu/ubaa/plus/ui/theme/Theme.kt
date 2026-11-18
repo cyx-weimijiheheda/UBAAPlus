@@ -153,6 +153,8 @@ data class UbaaExtendedColors(
     val successContainer: Color,
     val onSuccessContainer: Color,
     val info: Color,
+    val warningContainer: Color = Color(0xFFFFF0C2),
+    val onWarningContainer: Color = Color(0xFF4E3600),
 )
 
 private fun lightExtendedColors(brand: Color) =
@@ -171,6 +173,8 @@ private fun darkExtendedColors(brand: Color) =
         successContainer = Color(0xFF1B5E20),
         onSuccessContainer = Color(0xFFC8E6C9),
         info = lerp(Color.White, brand, 0.55f),
+        warningContainer = Color(0xFF5A4300),
+        onWarningContainer = Color(0xFFFFDEA0),
     )
 
 private val LocalUbaaExtendedColors = staticCompositionLocalOf {

@@ -1,9 +1,9 @@
 package cn.edu.ubaa.plus.ui.screens.evaluation
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -16,9 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.evaluation.EvaluationCourse
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
@@ -73,9 +78,7 @@ fun EvaluationScreen(viewModel: EvaluationViewModel) {
         }
 
         if (uiState.isLoading) {
-          Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-          }
+          UbaaLoadingState(text = "正在加载评教课程…", modifier = Modifier.fillMaxSize())
         } else if (uiState.error != null && uiState.courses.isEmpty()) {
           // 错误提示与重试
           Column(
@@ -84,7 +87,7 @@ fun EvaluationScreen(viewModel: EvaluationViewModel) {
               horizontalAlignment = Alignment.CenterHorizontally,
           ) {
             Text(uiState.error!!, style = MaterialTheme.typography.bodyLarge)
-            Button(
+            UbaaButton(
                 onClick = { viewModel.loadPendingCourses() },
                 modifier = Modifier.padding(top = 16.dp),
             ) {
@@ -144,7 +147,7 @@ fun EvaluationScreen(viewModel: EvaluationViewModel) {
 
       // 结果对话框
       if (uiState.submissionResults.isNotEmpty() && !uiState.isSubmitting) {
-        AlertDialog(
+        UbaaAlertDialog(
             onDismissRequest = { viewModel.clearResults() },
             title = { Text("评教完成") },
             text = {
@@ -177,7 +180,7 @@ fun EvaluationScreen(viewModel: EvaluationViewModel) {
               }
             },
             confirmButton = {
-              TextButton(
+              UbaaTextButton(
                   onClick = {
                     viewModel.clearResults()
                     viewModel.loadPendingCourses()
@@ -217,7 +220,15 @@ fun EvaluationCourseItem(course: EvaluationCourse, isSelected: Boolean, onToggle
               .ubaaGlassSurface()
               .fillMaxWidth()
               .alpha(if (isEvaluated) 0.6f else 1f)
-              .then(if (!isEvaluated) Modifier.clickable { onToggle() } else Modifier),
+              .then(
+                  if (!isEvaluated)
+                      Modifier.toggleable(
+                          value = isSelected,
+                          role = Role.Checkbox,
+                          onValueChange = { onToggle() },
+                      )
+                  else Modifier
+              ),
       colors =
           CardDefaults.cardColors(
               containerColor = tint,
@@ -235,7 +246,7 @@ fun EvaluationCourseItem(course: EvaluationCourse, isSelected: Boolean, onToggle
         )
       } else {
         // 未评教：显示可选复选框
-        Checkbox(checked = isSelected, onCheckedChange = { onToggle() })
+        Checkbox(checked = isSelected, onCheckedChange = null)
       }
       Spacer(Modifier.width(12.dp))
       Column(modifier = Modifier.weight(1f)) {

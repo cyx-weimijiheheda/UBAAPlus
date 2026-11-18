@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,10 +37,18 @@ import cn.edu.ubaa.plus.api.venue.venueOptionLabel
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.model.format.formatUbaaFlexibleRange
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaCheckboxRow
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedMultiSelect
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -110,7 +119,7 @@ fun VenueScreen(
               contentAlignment = Alignment.Center,
           ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-              CircularProgressIndicator()
+              UbaaProgressIndicator()
               Spacer(modifier = Modifier.height(8.dp))
               Text("正在建立运动场地会话…")
             }
@@ -138,7 +147,7 @@ fun VenueScreen(
                   textAlign = TextAlign.Center,
               )
               Spacer(modifier = Modifier.height(12.dp))
-              Button(
+              UbaaButton(
                   onClick = {
                     viewModel.resetLoadedState()
                     viewModel.ensureInitialized()
@@ -232,7 +241,7 @@ fun VenueScreen(
                           color = MaterialTheme.colorScheme.onSurfaceVariant,
                       )
                     }
-                    Button(
+                    UbaaButton(
                         onClick = { confirmReservation = true },
                         enabled = state.canReserveOnce && !grabbing,
                         modifier = Modifier.fillMaxWidth(),
@@ -243,10 +252,14 @@ fun VenueScreen(
                         reservation.phase in
                             setOf(VenueGrabPhase.RUNNING, VenueGrabPhase.NEEDS_CAPTCHA)
                     ) {
-                      TextButton(onClick = viewModel::cancelReservation) { Text("取消操作") }
+                      UbaaIconAction(
+                          onClick = viewModel::cancelReservation,
+                          description = "取消操作",
+                          icon = Icons.Default.Stop,
+                      )
                     }
                     reservation.payUrl?.let { url ->
-                      TextButton(onClick = { onOpenUrl(url) }) { Text("前往支付") }
+                      UbaaTextButton(onClick = { onOpenUrl(url) }) { Text("前往支付") }
                     }
                   }
                 }
@@ -270,7 +283,7 @@ fun VenueScreen(
   }
 
   if (confirmReservation) {
-    AlertDialog(
+    UbaaAlertDialog(
         onDismissRequest = { confirmReservation = false },
         title = { Text("确认场地预约") },
         text = {
@@ -279,7 +292,7 @@ fun VenueScreen(
           )
         },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               onClick = {
                 confirmReservation = false
                 viewModel.reserveOnce()
@@ -288,7 +301,13 @@ fun VenueScreen(
             Text("提交预约")
           }
         },
-        dismissButton = { TextButton(onClick = { confirmReservation = false }) { Text("取消") } },
+        dismissButton = {
+          UbaaIconAction(
+              onClick = { confirmReservation = false },
+              description = "取消",
+              icon = Icons.Default.Close,
+          )
+        },
     )
   }
   reservation.pendingCaptcha?.let { challenge ->
@@ -356,17 +375,29 @@ private fun VenueLoginCard(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 
-    OutlinedTextField(
+    UbaaTextField(
         shape = RoundedCornerShape(14.dp),
         value = form.username,
+        requiredMessage = "请填写学号",
+        enabled = !state.isLoggingIn,
         onValueChange = onUsernameChange,
         label = { Text("学号") },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
-    OutlinedTextField(
+    UbaaTextField(
         shape = RoundedCornerShape(14.dp),
         value = form.password,
+        requiredMessage = "请填写密码",
+        enabled = !state.isLoggingIn,
+        keyboardOptions =
+            androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                imeAction =
+                    if (state.authPhase == VenueAuthPhase.NEEDS_CAPTCHA)
+                        androidx.compose.ui.text.input.ImeAction.Next
+                    else androidx.compose.ui.text.input.ImeAction.Done,
+            ),
         onValueChange = onPasswordChange,
         label = { Text("密码") },
         singleLine = true,
@@ -382,9 +413,11 @@ private fun VenueLoginCard(
             modifier = Modifier.fillMaxWidth().height(90.dp),
         )
       }
-      OutlinedTextField(
+      UbaaTextField(
           shape = RoundedCornerShape(14.dp),
           value = form.captcha,
+          requiredMessage = "请填写验证码",
+          enabled = !state.isLoggingIn,
           onValueChange = onCaptchaChange,
           label = { Text("验证码") },
           singleLine = true,
@@ -392,29 +425,24 @@ private fun VenueLoginCard(
       )
     }
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Checkbox(checked = form.rememberPassword, onCheckedChange = onRememberChange)
-      Text("记住密码", style = MaterialTheme.typography.bodyMedium)
-    }
+    UbaaCheckboxRow(
+        label = "记住密码",
+        checked = form.rememberPassword,
+        onCheckedChange = onRememberChange,
+        enabled = !state.isLoggingIn,
+    )
 
     (form.error ?: state.authMessage)?.let {
       Text(text = it, color = MaterialTheme.colorScheme.error)
     }
 
-    Button(
+    UbaaButton(
         onClick = onLogin,
         enabled = !state.isLoggingIn,
         modifier = Modifier.fillMaxWidth(),
+        loading = state.isLoggingIn,
     ) {
-      if (state.isLoggingIn) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(18.dp),
-            strokeWidth = 2.dp,
-            color = MaterialTheme.colorScheme.onPrimary,
-        )
-      } else {
-        Text("登录")
-      }
+      Text(if (state.isLoggingIn) "登录中…" else "登录")
     }
   }
 }
@@ -555,13 +583,13 @@ private fun VenueOrderHistoryDialog(
                   modifier = Modifier.fillMaxWidth().height(120.dp),
                   contentAlignment = Alignment.Center,
               ) {
-                CircularProgressIndicator()
+                UbaaProgressIndicator()
               }
           state.error != null && state.records.isEmpty() ->
               Column(modifier = Modifier.fillMaxWidth()) {
                 Text(state.error, color = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(onClick = onRefresh) { Text("重试") }
+                UbaaSecondaryButton(onClick = onRefresh) { Text("重试") }
               }
           state.records.isEmpty() ->
               Text(
@@ -586,7 +614,7 @@ private fun VenueOrderHistoryDialog(
                     )
                   }
                   if (state.hasMore) {
-                    TextButton(onClick = onLoadMore, enabled = !state.isLoadingMore) {
+                    UbaaTextButton(onClick = onLoadMore, enabled = !state.isLoadingMore) {
                       Text(if (state.isLoadingMore) "加载中…" else "加载更多")
                     }
                   } else {
@@ -601,7 +629,12 @@ private fun VenueOrderHistoryDialog(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("关闭") }
+        UbaaIconAction(
+            onClick = onDismiss,
+            modifier = Modifier.align(Alignment.End),
+            description = "关闭",
+            icon = Icons.Default.Close,
+        )
       }
     }
   }
@@ -926,21 +959,17 @@ private fun VenueTargetOptionsCard(
             onSelected = { onSpaceModeChange(VenueSpaceMode.entries[it]) },
         )
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Checkbox(
-              checked = state.randomSpace,
-              onCheckedChange = onRandomChange,
-              enabled = state.spaceMode == VenueSpaceMode.AUTO,
-          )
-          Text("自动时随机选择场地", style = MaterialTheme.typography.bodySmall)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Checkbox(
-              checked = state.fallbackAnySpace,
-              onCheckedChange = onFallbackChange,
-          )
-          Text("指定场地不足时换其它空闲场地", style = MaterialTheme.typography.bodySmall)
-        }
+        UbaaCheckboxRow(
+            label = "自动时随机选择场地",
+            checked = state.randomSpace,
+            onCheckedChange = onRandomChange,
+            enabled = state.spaceMode == VenueSpaceMode.AUTO,
+        )
+        UbaaCheckboxRow(
+            label = "指定场地不足时换其它空闲场地",
+            checked = state.fallbackAnySpace,
+            onCheckedChange = onFallbackChange,
+        )
       }
       Spacer(modifier = Modifier.height(8.dp))
       val start = state.selectedStartBegin
@@ -994,7 +1023,7 @@ private fun VenueBuddiesCard(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = onManageClick) { Text("管理") }
+        UbaaIconAction(onClick = onManageClick, description = "管理同伴", icon = Icons.Default.Group)
       }
       Text(
           text =

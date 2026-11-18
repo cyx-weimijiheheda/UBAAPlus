@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,7 +42,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.model.dto.*
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.repository.ScheduleStore
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -189,7 +194,7 @@ fun ScheduleScreen(
           verticalAlignment = Alignment.CenterVertically,
       ) {
         Box(modifier = Modifier.weight(1f)) {
-          TextButton(
+          UbaaTextButton(
               onClick = { showTermSelector = true },
               enabled = (terms.isNotEmpty() || onImportCurrentTerm != null) && !isUpdating,
               shape = RoundedCornerShape(14.dp),
@@ -221,7 +226,7 @@ fun ScheduleScreen(
           }
         }
         if (onUpdate != null)
-            TextButton(onClick = onUpdate, enabled = !isUpdating && !isLoading) {
+            UbaaTextButton(onClick = onUpdate, enabled = !isUpdating && !isLoading) {
               Text(if (isUpdating) "正在本地化…" else "课表本地化")
             }
       }
@@ -243,21 +248,21 @@ fun ScheduleScreen(
           )
       if (error != null && diagnosticResponse != null) {
         if (exportResponse != null) {
-          Button(
+          UbaaButton(
               onClick = { exportResponse(diagnosticResponse) },
               modifier = Modifier.padding(horizontal = 12.dp),
           ) {
             Text("导出响应文件（TXT）")
           }
         }
-        TextButton(
+        UbaaIconAction(
             onClick = {
               clipboard.setText(AnnotatedString(diagnosticResponse))
               responseCopied = true
-            }
-        ) {
-          Text(if (responseCopied) "已复制响应，可粘贴给排查人员" else "复制本次课表响应")
-        }
+            },
+            description = if (responseCopied) "已复制课表响应" else "复制本次课表响应",
+            icon = Icons.Default.ContentCopy,
+        )
         Text(
             "响应可能包含姓名、学号及课程信息，请勿公开发布。不会复制请求 Cookie 或密码。",
             style = MaterialTheme.typography.labelSmall,
@@ -386,7 +391,9 @@ private fun ScheduleTopAppBar(
     CenterAlignedTopAppBar(
         expandedHeight = 56.dp,
         navigationIcon = {
-          IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") }
+          UbaaIconButton(onClick = onNavigateBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+          }
         },
         title = {
           Row(
@@ -402,10 +409,10 @@ private fun ScheduleTopAppBar(
           }
         },
         actions = {
-          IconButton(onClick = onPreviousClick, enabled = isPreviousEnabled) {
+          UbaaIconButton(onClick = onPreviousClick, enabled = isPreviousEnabled) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "上一周")
           }
-          IconButton(onClick = onNextClick, enabled = isNextEnabled) {
+          UbaaIconButton(onClick = onNextClick, enabled = isNextEnabled) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "下一周")
           }
         },

@@ -12,15 +12,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,6 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.ui.common.components.GrabConfirmDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaCheckboxRow
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.datetime.LocalDateTime
 
@@ -111,7 +111,7 @@ fun BykcGrabPanel(
             color = MaterialTheme.colorScheme.onTertiaryContainer,
         )
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(
+        UbaaSecondaryButton(
             onClick = onStop,
             modifier = Modifier.fillMaxWidth(),
             colors =
@@ -124,25 +124,19 @@ fun BykcGrabPanel(
         return@Column
       }
 
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            checked = useSchedule && courseSelectStart != null,
-            onCheckedChange = { useSchedule = it },
-            enabled = courseSelectStart != null,
-        )
-        Text(
-            text = "到选课开始时间自动开抢",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onTertiaryContainer,
-        )
-      }
+      UbaaCheckboxRow(
+          label = "到选课开始时间自动开抢",
+          checked = useSchedule && courseSelectStart != null,
+          onCheckedChange = { useSchedule = it },
+          enabled = courseSelectStart != null,
+      )
 
       Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.spacedBy(12.dp),
           verticalAlignment = Alignment.CenterVertically,
       ) {
-        OutlinedTextField(
+        UbaaTextField(
             shape = RoundedCornerShape(14.dp),
             value = retrySeconds,
             onValueChange = { value ->
@@ -154,7 +148,7 @@ fun BykcGrabPanel(
             singleLine = true,
             modifier = Modifier.weight(1f),
         )
-        Button(
+        UbaaButton(
             onClick = { showConfirm = true },
             modifier = Modifier.weight(1f),
         ) {

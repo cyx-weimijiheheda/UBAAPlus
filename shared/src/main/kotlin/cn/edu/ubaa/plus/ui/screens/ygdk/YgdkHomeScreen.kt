@@ -21,13 +21,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,10 +37,12 @@ import cn.edu.ubaa.plus.model.dto.YgdkOverviewResponse
 import cn.edu.ubaa.plus.model.dto.YgdkRecordDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDateRange
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
+import cn.edu.ubaa.plus.ui.common.components.UbaaToggleRow
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
@@ -131,7 +131,7 @@ fun YgdkHomeScreen(
               }
               if (uiState.hasMore) {
                 item {
-                  Button(
+                  UbaaButton(
                       onClick = onLoadMore,
                       enabled = !uiState.isLoadingMore,
                       modifier = Modifier.fillMaxWidth(),
@@ -155,19 +155,12 @@ private fun YgdkHomeReminderCard(
       colors = ubaaGlassCardColors(),
       modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
   ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-      Text(
-          text = "首页提醒",
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Medium,
-          modifier = Modifier.weight(1f),
-      )
-      Switch(checked = enabled, onCheckedChange = onEnabledChange)
-    }
+    UbaaToggleRow(
+        label = "首页提醒",
+        checked = enabled,
+        onCheckedChange = onEnabledChange,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
   }
 }
 
@@ -250,7 +243,7 @@ private fun YgdkFullPageMessage(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
       Text(text = message ?: "加载失败", color = MaterialTheme.colorScheme.error)
       Spacer(modifier = Modifier.height(12.dp))
-      Button(onClick = onAction) { Text(actionLabel) }
+      UbaaButton(onClick = onAction) { Text(actionLabel) }
     }
   }
 }

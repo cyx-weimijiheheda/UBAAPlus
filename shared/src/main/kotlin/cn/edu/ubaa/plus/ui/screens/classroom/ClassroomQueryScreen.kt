@@ -19,9 +19,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.ClassroomInfo
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSearchField
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
@@ -61,7 +65,7 @@ fun ClassroomQueryScreen(
     DatePickerDialog(
         onDismissRequest = { showDatePicker = false },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               onClick = {
                 datePickerState.selectedDateMillis?.let {
                   viewModel.setDate(
@@ -77,7 +81,13 @@ fun ClassroomQueryScreen(
             Text("确定")
           }
         },
-        dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("取消") } },
+        dismissButton = {
+          UbaaIconAction(
+              onClick = { showDatePicker = false },
+              description = "取消",
+              icon = Icons.Default.Close,
+          )
+        },
     ) {
       DatePicker(state = datePickerState)
     }
@@ -99,9 +109,9 @@ fun ClassroomQueryScreen(
     ) {
       Card(
           onClick = { showDatePicker = true },
-          modifier = Modifier.ubaaGlassSurface(shape = RoundedCornerShape(12.dp)).weight(1f),
+          modifier = Modifier.ubaaGlassSurface(shape = RoundedCornerShape(14.dp)).weight(1f),
           colors = ubaaGlassCardColors(),
-          shape = RoundedCornerShape(12.dp),
+          shape = RoundedCornerShape(14.dp),
       ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -122,14 +132,11 @@ fun ClassroomQueryScreen(
           )
         }
       }
-      OutlinedTextField(
+      UbaaSearchField(
           value = searchQuery,
-          onValueChange = { viewModel.setSearchQuery(it) },
-          placeholder = { Text("搜索教室/楼栋") },
+          onValueChange = viewModel::setSearchQuery,
+          hint = "搜索教室/楼栋",
           modifier = Modifier.weight(1.5f),
-          shape = RoundedCornerShape(12.dp),
-          singleLine = true,
-          leadingIcon = { Icon(Icons.Default.Search, null) },
       )
     }
 
@@ -176,7 +183,7 @@ fun ClassroomQueryScreen(
               Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(text = "查询失败: ${state.message}", color = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = { viewModel.query() }) { Text("重试") }
+                UbaaButton(onClick = { viewModel.query() }) { Text("重试") }
               }
             }
         else -> {}

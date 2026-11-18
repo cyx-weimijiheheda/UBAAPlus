@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
@@ -26,16 +27,12 @@ import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SportsBasketball
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +50,13 @@ import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.SigninClassDto
 import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.screens.grade.GradeScoreUpdateNotice
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookCardAction
 import cn.edu.ubaa.plus.ui.screens.libbook.LibBookHomeSeatCard
@@ -279,12 +282,12 @@ internal fun HomeScreen(
           else -> ""
         }
     val place = booking.nameMerge.ifBlank { booking.seatNo.ifBlank { "图书馆座位" } }
-    AlertDialog(
+    UbaaAlertDialog(
         onDismissRequest = { pendingLibBookAction = null },
         title = { Text(label) },
         text = { Text("确认对「$place」执行$label？") },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               onClick = {
                 pendingLibBookAction = null
                 onLibBookAction(booking, action)
@@ -293,7 +296,13 @@ internal fun HomeScreen(
             Text("确认")
           }
         },
-        dismissButton = { TextButton(onClick = { pendingLibBookAction = null }) { Text("取消") } },
+        dismissButton = {
+          UbaaIconAction(
+              onClick = { pendingLibBookAction = null },
+              description = "取消",
+              icon = Icons.Default.Close,
+          )
+        },
     )
   }
 }
@@ -310,7 +319,7 @@ private fun HomeSectionLoadingChip(text: String) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-      CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+      UbaaProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
       Text(text = text, style = MaterialTheme.typography.labelSmall)
     }
   }
@@ -327,7 +336,7 @@ private fun HomeLoadingCard(title: String, subtitle: String) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-      CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+      UbaaProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
       Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = title,
@@ -389,7 +398,7 @@ internal fun TodayClassCard(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
-        Button(
+        UbaaButton(
             onClick = { signin?.let { onSigninClick(it.courseId) } },
             enabled = signin != null && status == HomeCourseStatus.PENDING && !isSigningIn,
             modifier = Modifier.heightIn(min = 48.dp).widthIn(min = 72.dp),
@@ -546,7 +555,7 @@ private fun HomeErrorCard(message: String, onRetry: () -> Unit) {
           color = MaterialTheme.colorScheme.onErrorContainer,
       )
       Spacer(modifier = Modifier.height(10.dp))
-      TextButton(onClick = onRetry) { Text("重试") }
+      UbaaTextButton(onClick = onRetry) { Text("重试") }
     }
   }
 }
@@ -629,21 +638,15 @@ private fun HomeScoreUpdateBanner(
             color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
       }
-      TextButton(onClick = onOpenScoresClick) { Text("查看") }
-      TextButton(onClick = onDismiss) { Text("忽略") }
+      UbaaTextButton(onClick = onOpenScoresClick) { Text("查看") }
+      UbaaTextButton(onClick = onDismiss) { Text("忽略") }
     }
   }
 }
 
 @Composable
 private fun TodoChip(text: String, color: Color, contentColor: Color) {
-  Surface(color = color, contentColor = contentColor, shape = MaterialTheme.shapes.small) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-    )
-  }
+  UbaaStatusBadge(text = text, containerColor = color, contentColor = contentColor)
 }
 
 @Composable

@@ -25,22 +25,17 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,9 +58,17 @@ import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.dto.LibBookSeatDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.shared.R
+import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaDialogShape
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -144,7 +147,7 @@ fun LibBookReserveScreen(
           modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
           horizontalArrangement = Arrangement.spacedBy(8.dp),
       ) {
-        AssistChip(
+        UbaaActionChip(
             onClick = onBookingsClick,
             label = { Text("历史预约") },
             leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
@@ -271,7 +274,7 @@ fun LibBookReserveScreen(
                       title = "座位",
                       trailing = {
                         if (mapAvailable) {
-                          OutlinedButton(
+                          UbaaSecondaryButton(
                               onClick = { showMapDialog = true },
                               shape = RoundedCornerShape(14.dp),
                           ) {
@@ -308,7 +311,7 @@ fun LibBookReserveScreen(
 
                 item {
                   ReserveSummary(uiState)
-                  Button(
+                  UbaaButton(
                       modifier = Modifier.fillMaxWidth(),
                       enabled =
                           uiState.selectedSeatId != null &&
@@ -346,13 +349,15 @@ private fun PagedSeatGrid(
           horizontalArrangement = Arrangement.Center,
           verticalAlignment = Alignment.CenterVertically,
       ) {
-        TextButton(onClick = { onPageChange(safePage - 1) }, enabled = safePage > 0) { Text("上一页") }
+        UbaaTextButton(onClick = { onPageChange(safePage - 1) }, enabled = safePage > 0) {
+          Text("上一页")
+        }
         Text(
             "${safePage + 1} / ${pages.size}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        TextButton(
+        UbaaTextButton(
             onClick = { onPageChange(safePage + 1) },
             enabled = safePage < pages.size - 1,
         ) {
@@ -560,9 +565,11 @@ private fun LibBookAreaMapDialog(
         modifier =
             Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 12.dp, vertical = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        tonalElevation = 6.dp,
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+                .ubaaGlassSurface(shape = UbaaDialogShape),
+        shape = UbaaDialogShape,
+        color = androidx.compose.ui.graphics.Color.Transparent,
+        tonalElevation = 0.dp,
     ) {
       Column(
           modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -582,10 +589,14 @@ private fun LibBookAreaMapDialog(
               modifier = Modifier.weight(1f),
           )
           Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { transform = resetLibBookMapViewerTransform(transform) }) {
-              Text("重置")
+            UbaaIconAction(
+                onClick = { transform = resetLibBookMapViewerTransform(transform) },
+                description = "重置",
+                icon = Icons.Default.RestartAlt,
+            )
+            UbaaIconButton(onClick = onDismiss) {
+              Icon(Icons.Default.Close, contentDescription = "关闭")
             }
-            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "关闭") }
           }
         }
 
@@ -629,7 +640,7 @@ internal fun LibBookErrorState(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
       Text(message ?: "加载失败", color = MaterialTheme.colorScheme.error)
-      OutlinedButton(onClick = onRetry) { Text("重试") }
+      UbaaSecondaryButton(onClick = onRetry) { Text("重试") }
     }
   }
 }
@@ -641,7 +652,7 @@ private fun LibBookInlineError(message: String?, onRetry: () -> Unit) {
       horizontalArrangement = Arrangement.spacedBy(8.dp),
   ) {
     Text(message ?: "加载失败", color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-    AssistChip(onClick = onRetry, label = { Text("重试") })
+    UbaaActionChip(onClick = onRetry, label = { Text("重试") })
   }
 }
 
@@ -651,7 +662,7 @@ private fun InlineLoading(text: String) {
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(8.dp),
   ) {
-    CircularProgressIndicator(modifier = Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
+    UbaaProgressIndicator(modifier = Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
     Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
   }
 }

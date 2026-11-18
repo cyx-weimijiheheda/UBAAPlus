@@ -10,13 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chair
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +27,8 @@ import cn.edu.ubaa.plus.model.dto.canSignIn
 import cn.edu.ubaa.plus.model.dto.isInUseBooking
 import cn.edu.ubaa.plus.model.dto.isTerminalBooking
 import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
+import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.datetime.LocalDateTime
@@ -149,7 +149,9 @@ fun LibBookHomeSeatCard(
       if (actions.isNotEmpty()) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
           actions.forEach { action ->
-            AssistChip(
+            UbaaActionChip(
+                destructive =
+                    action == LibBookCardAction.CANCEL || action == LibBookCardAction.CHECKOUT,
                 onClick = { onAction(action) },
                 enabled = !isCanceling && !isSubmitting && booking.isCardActionEnabled(action),
                 label = { Text(actionLabel(booking, action, isCanceling)) },
@@ -163,7 +165,7 @@ fun LibBookHomeSeatCard(
           horizontalArrangement = Arrangement.End,
           verticalAlignment = Alignment.CenterVertically,
       ) {
-        TextButton(onClick = onOpenBookings) { Text("查看我的预约") }
+        UbaaTextButton(onClick = onOpenBookings) { Text("查看我的预约") }
       }
     }
   }

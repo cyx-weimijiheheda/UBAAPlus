@@ -19,11 +19,9 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,6 +34,9 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
+import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
@@ -78,17 +79,14 @@ fun SpocAssignmentDetailScreen(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 contentAlignment = Alignment.Center,
             ) {
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = uiState.detailError!!, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = onRetry) { Text("重试") }
-              }
+              UbaaErrorState(message = uiState.detailError!!, onRetry = onRetry)
             }
         detail == null ->
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-              Text("暂无作业详情")
+              UbaaEmptyState(title = "暂无作业详情")
             }
         else ->
             Column(
@@ -176,7 +174,7 @@ private fun DetailInfoCard(
       // 按钮放在标题行右侧，与标题齐平，而不是另起一行占掉卡片顶部。
       trailing = {
         if (onAddToCalendar != null) {
-          IconButton(onClick = onAddToCalendar, modifier = Modifier.size(32.dp)) {
+          UbaaIconButton(onClick = onAddToCalendar, modifier = Modifier.size(48.dp)) {
             Icon(
                 imageVector = Icons.Default.Event,
                 contentDescription = "添加到日程",
@@ -184,12 +182,12 @@ private fun DetailInfoCard(
             )
           }
         }
-        IconButton(
+        UbaaIconButton(
             onClick = {
               clipboard.setText(AnnotatedString("${title}\n" + lines.joinToString("\n")))
               UbaaToast.show("已复制$title")
             },
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(48.dp),
         ) {
           Icon(
               imageVector = Icons.Default.ContentCopy,

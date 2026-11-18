@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -139,20 +138,11 @@ fun ThemePalettePicker(
       )
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-      Column(modifier = Modifier.weight(1f)) {
-        Text("跟随壁纸", style = MaterialTheme.typography.bodyLarge)
-        Text(
-            text = "Android 12 及以上生效；低版本使用当前配色",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
-      Switch(checked = followWallpaper, onCheckedChange = onFollowWallpaperChange)
-    }
+    UbaaToggleRow(
+        label = "跟随壁纸",
+        checked = followWallpaper,
+        onCheckedChange = onFollowWallpaperChange,
+        supportingText = "Android 12 及以上生效；低版本使用当前配色",
+    )
   }
 }

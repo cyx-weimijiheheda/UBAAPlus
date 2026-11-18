@@ -17,8 +17,13 @@ import cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator
 import cn.edu.ubaa.plus.model.dto.BykcCourseDetailDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -86,7 +91,7 @@ fun BykcCourseDetailScreen(
     }
   }
   conflictReport?.let { report ->
-    AlertDialog(
+    UbaaAlertDialog(
         onDismissRequest = {
           conflictReport = null
           confirmedAction = null
@@ -103,7 +108,7 @@ fun BykcCourseDetailScreen(
           }
         },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               onClick = {
                 val proceed = confirmedAction
                 val current = checkedScope?.isCurrent() == true && course?.id == checkedCourse
@@ -116,14 +121,14 @@ fun BykcCourseDetailScreen(
           }
         },
         dismissButton = {
-          TextButton(
+          UbaaIconAction(
               onClick = {
                 conflictReport = null
                 confirmedAction = null
-              }
-          ) {
-            Text("取消")
-          }
+              },
+              description = "取消",
+              icon = Icons.Default.Close,
+          )
         },
     )
   }
@@ -429,7 +434,7 @@ fun BykcCourseDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                      Button(
+                      UbaaButton(
                           onClick = onSignInClick,
                           modifier = Modifier.weight(1f),
                           enabled =
@@ -442,7 +447,7 @@ fun BykcCourseDetailScreen(
                         Text("签到")
                       }
 
-                      Button(
+                      UbaaButton(
                           onClick = onSignOutClick,
                           modifier = Modifier.weight(1f),
                           enabled =
@@ -480,7 +485,7 @@ fun BykcCourseDetailScreen(
                     )
                   }
 
-                  OutlinedButton(
+                  UbaaSecondaryButton(
                       onClick = onDeselectClick,
                       modifier = Modifier.fillMaxWidth(),
                       enabled =
@@ -497,7 +502,7 @@ fun BykcCourseDetailScreen(
                     Text("退选")
                   }
                 } else {
-                  Button(
+                  UbaaButton(
                       onClick = { checkEnrollment(onSelectClick) },
                       modifier = Modifier.fillMaxWidth(),
                       enabled = canSelectCourse,

@@ -48,6 +48,9 @@ import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.components.AppTopBar
 import cn.edu.ubaa.plus.ui.common.components.BottomNavTab
 import cn.edu.ubaa.plus.ui.common.components.QrScanResultDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.util.BackHandlerCompat
 import cn.edu.ubaa.plus.ui.screens.bykc.*
 import cn.edu.ubaa.plus.ui.screens.campus.CampusCardViewModel
@@ -1142,7 +1145,7 @@ private fun MainAppContent(
               // 特殊页面的顶部栏动作按钮
               if (currentScreen == AppScreen.EXAM) {
                 Box {
-                  TextButton(
+                  UbaaTextButton(
                       onClick = { showExamTermMenu = true },
                       shape = RoundedCornerShape(14.dp),
                       colors =
@@ -1170,7 +1173,7 @@ private fun MainAppContent(
                 }
               } else if (currentScreen == AppScreen.GRADE) {
                 val currentTermIndex = gradeUiState.terms.indexOf(gradeUiState.selectedTerm)
-                IconButton(
+                UbaaIconButton(
                     onClick = {
                       if (currentTermIndex > 0) {
                         gradeViewModel?.selectTerm(gradeUiState.terms[currentTermIndex - 1])
@@ -1180,7 +1183,7 @@ private fun MainAppContent(
                 ) {
                   Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "上一学期")
                 }
-                IconButton(
+                UbaaIconButton(
                     onClick = {
                       if (
                           currentTermIndex != -1 && currentTermIndex < gradeUiState.terms.size - 1
@@ -1194,32 +1197,32 @@ private fun MainAppContent(
                   Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "下一学期")
                 }
               } else if (currentScreen == AppScreen.SPOC_ASSIGNMENTS) {
-                IconButton(onClick = { showSpocSortFilterDialog = true }) {
+                UbaaIconButton(onClick = { showSpocSortFilterDialog = true }) {
                   Icon(Icons.Default.Tune, contentDescription = "排序和筛选")
                 }
               } else if (currentScreen == AppScreen.BYKC_COURSES) {
-                IconButton(onClick = { showBykcFiltersDialog = true }) {
+                UbaaIconButton(onClick = { showBykcFiltersDialog = true }) {
                   Icon(Icons.Default.Tune, contentDescription = "筛选课程")
                 }
               } else if (currentScreen == AppScreen.JUDGE_ASSIGNMENTS) {
-                IconButton(onClick = { showJudgeSortFilterDialog = true }) {
+                UbaaIconButton(onClick = { showJudgeSortFilterDialog = true }) {
                   Icon(Icons.Default.Tune, contentDescription = "排序和筛选")
                 }
               } else if (currentScreen == AppScreen.VENUE_HOME) {
-                IconButton(onClick = { showVenueMembershipCodeDialog = true }) {
+                UbaaIconButton(onClick = { showVenueMembershipCodeDialog = true }) {
                   Icon(Icons.Default.QrCode2, contentDescription = "会员预约码")
                 }
               } else if (currentScreen == AppScreen.HOME || currentScreen == AppScreen.REGULAR) {
-                IconButton(onClick = { genericScanLauncher.launch(genericScanOptions) }) {
+                UbaaIconButton(onClick = { genericScanLauncher.launch(genericScanOptions) }) {
                   Icon(Icons.Default.QrCodeScanner, contentDescription = "扫一扫")
                 }
               } else if (currentScreen == AppScreen.ICLASS_HOME) {
-                IconButton(
+                UbaaIconButton(
                     onClick = { iclassScanLauncher.launch(iclassScanOptions) },
                     enabled = !signinUiState.isScanSigning,
                 ) {
                   if (signinUiState.isScanSigning) {
-                    CircularProgressIndicator(
+                    UbaaProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.primary,

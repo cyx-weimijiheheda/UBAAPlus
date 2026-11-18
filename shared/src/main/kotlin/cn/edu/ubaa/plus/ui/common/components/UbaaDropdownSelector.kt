@@ -11,7 +11,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -52,7 +51,7 @@ fun UbaaDropdownSelector(
         modifier = Modifier.ubaaGlassSurface(shape = UbaaSelectorShape).fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-      OutlinedButton(
+      UbaaSecondaryButton(
           onClick = { expanded = true },
           enabled = enabled,
           shape = UbaaSelectorShape,

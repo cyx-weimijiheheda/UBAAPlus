@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +30,7 @@ import cn.edu.ubaa.plus.api.feature.LibraryLoanDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
@@ -102,10 +102,10 @@ fun LibraryBorrowScreen(
                             text = state.error.orEmpty(),
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
-                        OutlinedButton(onClick = viewModel::refresh) { Text("重试") }
+                        UbaaSecondaryButton(onClick = viewModel::refresh) { Text("重试") }
                       }
                     }
-                    OutlinedButton(
+                    UbaaSecondaryButton(
                         onClick = { onOpenUrl("https://space.lib.buaa.edu.cn/space/") },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -124,7 +124,7 @@ fun LibraryBorrowScreen(
             else -> items(loans) { loan -> LibraryLoanCard(loan) }
           }
           item {
-            OutlinedButton(
+            UbaaSecondaryButton(
                 onClick = { onOpenUrl("https://space.lib.buaa.edu.cn/space/") },
                 modifier = Modifier.fillMaxWidth(),
             ) {

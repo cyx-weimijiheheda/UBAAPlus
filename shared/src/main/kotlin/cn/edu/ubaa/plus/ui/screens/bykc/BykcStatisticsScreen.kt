@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcCategoryStatisticsDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
+import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
@@ -41,12 +43,12 @@ fun BykcStatisticsScreen(viewModel: BykcViewModel) {
           )
       uiState.error != null -> {
         Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-          Text("加载失败: ${uiState.error}", color = MaterialTheme.colorScheme.error)
+          UbaaErrorState(message = uiState.error ?: "加载失败")
         }
       }
       uiState.statistics == null -> {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          Text("暂无统计数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+          UbaaEmptyState(title = "暂无统计数据")
         }
       }
       else -> {

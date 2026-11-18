@@ -26,25 +26,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,6 +53,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.YgdkItemDto
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaCheckboxRow
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
 import cn.edu.ubaa.plus.ui.common.util.PlatformImagePicker
 import cn.edu.ubaa.plus.ui.common.util.formatImageSize
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
@@ -123,9 +124,10 @@ fun YgdkClockinFormScreen(
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       bottomBar = {
-        Button(
+        UbaaButton(
             onClick = onSubmit,
             enabled = !uiState.isSubmitting,
+            loading = uiState.isSubmitting,
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(52.dp),
             contentPadding = PaddingValues(horizontal = 16.dp),
         ) {
@@ -184,7 +186,10 @@ fun YgdkClockinFormScreen(
               style = MaterialTheme.typography.titleMedium,
               fontWeight = FontWeight.Bold,
           )
-          OutlinedButton(onClick = { showItemDialog = true }, modifier = Modifier.fillMaxWidth()) {
+          UbaaSecondaryButton(
+              onClick = { showItemDialog = true },
+              modifier = Modifier.fillMaxWidth(),
+          ) {
             Text(uiState.selectedItemLabel())
           }
           Text(
@@ -241,7 +246,7 @@ fun YgdkClockinFormScreen(
               style = MaterialTheme.typography.titleMedium,
               fontWeight = FontWeight.Bold,
           )
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = uiState.form.place,
               onValueChange = onPlaceChange,
@@ -271,13 +276,16 @@ fun YgdkClockinFormScreen(
               horizontalArrangement = Arrangement.spacedBy(12.dp),
               modifier = Modifier.fillMaxWidth(),
           ) {
-            OutlinedButton(onClick = imagePicker::pickImage, modifier = Modifier.weight(1f)) {
+            UbaaSecondaryButton(onClick = imagePicker::pickImage, modifier = Modifier.weight(1f)) {
               Icon(Icons.Default.Image, contentDescription = null)
               Spacer(modifier = Modifier.padding(4.dp))
               Text("选择图片")
             }
             if (imagePicker.canCapturePhoto) {
-              OutlinedButton(onClick = imagePicker::capturePhoto, modifier = Modifier.weight(1f)) {
+              UbaaSecondaryButton(
+                  onClick = imagePicker::capturePhoto,
+                  modifier = Modifier.weight(1f),
+              ) {
                 Icon(Icons.Default.PhotoCamera, contentDescription = null)
                 Spacer(modifier = Modifier.padding(4.dp))
                 Text("拍摄照片")
@@ -301,7 +309,7 @@ fun YgdkClockinFormScreen(
                       color = MaterialTheme.colorScheme.onSurfaceVariant,
                   )
                 }
-                IconButton(onClick = onClearPhoto) {
+                UbaaIconButton(onClick = onClearPhoto) {
                   Icon(Icons.Default.Delete, contentDescription = "清除图片")
                 }
               }
@@ -319,25 +327,13 @@ fun YgdkClockinFormScreen(
           modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
           colors = ubaaGlassCardColors(),
       ) {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth().padding(16.dp).clickable {
-                  onShareChange(!uiState.form.shareToSquare)
-                },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-          Icon(Icons.Default.Share, contentDescription = null)
-          Spacer(modifier = Modifier.padding(6.dp))
-          Column(modifier = Modifier.weight(1f)) {
-            Text(text = "分享到广场", fontWeight = FontWeight.Bold)
-            Text(
-                text = "默认不分享，开启后会把本次打卡同步到广场。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-          Checkbox(checked = uiState.form.shareToSquare, onCheckedChange = onShareChange)
-        }
+        UbaaCheckboxRow(
+            label = "分享到广场",
+            checked = uiState.form.shareToSquare,
+            onCheckedChange = onShareChange,
+            supportingText = "默认不分享，开启后会把本次打卡同步到广场。",
+            modifier = Modifier.padding(16.dp),
+        )
       }
     }
   }
@@ -350,32 +346,22 @@ private fun YgdkItemSelectorDialog(
     onDismiss: () -> Unit,
     onSelect: (Int?) -> Unit,
 ) {
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("选择运动项目") },
       text = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          TextButton(onClick = { onSelect(null) }, modifier = Modifier.fillMaxWidth()) {
-            Text("不设置，交给系统自动选择")
-          }
-          items.forEach { item ->
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .clickable { onSelect(item.itemId) }
-                        .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Checkbox(
-                  checked = item.itemId == selectedItemId,
-                  onCheckedChange = { onSelect(item.itemId) },
-              )
-              Text(item.name)
-            }
-          }
+          UbaaSegmentedTabs(
+              labels = listOf("不设置") + items.map { it.name },
+              selectedIndex =
+                  if (selectedItemId == null) 0
+                  else items.indexOfFirst { it.itemId == selectedItemId } + 1,
+              onSelected = { onSelect(if (it == 0) null else items[it - 1].itemId) },
+          )
+          Text("不设置时交给系统自动选择。", style = MaterialTheme.typography.bodySmall)
         }
       },
-      confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+      confirmButton = {},
   )
 }
 
@@ -396,7 +382,7 @@ private fun YgdkTimeSelectorButton(
     placeholder: String,
     onClick: () -> Unit,
 ) {
-  OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+  UbaaSecondaryButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
     Icon(Icons.Default.AccessTime, contentDescription = null)
     Spacer(modifier = Modifier.width(8.dp))
     Column(
@@ -425,7 +411,7 @@ private fun YgdkTimePickerDialog(
   var selectedHour by remember { mutableStateOf(initialTime?.first ?: 8) }
   var selectedMinute by remember { mutableStateOf(initialTime?.second?.roundToFiveMinutes() ?: 0) }
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text(title) },
       text = {
@@ -452,9 +438,15 @@ private fun YgdkTimePickerDialog(
         }
       },
       confirmButton = {
-        TextButton(onClick = { onConfirm(selectedHour, selectedMinute) }) { Text("完成") }
+        UbaaIconAction(
+            onClick = { onConfirm(selectedHour, selectedMinute) },
+            description = "完成",
+            icon = Icons.Default.Check,
+        )
       },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+      dismissButton = {
+        UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
+      },
   )
 }
 

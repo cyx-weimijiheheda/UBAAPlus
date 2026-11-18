@@ -33,7 +33,7 @@ fun AppTopBar(
         },
         navigationIcon = {
           if (canNavigateBack) {
-            IconButton(onClick = onNavigationIconClick) {
+            UbaaIconButton(onClick = onNavigationIconClick) {
               Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
             }
           }

@@ -23,17 +23,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,6 +43,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.CaptchaInfo
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaCheckboxRow
+import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
+import cn.edu.ubaa.plus.ui.common.components.UbaaTonalButton
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import coil3.compose.AsyncImage
@@ -113,7 +113,7 @@ fun LoginScreen(
           modifier = Modifier.padding(bottom = 32.dp),
       )
       if (onOfflineSchedule != null) {
-        FilledTonalButton(
+        UbaaTonalButton(
             onClick = onOfflineSchedule,
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
         ) {
@@ -121,9 +121,10 @@ fun LoginScreen(
         }
       }
 
-      OutlinedTextField(
+      UbaaTextField(
           shape = RoundedCornerShape(14.dp),
           value = loginFormState.username,
+          requiredMessage = "请填写学号",
           onValueChange = onUsernameChange,
           label = { Text("学号") },
           singleLine = true,
@@ -131,14 +132,21 @@ fun LoginScreen(
           modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
       )
 
-      OutlinedTextField(
+      UbaaTextField(
           shape = RoundedCornerShape(14.dp),
           value = loginFormState.password,
+          requiredMessage = "请填写密码",
           onValueChange = onPasswordChange,
           label = { Text("密码") },
           singleLine = true,
           visualTransformation = PasswordVisualTransformation(),
-          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+          keyboardOptions =
+              KeyboardOptions(
+                  keyboardType = KeyboardType.Password,
+                  imeAction =
+                      if (captchaRequired) androidx.compose.ui.text.input.ImeAction.Next
+                      else androidx.compose.ui.text.input.ImeAction.Done,
+              ),
           enabled = !isLoading,
           modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
       )
@@ -148,9 +156,15 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = loginFormState.captcha,
+              keyboardOptions =
+                  KeyboardOptions(
+                      keyboardType = KeyboardType.Ascii,
+                      imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                  ),
+              requiredMessage = "请填写验证码",
               onValueChange = onCaptchaChange,
               label = { Text("验证码") },
               singleLine = true,
@@ -177,32 +191,23 @@ fun LoginScreen(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.SpaceBetween,
       ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier =
-                Modifier.clickable { onRememberPasswordChange(!loginFormState.rememberPassword) },
-        ) {
-          Checkbox(
-              checked = loginFormState.rememberPassword,
-              onCheckedChange = onRememberPasswordChange,
-              enabled = !isLoading,
-          )
-          Text("记住密码", style = MaterialTheme.typography.bodyMedium)
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { onAutoLoginChange(!loginFormState.autoLogin) },
-        ) {
-          Checkbox(
-              checked = loginFormState.autoLogin,
-              onCheckedChange = onAutoLoginChange,
-              enabled = !isLoading,
-          )
-          Text("自动登录", style = MaterialTheme.typography.bodyMedium)
-        }
+        UbaaCheckboxRow(
+            label = "记住密码",
+            checked = loginFormState.rememberPassword,
+            onCheckedChange = onRememberPasswordChange,
+            enabled = !isLoading,
+            modifier = Modifier.weight(1f),
+        )
+        UbaaCheckboxRow(
+            label = "自动登录",
+            checked = loginFormState.autoLogin,
+            onCheckedChange = onAutoLoginChange,
+            enabled = !isLoading,
+            modifier = Modifier.weight(1f),
+        )
       }
 
-      Button(
+      UbaaButton(
           onClick = onLoginClick,
           enabled =
               !isLoading &&
@@ -210,14 +215,9 @@ fun LoginScreen(
                   loginFormState.password.isNotBlank() &&
                   (!captchaRequired || loginFormState.captcha.isNotBlank()),
           modifier = Modifier.fillMaxWidth().height(48.dp),
+          loading = isLoading,
       ) {
-        if (isLoading)
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimary,
-            )
-        else Text("登录")
+        Text(if (isLoading) "登录中…" else "登录")
       }
 
       error?.let { msg ->
@@ -267,7 +267,7 @@ private fun ConnectionModeMenuButton(
   var expanded by remember { mutableStateOf(false) }
 
   Box(modifier = modifier) {
-    FilledTonalButton(onClick = { expanded = true }, enabled = enabled) {
+    UbaaTonalButton(onClick = { expanded = true }, enabled = enabled) {
       Icon(
           imageVector = Icons.Filled.Tune,
           contentDescription = null,
@@ -326,8 +326,7 @@ private fun CaptchaImage(
       colors = ubaaGlassCardColors(),
   ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      if (isRefreshing)
-          CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+      if (isRefreshing) UbaaProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
       else if (imageBytes != null)
           AsyncImage(
               model = ImageRequest.Builder(LocalPlatformContext.current).data(imageBytes).build(),

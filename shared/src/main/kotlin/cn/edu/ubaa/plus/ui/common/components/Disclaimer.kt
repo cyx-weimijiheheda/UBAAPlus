@@ -9,12 +9,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +38,7 @@ val FIRST_RUN_DISCLAIMER: List<String> =
 /** 首次启动的免责声明，必须点击同意后才能继续使用。 */
 @Composable
 fun FirstRunDisclaimerDialog(onAccept: () -> Unit) {
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = {},
       title = { Text("使用前请阅读") },
       text = {
@@ -57,7 +57,7 @@ fun FirstRunDisclaimerDialog(onAccept: () -> Unit) {
           }
         }
       },
-      confirmButton = { TextButton(onClick = onAccept) { Text("我已知悉并同意") } },
+      confirmButton = { UbaaTextButton(onClick = onAccept) { Text("我已知悉并同意") } },
   )
 }
 
@@ -73,7 +73,7 @@ fun GrabConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text(title) },
       text = {
@@ -105,7 +105,9 @@ fun GrabConfirmDialog(
           }
         }
       },
-      confirmButton = { TextButton(onClick = onConfirm) { Text("确认开始") } },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+      confirmButton = { UbaaTextButton(onClick = onConfirm) { Text("确认开始") } },
+      dismissButton = {
+        UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
+      },
   )
 }

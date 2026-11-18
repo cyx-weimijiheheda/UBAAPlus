@@ -11,19 +11,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,10 +29,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /**
@@ -127,7 +131,7 @@ fun FeatureOrderScreen(modifier: Modifier = Modifier) {
     }
 
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-    OutlinedButton(
+    UbaaSecondaryButton(
         onClick = { showResetConfirm = true },
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -136,12 +140,12 @@ fun FeatureOrderScreen(modifier: Modifier = Modifier) {
   }
 
   if (showResetConfirm) {
-    AlertDialog(
+    UbaaAlertDialog(
         onDismissRequest = { showResetConfirm = false },
         title = { Text("恢复默认设置") },
         text = { Text("所有功能将恢复默认顺序，并重新显示全部功能。此操作不可撤销。") },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               onClick = {
                 showResetConfirm = false
                 AppPreferencesStore.resetFeatureCustomization()
@@ -150,7 +154,13 @@ fun FeatureOrderScreen(modifier: Modifier = Modifier) {
             Text("恢复默认")
           }
         },
-        dismissButton = { TextButton(onClick = { showResetConfirm = false }) { Text("取消") } },
+        dismissButton = {
+          UbaaIconAction(
+              onClick = { showResetConfirm = false },
+              description = "取消",
+              icon = Icons.Default.Close,
+          )
+        },
     )
   }
 }
@@ -223,18 +233,22 @@ private fun FeatureOrderRow(
             overflow = TextOverflow.Ellipsis,
         )
       }
-      Switch(checked = visible, onCheckedChange = onVisibilityChange)
-      IconButton(
+      Switch(
+          checked = visible,
+          onCheckedChange = onVisibilityChange,
+          modifier = Modifier.semantics { contentDescription = "${feature.title}显示" },
+      )
+      UbaaIconButton(
           onClick = onMoveUp,
           enabled = canMoveUp,
-          modifier = Modifier.size(32.dp),
+          modifier = Modifier.size(48.dp),
       ) {
         Icon(Icons.Default.KeyboardArrowUp, contentDescription = "上移")
       }
-      IconButton(
+      UbaaIconButton(
           onClick = onMoveDown,
           enabled = canMoveDown,
-          modifier = Modifier.size(32.dp),
+          modifier = Modifier.size(48.dp),
       ) {
         Icon(Icons.Default.KeyboardArrowDown, contentDescription = "下移")
       }

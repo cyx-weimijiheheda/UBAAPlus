@@ -14,11 +14,9 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,7 +30,9 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.feature.CampusNetworkInfoDto
 import cn.edu.ubaa.plus.api.feature.CampusTrafficDto
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -97,7 +97,7 @@ fun CampusNetworkScreen(
             ) {
               Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                 Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
-                OutlinedButton(onClick = viewModel::refresh) { Text("重试") }
+                UbaaSecondaryButton(onClick = viewModel::refresh) { Text("重试") }
               }
             }
           }
@@ -108,7 +108,7 @@ fun CampusNetworkScreen(
         state.netFee?.let { fee -> item { StatCard(title = "网费余额", value = fee, unit = "元") } }
 
         item {
-          Button(
+          UbaaButton(
               onClick = { onOpenUrl("https://zfw.buaa.edu.cn") },
               modifier = Modifier.fillMaxWidth(),
           ) {

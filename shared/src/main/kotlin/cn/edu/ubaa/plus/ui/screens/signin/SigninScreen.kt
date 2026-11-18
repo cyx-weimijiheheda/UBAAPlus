@@ -18,6 +18,9 @@ import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.model.format.formatUbaaTime
 import cn.edu.ubaa.plus.model.format.parseUbaaDate
 import cn.edu.ubaa.plus.model.format.parseUbaaTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /** 课堂签到主界面。 展示今日课程列表并提供一键签到按钮。 */
@@ -53,14 +56,13 @@ fun SigninScreen(viewModel: SigninViewModel) {
       // )
 
       when {
-        uiState.isLoading ->
-            Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+        uiState.isLoading -> UbaaLoadingState(text = "正在加载今日考勤…", modifier = Modifier.fillMaxSize())
         uiState.error != null ->
             Box(Modifier.fillMaxSize(), Alignment.Center) {
               Text(text = uiState.error!!, color = MaterialTheme.colorScheme.error)
             }
         uiState.classes.isEmpty() ->
-            Box(Modifier.fillMaxSize(), Alignment.Center) { Text("今日无课程安排") }
+            UbaaEmptyState(title = "今日无课程安排", modifier = Modifier.fillMaxSize())
         else -> {
           LazyColumn(
               verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -136,14 +138,12 @@ fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningI
               MaterialTheme.colorScheme.primary,
           )
       else
-          Button(onClick = onSigninClick, enabled = !isSigningIn) {
-            if (isSigningIn)
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-            else Text("签到")
+          UbaaButton(
+              onClick = onSigninClick,
+              enabled = !isSigningIn,
+              loading = isSigningIn,
+          ) {
+            Text(if (isSigningIn) "签到中…" else "签到")
           }
     }
   }

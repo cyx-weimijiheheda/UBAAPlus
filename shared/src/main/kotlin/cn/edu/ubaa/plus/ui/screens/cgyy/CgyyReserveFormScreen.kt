@@ -16,10 +16,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
 
 @Composable
 fun CgyyReserveFormScreen(
@@ -77,16 +77,17 @@ fun CgyyReserveFormScreen(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-          Button(
+          UbaaSecondaryButton(
               onClick = onBackToSelection,
               modifier = Modifier.weight(1f).height(52.dp),
               contentPadding = PaddingValues(horizontal = 16.dp),
           ) {
             Text("返回修改时段")
           }
-          Button(
+          UbaaButton(
               onClick = { viewModel.submitReservation(onSuccess = onSubmitSuccess) },
               enabled = !uiState.isSubmitting,
+              loading = uiState.isSubmitting,
               modifier = Modifier.weight(1.4f).height(52.dp),
               contentPadding = PaddingValues(horizontal = 16.dp),
           ) {
@@ -120,9 +121,13 @@ fun CgyyReserveFormScreen(
 
       CgyySectionCard(title = "填写预约信息") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = uiState.phone,
+              keyboardOptions =
+                  androidx.compose.foundation.text.KeyboardOptions(
+                      keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
+                  ),
               onValueChange = viewModel::updatePhone,
               label = { Text("联系电话 *") },
               modifier = Modifier.fillMaxWidth(),
@@ -130,7 +135,7 @@ fun CgyyReserveFormScreen(
               isError = phoneError,
               supportingText = { if (phoneError) Text("请填写联系电话") },
           )
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = uiState.theme,
               onValueChange = viewModel::updateTheme,
@@ -140,7 +145,7 @@ fun CgyyReserveFormScreen(
               isError = themeError,
               supportingText = { if (themeError) Text("请填写活动主题") },
           )
-          OutlinedButton(
+          UbaaSecondaryButton(
               onClick = { showPurposeDialog = true },
               modifier = Modifier.fillMaxWidth(),
           ) {
@@ -148,9 +153,13 @@ fun CgyyReserveFormScreen(
                 uiState.purposeTypes.firstOrNull { it.key == uiState.purposeType }?.name ?: "选择活动类型"
             )
           }
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = uiState.joinerNum,
+              keyboardOptions =
+                  androidx.compose.foundation.text.KeyboardOptions(
+                      keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                  ),
               onValueChange = viewModel::updateJoinerNum,
               label = { Text("参与人数 *") },
               modifier = Modifier.fillMaxWidth(),
@@ -158,7 +167,7 @@ fun CgyyReserveFormScreen(
               isError = joinerNumError,
               supportingText = { if (joinerNumError) Text("参与人数必须大于 0") },
           )
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = uiState.activityContent,
               onValueChange = viewModel::updateActivityContent,
@@ -168,7 +177,7 @@ fun CgyyReserveFormScreen(
               isError = activityContentError,
               supportingText = { if (activityContentError) Text("请填写活动内容") },
           )
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = uiState.joiners,
               onValueChange = viewModel::updateJoiners,

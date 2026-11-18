@@ -10,14 +10,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +25,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.venue.VenueBuddy
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
 
 /** 同伴管理弹窗：按学工号添加、删除。 */
 @Composable
@@ -41,7 +43,7 @@ fun VenueBuddyDialog(
 ) {
   var uid by remember { mutableStateOf("") }
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("管理同伴") },
       text = {
@@ -56,15 +58,16 @@ fun VenueBuddyDialog(
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(8.dp),
           ) {
-            OutlinedTextField(
+            UbaaTextField(
                 shape = RoundedCornerShape(14.dp),
                 value = uid,
+                requiredMessage = "请填写学工号",
                 onValueChange = { uid = it.filter(Char::isLetterOrDigit) },
                 label = { Text("学工号") },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(
+            UbaaTextButton(
                 onClick = {
                   if (uid.isNotBlank()) {
                     onAdd(uid)
@@ -95,7 +98,7 @@ fun VenueBuddyDialog(
                       color = MaterialTheme.colorScheme.onSurfaceVariant,
                   )
                 }
-                IconButton(onClick = { onDelete(buddy.id) }) {
+                UbaaIconButton(onClick = { onDelete(buddy.id) }) {
                   Icon(Icons.Default.Delete, contentDescription = "删除同伴")
                 }
               }
@@ -103,6 +106,8 @@ fun VenueBuddyDialog(
           }
         }
       },
-      confirmButton = { TextButton(onClick = onDismiss) { Text("完成") } },
+      confirmButton = {
+        UbaaIconAction(onClick = onDismiss, description = "完成", icon = Icons.Default.Check)
+      },
   )
 }

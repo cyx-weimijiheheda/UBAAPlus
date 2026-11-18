@@ -11,9 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chair
 import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.LibBookBookingDto
 import cn.edu.ubaa.plus.model.dto.isInUseBooking
 import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
+import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlinx.datetime.LocalDateTime
 
@@ -91,7 +91,7 @@ fun LibBookCurrentBookingCard(
         )
       }
       // 规则全文只在确认预约对话框里展示，这里只留一个不显眼的入口。
-      IconButton(onClick = onShowRules) {
+      UbaaIconButton(onClick = onShowRules) {
         Icon(
             imageVector = Icons.Default.HelpOutline,
             contentDescription = "座位规则",
@@ -144,7 +144,9 @@ fun LibBookCurrentBookingCard(
     if (actions.isNotEmpty()) {
       FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         actions.forEach { action ->
-          AssistChip(
+          UbaaActionChip(
+              destructive =
+                  action == LibBookCardAction.CANCEL || action == LibBookCardAction.CHECKOUT,
               onClick = { onAction(action, booking.id) },
               enabled = !isCanceling && !isSubmitting && booking.isCardActionEnabled(action),
               label = {

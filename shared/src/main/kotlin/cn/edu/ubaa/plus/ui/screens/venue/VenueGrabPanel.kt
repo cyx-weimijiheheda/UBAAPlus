@@ -15,15 +15,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +39,10 @@ import cn.edu.ubaa.plus.api.venue.VenueSpaceMode
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.GrabConfirmDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
+import cn.edu.ubaa.plus.ui.common.components.UbaaToggleRow
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
@@ -108,7 +108,7 @@ fun VenueGrabPanel(
             color = MaterialTheme.colorScheme.onTertiaryContainer,
         )
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(
+        UbaaSecondaryButton(
             onClick = onStop,
             modifier = Modifier.fillMaxWidth(),
             colors =
@@ -119,27 +119,15 @@ fun VenueGrabPanel(
           Text("停止抢场地")
         }
       } else {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Switch(
-              checked = state.useSchedule && !alreadyReleased,
-              onCheckedChange = onUseScheduleChange,
-              enabled = !alreadyReleased,
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          Text(
-              text =
-                  if (alreadyReleased) {
-                    "该日期已放票，将立即开始抢场地"
-                  } else {
-                    "定时开抢（每天 ${state.grabAtText}）"
-                  },
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onTertiaryContainer,
-          )
-        }
+        UbaaToggleRow(
+            label = if (alreadyReleased) "该日期已放票，将立即开始抢场地" else "定时开抢（每天 ${state.grabAtText}）",
+            checked = state.useSchedule && !alreadyReleased,
+            onCheckedChange = onUseScheduleChange,
+            enabled = !alreadyReleased,
+        )
 
         if (!alreadyReleased && state.useSchedule) {
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = state.grabAtText,
               onValueChange = onGrabAtChange,
@@ -149,7 +137,7 @@ fun VenueGrabPanel(
           )
         }
 
-        OutlinedTextField(
+        UbaaTextField(
             shape = RoundedCornerShape(14.dp),
             value = state.pollIntervalText,
             onValueChange = { value ->
@@ -163,7 +151,7 @@ fun VenueGrabPanel(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = { showConfirm = true }, modifier = Modifier.fillMaxWidth()) {
+        UbaaButton(onClick = { showConfirm = true }, modifier = Modifier.fillMaxWidth()) {
           Icon(Icons.Default.Bolt, contentDescription = null)
           Spacer(modifier = Modifier.width(8.dp))
           Text("开始抢场地")
@@ -192,8 +180,12 @@ fun VenueGrabPanel(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-              grabState.payUrl?.let { url -> Button(onClick = { onOpenUrl(url) }) { Text("去支付") } }
-              OutlinedButton(onClick = { onOpenUrl("https://cgyy.buaa.edu.cn/venue/orders") }) {
+              grabState.payUrl?.let { url ->
+                UbaaButton(onClick = { onOpenUrl(url) }) { Text("去支付") }
+              }
+              UbaaSecondaryButton(
+                  onClick = { onOpenUrl("https://cgyy.buaa.edu.cn/venue/orders") }
+              ) {
                 Text("查看订单")
               }
             }

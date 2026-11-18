@@ -14,25 +14,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,8 +45,14 @@ import cn.edu.ubaa.plus.model.dto.DormMeterInfoDto
 import cn.edu.ubaa.plus.model.dto.DormTopUpDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -143,7 +144,7 @@ fun DormElectricityScreen(
             ) {
               Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                 Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
-                TextButton(onClick = viewModel::query) { Text("重试") }
+                UbaaTextButton(onClick = viewModel::query) { Text("重试") }
               }
             }
           }
@@ -218,7 +219,7 @@ private fun DormQueryCard(
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodySmall,
         )
-        OutlinedButton(onClick = onReloadRooms) { Text("重新加载") }
+        UbaaSecondaryButton(onClick = onReloadRooms) { Text("重新加载") }
       } else {
         DormDropdown(
             label = "校区",
@@ -249,7 +250,7 @@ private fun DormQueryCard(
               onSelected = onMeterSelected,
           )
         }
-        Button(
+        UbaaButton(
             onClick = onQuery,
             enabled = state.selectedMeterId != null && !state.isQuerying,
             modifier = Modifier.fillMaxWidth(),
@@ -287,7 +288,7 @@ private fun DormMeterCard(info: DormMeterInfoDto, onContinuePay: () -> Unit) {
       Text("加电状态：${payStatusText(info.payStatus)}")
       if (!info.payUrl.isNullOrBlank()) {
         Spacer(modifier = Modifier.height(4.dp))
-        OutlinedButton(onClick = onContinuePay) { Text("继续支付未完成订单") }
+        UbaaSecondaryButton(onClick = onContinuePay) { Text("继续支付未完成订单") }
       }
     }
   }
@@ -308,9 +309,13 @@ private fun DormRechargeCard(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       Text("购电", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-      OutlinedTextField(
+      UbaaTextField(
           shape = RoundedCornerShape(14.dp),
           value = state.rechargePowerText,
+          errorMessage =
+              if (state.rechargePowerText.isNotBlank() && state.writePower == null)
+                  "请输入大于零且符合电表计量单位的购电量"
+              else null,
           onValueChange = onPowerChange,
           label = { Text("购电量（度）") },
           singleLine = true,
@@ -323,19 +328,13 @@ private fun DormRechargeCard(
             style = MaterialTheme.typography.bodyMedium,
         )
       }
-      Button(
+      UbaaButton(
           onClick = onRechargeClick,
           enabled = state.canRecharge,
           modifier = Modifier.fillMaxWidth(),
+          loading = state.isRecharging,
       ) {
-        if (state.isRecharging) {
-          CircularProgressIndicator(
-              modifier = Modifier.height(18.dp).width(18.dp),
-              strokeWidth = 2.dp,
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-        }
-        Text("购电")
+        Text(if (state.isRecharging) "购电中…" else "购电")
       }
       Text(
           text = "确认后会跳转到校园支付平台完成付款；本应用不会自动扣款。",
@@ -353,7 +352,7 @@ private fun DormRechargeConfirmDialog(
     onConfirm: () -> Unit,
 ) {
   val info = state.meterInfo ?: return
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("确认购电") },
       text = {
@@ -364,8 +363,10 @@ private fun DormRechargeConfirmDialog(
           Text("确认后将打开校园支付平台。")
         }
       },
-      confirmButton = { TextButton(onClick = onConfirm) { Text("去支付") } },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+      confirmButton = { UbaaTextButton(onClick = onConfirm) { Text("去支付") } },
+      dismissButton = {
+        UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
+      },
   )
 }
 

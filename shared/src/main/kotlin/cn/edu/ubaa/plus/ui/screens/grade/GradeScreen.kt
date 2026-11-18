@@ -1,7 +1,6 @@
 package cn.edu.ubaa.plus.ui.screens.grade
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.Grade
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
 import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
@@ -96,14 +96,7 @@ private fun GradeList(
     }
 
     if (grades.isEmpty()) {
-      item {
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(32.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-          Text("暂无成绩", style = MaterialTheme.typography.bodyLarge)
-        }
-      }
+      item { UbaaEmptyState(title = "暂无成绩", modifier = Modifier.fillMaxWidth()) }
     } else {
       items(grades) { grade -> GradeCard(grade = grade) }
     }

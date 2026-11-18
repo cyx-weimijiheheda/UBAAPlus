@@ -8,11 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,6 +21,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.AppForegroundMonitor
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
 import kotlinx.coroutines.delay
 
 /**
@@ -44,7 +43,7 @@ fun VenueMembershipCodeDialog(viewModel: VenueViewModel, onDismiss: () -> Unit) 
     }
   }
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("会员预约码") },
       text = {
@@ -58,7 +57,7 @@ fun VenueMembershipCodeDialog(viewModel: VenueViewModel, onDismiss: () -> Unit) 
 
           when {
             code == null && state.isLoading ->
-                CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                UbaaProgressIndicator(modifier = Modifier.size(32.dp))
             bitmap != null ->
                 Image(
                     bitmap = bitmap.asImageBitmap(),
@@ -101,6 +100,6 @@ fun VenueMembershipCodeDialog(viewModel: VenueViewModel, onDismiss: () -> Unit) 
           }
         }
       },
-      confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+      confirmButton = {},
   )
 }

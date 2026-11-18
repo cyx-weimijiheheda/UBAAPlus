@@ -28,7 +28,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import java.util.Locale
 import kotlin.random.Random
@@ -62,7 +66,7 @@ fun ProfileScreen(
     metricsViewModel.refresh(isAuthenticated)
   }
   if (showDetails) {
-    AlertDialog(
+    UbaaAlertDialog(
         onDismissRequest = { showDetails = false },
         title = { Text("个人资料") },
         text = {
@@ -77,7 +81,7 @@ fun ProfileScreen(
             ProfileInfoRow("证件号码", userInfo?.idCardNumber?.takeIf { it.isNotBlank() } ?: "未提供")
           }
         },
-        confirmButton = { TextButton(onClick = { showDetails = false }) { Text("关闭") } },
+        confirmButton = {},
     )
   }
   val quips = remember { profileQuips() }
@@ -206,7 +210,7 @@ fun ProfileScreen(
     }
 
     item {
-      OutlinedButton(
+      UbaaSecondaryButton(
           onClick = onLogoutClick,
           modifier = Modifier.fillMaxWidth(),
           colors =
@@ -275,7 +279,7 @@ private fun PrivateBalanceCard(
       title = title,
       modifier = modifier,
       trailing = {
-        IconButton(onClick = { revealed = !revealed }) {
+        UbaaIconButton(onClick = { revealed = !revealed }) {
           Icon(
               if (revealed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
               contentDescription = if (revealed) "隐藏$title" else "显示$title",
@@ -289,7 +293,7 @@ private fun PrivateBalanceCard(
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(vertical = 8.dp),
     )
-    TextButton(onClick = onOpen, contentPadding = PaddingValues(0.dp)) {
+    UbaaTextButton(onClick = onOpen, contentPadding = PaddingValues(0.dp)) {
       Text(if (revealed && failed) "更新余额" else "查看详情")
     }
   }

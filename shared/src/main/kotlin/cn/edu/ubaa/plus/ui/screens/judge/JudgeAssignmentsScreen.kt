@@ -15,19 +15,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.ElevatedAssistChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,11 +36,15 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.JudgeAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.dto.JudgeSubmissionStatus
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
 import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
 import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
+import cn.edu.ubaa.plus.ui.common.components.UbaaSearchField
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
+import cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -139,22 +138,20 @@ private fun SearchJudgeAssignmentsDialog(
 ) {
   var query by remember(initialQuery) { mutableStateOf(initialQuery) }
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("搜索作业") },
       text = {
-        OutlinedTextField(
-            shape = RoundedCornerShape(14.dp),
+        UbaaSearchField(
             value = query,
             onValueChange = { query = it },
-            label = { Text("课程名称或作业标题") },
-            singleLine = true,
+            hint = "课程名称或作业标题",
             modifier = Modifier.fillMaxWidth(),
         )
       },
-      confirmButton = { TextButton(onClick = { onApply(query) }) { Text("搜索") } },
+      confirmButton = { UbaaTextButton(onClick = { onApply(query) }) { Text("搜索") } },
       dismissButton = {
-        TextButton(
+        UbaaTextButton(
             onClick = {
               if (initialQuery.isNotBlank()) {
                 onClear()
@@ -192,10 +189,7 @@ private fun JudgeAssignmentCard(
             modifier = Modifier.weight(1f),
         )
         if (assignment.shouldShowJudgeSummaryStatus()) {
-          ElevatedAssistChip(
-              onClick = onClick,
-              label = { Text(assignment.submissionStatusText) },
-          )
+          UbaaStatusBadge(text = assignment.submissionStatusText)
         }
       }
 

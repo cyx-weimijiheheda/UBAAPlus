@@ -15,10 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -128,9 +126,9 @@ fun UbaaLoadingState(
       verticalArrangement = Arrangement.Center,
   ) {
     if (showIndicator) {
-      CircularProgressIndicator(
+      UbaaProgressIndicator(
           modifier = Modifier.size(28.dp),
-          strokeWidth = 2.5.dp,
+          strokeWidth = 2.dp,
           color = MaterialTheme.colorScheme.primary,
       )
       Spacer(modifier = Modifier.height(12.dp))
@@ -181,7 +179,7 @@ fun UbaaEmptyState(
     }
     if (actionLabel != null && onAction != null) {
       Spacer(modifier = Modifier.height(12.dp))
-      OutlinedButton(onClick = onAction) { Text(actionLabel) }
+      UbaaSecondaryButton(onClick = onAction) { Text(actionLabel) }
     }
   }
 }
@@ -213,7 +211,7 @@ fun UbaaErrorState(
     )
     if (onRetry != null) {
       Spacer(modifier = Modifier.height(12.dp))
-      OutlinedButton(onClick = onRetry) { Text(retryLabel) }
+      UbaaSecondaryButton(onClick = onRetry) { Text(retryLabel) }
     }
   }
 }

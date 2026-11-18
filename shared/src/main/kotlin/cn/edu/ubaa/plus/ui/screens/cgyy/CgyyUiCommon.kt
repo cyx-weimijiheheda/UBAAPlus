@@ -1,36 +1,20 @@
 package cn.edu.ubaa.plus.ui.screens.cgyy
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDisplayColor
@@ -39,8 +23,15 @@ import cn.edu.ubaa.plus.model.dto.CgyyPurposeTypeDto
 import cn.edu.ubaa.plus.model.dto.canCancelAt
 import cn.edu.ubaa.plus.model.dto.displayReservationDateText
 import cn.edu.ubaa.plus.model.dto.displayStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
+import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
+import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
+import cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaToggleRow
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -96,39 +87,12 @@ internal fun CgyyChipFlowRow(content: @Composable () -> Unit) {
 
 @Composable
 internal fun CgyyLoadingState(message: String, modifier: Modifier = Modifier) {
-  Column(
-      modifier = modifier.fillMaxSize().padding(24.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center,
-  ) {
-    CircularProgressIndicator()
-    Spacer(modifier = Modifier.height(12.dp))
-    Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
-  }
+  UbaaLoadingState(modifier = modifier.fillMaxSize(), text = message)
 }
 
 @Composable
 internal fun CgyyErrorState(message: String?, onRetry: () -> Unit, modifier: Modifier = Modifier) {
-  Column(
-      modifier = modifier.fillMaxSize().padding(24.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center,
-  ) {
-    Icon(
-        imageVector = Icons.Default.Info,
-        contentDescription = null,
-        modifier = Modifier.size(36.dp),
-        tint = MaterialTheme.colorScheme.error,
-    )
-    Spacer(modifier = Modifier.height(12.dp))
-    Text(
-        text = message ?: "发生错误",
-        color = MaterialTheme.colorScheme.error,
-        textAlign = TextAlign.Center,
-    )
-    Spacer(modifier = Modifier.height(16.dp))
-    Button(onClick = onRetry) { Text("重试") }
-  }
+  UbaaErrorState(message = message ?: "加载失败", onRetry = onRetry, modifier = modifier.fillMaxSize())
 }
 
 @Composable
@@ -137,14 +101,7 @@ internal fun CgyyToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-  Row(
-      modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.SpaceBetween,
-      verticalAlignment = Alignment.CenterVertically,
-  ) {
-    Text(label, modifier = Modifier.weight(1f))
-    Switch(checked = checked, onCheckedChange = onCheckedChange)
-  }
+  UbaaToggleRow(label, checked, onCheckedChange)
 }
 
 @Composable
@@ -154,7 +111,7 @@ internal fun CgyyPurposeTypeDialog(
     onDismiss: () -> Unit,
     onSelect: (Int) -> Unit,
 ) {
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("选择活动类型") },
       text = {
@@ -164,7 +121,7 @@ internal fun CgyyPurposeTypeDialog(
             onSelected = { onSelect(options[it].key) },
         )
       },
-      confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+      confirmButton = {},
   )
 }
 
@@ -177,7 +134,7 @@ internal fun CgyyOrderDetailDialog(
   val status = order.displayStatus()
   val detailText = status.detailText
   val rejectionReason = order.checkContent
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text(order.venueSpaceName ?: order.venueName.orEmpty()) },
       text = {
@@ -208,10 +165,18 @@ internal fun CgyyOrderDetailDialog(
       },
       confirmButton = {
         if (shouldShowCancelAction(order)) {
-          TextButton(onClick = onCancel) { Text("取消预约") }
+          UbaaTextButton(
+              onClick = onCancel,
+              colors =
+                  androidx.compose.material3.ButtonDefaults.textButtonColors(
+                      contentColor = MaterialTheme.colorScheme.error
+                  ),
+          ) {
+            Text("取消预约")
+          }
         }
       },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+      dismissButton = {},
   )
 }
 
@@ -240,27 +205,10 @@ internal fun JsonElement?.toRawDisplayText(): String =
 
 @Composable
 internal fun CgyyEmptyState(title: String, subtitle: String, modifier: Modifier = Modifier) {
-  Column(
-      modifier = modifier.fillMaxSize().padding(24.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center,
-  ) {
-    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    Spacer(modifier = Modifier.height(6.dp))
-    Text(
-        text = subtitle,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-    )
-  }
+  UbaaEmptyState(title = title, subtitle = subtitle, modifier = modifier.fillMaxSize())
 }
 
 @Composable
 internal fun CgyyStatusChip(text: String, color: Color) {
-  AssistChip(
-      onClick = {},
-      label = { Text(text, color = color, fontWeight = FontWeight.Bold) },
-      modifier = Modifier.background(Color.Transparent),
-  )
+  UbaaStatusBadge(text = text, containerColor = color.copy(alpha = 0.12f), contentColor = color)
 }

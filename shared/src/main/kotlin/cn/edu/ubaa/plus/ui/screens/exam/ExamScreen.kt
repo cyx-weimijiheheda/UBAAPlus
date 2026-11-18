@@ -28,6 +28,7 @@ import cn.edu.ubaa.plus.model.format.formatUbaaTime
 import cn.edu.ubaa.plus.model.format.parseUbaaTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
 import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
@@ -232,7 +233,7 @@ fun ExamCard(exam: Exam, showSeat: Boolean, isFinished: Boolean = false) {
           }
         }
       }
-      IconButton(
+      UbaaIconButton(
           onClick = {
             clipboard.setText(AnnotatedString(exam.toClipboardText()))
             UbaaToast.show("考试信息已复制")

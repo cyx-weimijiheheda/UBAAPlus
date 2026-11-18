@@ -1,24 +1,22 @@
 package cn.edu.ubaa.plus.ui.navigation
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaCheckboxRow
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeSortField
 import cn.edu.ubaa.plus.ui.screens.spoc.SpocSortField
 
@@ -38,7 +36,7 @@ internal fun SpocSortFilterDialog(
   var selectedShowOnlyUnsubmitted by
       remember(showOnlyUnsubmitted) { mutableStateOf(showOnlyUnsubmitted) }
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("排序和筛选") },
       text = {
@@ -73,7 +71,7 @@ internal fun SpocSortFilterDialog(
         }
       },
       confirmButton = {
-        TextButton(
+        UbaaTextButton(
             onClick = {
               onApply(
                   selectedSortField,
@@ -86,7 +84,9 @@ internal fun SpocSortFilterDialog(
           Text("应用")
         }
       },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+      dismissButton = {
+        UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
+      },
   )
 }
 
@@ -106,7 +106,7 @@ internal fun JudgeSortFilterDialog(
   var selectedShowOnlyUnfinished by
       remember(showOnlyUnfinished) { mutableStateOf(showOnlyUnfinished) }
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("排序和筛选") },
       text = {
@@ -141,7 +141,7 @@ internal fun JudgeSortFilterDialog(
         }
       },
       confirmButton = {
-        TextButton(
+        UbaaTextButton(
             onClick = {
               onApply(
                   selectedSortField,
@@ -154,7 +154,9 @@ internal fun JudgeSortFilterDialog(
           Text("应用")
         }
       },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+      dismissButton = {
+        UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
+      },
   )
 }
 
@@ -164,11 +166,5 @@ private fun DialogCheckboxRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-  Row(
-      modifier = Modifier.fillMaxWidth().clickable(onClick = { onCheckedChange(!checked) }),
-      verticalAlignment = Alignment.CenterVertically,
-  ) {
-    Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-    Text(text = label, style = MaterialTheme.typography.bodyMedium)
-  }
+  UbaaCheckboxRow(label, checked, onCheckedChange)
 }

@@ -15,13 +15,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,9 +41,14 @@ import cn.edu.ubaa.plus.model.dto.DormRoomDto
 import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.ui.common.components.CustomBrandColorDialog
 import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
+import cn.edu.ubaa.plus.ui.common.components.UbaaToggleRow
 import kotlinx.coroutines.launch
 
 private sealed interface DormRoomsState {
@@ -90,7 +92,8 @@ fun SettingsScreen(
       } ?: if (cacheSizeFailed) "暂时无法计算" else "计算中…"
 
   if (showClearCache) {
-    AlertDialog(
+    UbaaAlertDialog(
+        dismissEnabled = !clearingCache,
         onDismissRequest = { if (!clearingCache) showClearCache = false },
         title = { Text("清理缓存") },
         text = {
@@ -99,7 +102,7 @@ fun SettingsScreen(
           )
         },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               enabled = !clearingCache,
               onClick = {
                 onBeforeClearCache()
@@ -124,9 +127,6 @@ fun SettingsScreen(
           ) {
             Text(if (clearingCache) "清理中…" else "清理")
           }
-        },
-        dismissButton = {
-          TextButton(enabled = !clearingCache, onClick = { showClearCache = false }) { Text("取消") }
         },
     )
   }
@@ -161,7 +161,7 @@ fun SettingsScreen(
           },
       )
   if (showMysteryDisclaimer) {
-    AlertDialog(
+    UbaaAlertDialog(
         onDismissRequest = { showMysteryDisclaimer = false },
         title = { Text("免责声明") },
         text = {
@@ -170,7 +170,7 @@ fun SettingsScreen(
           )
         },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               onClick = {
                 showMysteryDisclaimer = false
                 AppPreferencesStore.setMysterySwitchEnabled(true)
@@ -179,7 +179,13 @@ fun SettingsScreen(
             Text("我已了解，开启")
           }
         },
-        dismissButton = { TextButton(onClick = { showMysteryDisclaimer = false }) { Text("取消") } },
+        dismissButton = {
+          UbaaIconAction(
+              onClick = { showMysteryDisclaimer = false },
+              description = "取消",
+              icon = Icons.Default.Close,
+          )
+        },
     )
   }
   var dormState by
@@ -230,24 +236,12 @@ fun SettingsScreen(
             onFollowWallpaperChange = AppPreferencesStore::setFollowWallpaper,
         )
         Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text("玻璃与磨砂效果", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = "底部导航使用透亮玻璃，内容卡片使用柔和磨砂",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-          Switch(
-              checked = preferences.glassEnabled,
-              onCheckedChange = AppPreferencesStore::setGlassEnabled,
-          )
-        }
+        UbaaToggleRow(
+            label = "玻璃与磨砂效果",
+            checked = preferences.glassEnabled,
+            onCheckedChange = AppPreferencesStore::setGlassEnabled,
+            supportingText = "底部导航使用透亮玻璃，内容卡片使用柔和磨砂",
+        )
         Spacer(modifier = Modifier.height(12.dp))
         Text("功能页布局", style = MaterialTheme.typography.bodyLarge)
         UbaaSegmentedTabs(
@@ -287,26 +281,12 @@ fun SettingsScreen(
     item {
       SettingsSection(title = "通知") {
         val context = LocalContext.current
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text("后台提醒", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text =
-                    "登录后在后台待命，只在课程开课、签到/签退开启、新作业发布或作业将截止时推送，启动时不打扰。" +
-                        "关闭只停止通知与前台服务，首页的课程、考勤与图书馆座位照常显示。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-          Switch(
-              checked = preferences.backgroundRemindersEnabled,
-              onCheckedChange = AppPreferencesStore::setBackgroundRemindersEnabled,
-          )
-        }
+        UbaaToggleRow(
+            label = "后台提醒",
+            checked = preferences.backgroundRemindersEnabled,
+            onCheckedChange = AppPreferencesStore::setBackgroundRemindersEnabled,
+            supportingText = "仅在课程开课、签到/签退开放、新作业发布或作业将截止时提醒。关闭后首页课程、考勤和座位仍照常显示。",
+        )
         if (
             android.os.Build.VERSION.SDK_INT >= 33 &&
                 !ReminderServiceController.notificationsAllowed(context)
@@ -337,7 +317,7 @@ fun SettingsScreen(
             label = "配色",
         )
         if (preferences.widgetColorMode == WidgetColorMode.CUSTOM) {
-          TextButton(onClick = { showWidgetColorPicker = true }) { Text("设置小组件颜色") }
+          UbaaTextButton(onClick = { showWidgetColorPicker = true }) { Text("设置小组件颜色") }
         }
         Text(
             "今日课程小组件同时显示待办，也可单独添加待办小组件。待办来自应用同步快照；打开首页可更新。Android 12 以下壁纸配色回退到应用配色。",
@@ -363,13 +343,13 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )
-            TextButton(onClick = ::loadDormRooms) { Text("重试") }
+            UbaaTextButton(onClick = ::loadDormRooms) { Text("重试") }
             Text(
                 text = "也可以手动填写，查询页会直接使用这些值。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedTextField(
+            UbaaTextField(
                 shape = RoundedCornerShape(14.dp),
                 value = preferences.dormCampus,
                 onValueChange = {
@@ -383,7 +363,7 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            UbaaTextField(
                 shape = RoundedCornerShape(14.dp),
                 value = preferences.dormBuilding,
                 onValueChange = {
@@ -397,7 +377,7 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            UbaaTextField(
                 shape = RoundedCornerShape(14.dp),
                 value = preferences.dormRoom,
                 onValueChange = {
@@ -453,7 +433,7 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        TextButton(enabled = !clearingCache, onClick = { showClearCache = true }) {
+        UbaaTextButton(enabled = !clearingCache, onClick = { showClearCache = true }) {
           Text(if (clearingCache) "清理中…" else "清理缓存")
         }
       }
@@ -466,10 +446,10 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          TextButton(onClick = { diagnosticExport.launch("UBAAPlus-diagnostics.json") }) {
+          UbaaTextButton(onClick = { diagnosticExport.launch("UBAAPlus-diagnostics.json") }) {
             Text("导出脱敏诊断")
           }
-          TextButton(
+          UbaaTextButton(
               onClick = {
                 LocalDiagnostics.clear()
                 diagnosticCount = 0
@@ -483,27 +463,25 @@ fun SettingsScreen(
 
     item {
       SettingsSection(title = "功能选项") {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Text("？！！？", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-          Switch(
-              checked = preferences.mysterySwitchEnabled,
-              onCheckedChange = { enabled ->
-                if (enabled) showMysteryDisclaimer = true
-                else AppPreferencesStore.setMysterySwitchEnabled(false)
-              },
-          )
-        }
+        UbaaToggleRow(
+            label = "？！！？",
+            checked = preferences.mysterySwitchEnabled,
+            onCheckedChange = { enabled ->
+              if (enabled) showMysteryDisclaimer = true
+              else AppPreferencesStore.setMysterySwitchEnabled(false)
+            },
+        )
       }
     }
   }
 
   pendingMode?.let { mode ->
-    AlertDialog(
+    UbaaAlertDialog(
         onDismissRequest = { pendingMode = null },
         title = { Text("切换连接模式") },
         text = { Text("将退出当前登录并清除本模式会话，需重新登录。") },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               onClick = {
                 pendingMode = null
                 onModeSelected(mode)
@@ -512,7 +490,13 @@ fun SettingsScreen(
             Text("确认切换")
           }
         },
-        dismissButton = { TextButton(onClick = { pendingMode = null }) { Text("取消") } },
+        dismissButton = {
+          UbaaIconAction(
+              onClick = { pendingMode = null },
+              description = "取消",
+              icon = Icons.Default.Close,
+          )
+        },
     )
   }
 }

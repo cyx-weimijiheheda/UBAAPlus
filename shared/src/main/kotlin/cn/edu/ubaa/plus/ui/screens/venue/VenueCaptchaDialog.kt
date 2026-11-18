@@ -14,10 +14,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.api.venue.VenueCaptchaChallenge
 import cn.edu.ubaa.plus.api.venue.VenuePoint
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 
 /**
  * 点击文字验证码弹窗。
@@ -48,7 +51,7 @@ fun VenueCaptchaDialog(
   var points by remember(challenge.token) { mutableStateOf<List<VenuePoint>>(emptyList()) }
   val expected = challenge.wordList.size.takeIf { it > 0 } ?: 3
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onCancel,
       title = { Text("点击文字验证码") },
       text = {
@@ -115,7 +118,7 @@ fun VenueCaptchaDialog(
         }
       },
       confirmButton = {
-        TextButton(
+        UbaaTextButton(
             onClick = {
               if (bitmap != null && points.size == expected) {
                 onSubmit(points, bitmap.width, bitmap.height)
@@ -128,19 +131,18 @@ fun VenueCaptchaDialog(
       },
       dismissButton = {
         Row {
-          TextButton(
+          UbaaIconAction(
               onClick = { points = points.dropLast(1) },
               enabled = points.isNotEmpty(),
-          ) {
-            Text("撤销")
-          }
-          TextButton(
+              description = "撤销",
+              icon = Icons.Default.Undo,
+          )
+          UbaaIconAction(
               onClick = { points = emptyList() },
               enabled = points.isNotEmpty(),
-          ) {
-            Text("重置")
-          }
-          TextButton(onClick = onCancel) { Text("取消") }
+              description = "重置",
+              icon = Icons.Default.RestartAlt,
+          )
         }
       },
   )

@@ -26,14 +26,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,9 +48,12 @@ import cn.edu.ubaa.plus.model.dto.CgyyTimeSlotDto
 import cn.edu.ubaa.plus.model.dto.CgyyVenueSiteDto
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
+import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
+import cn.edu.ubaa.plus.ui.common.components.UbaaButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -96,7 +96,7 @@ fun CgyyReservePickerScreen(
             modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
             colors = ubaaGlassCardColors(),
         ) {
-          Button(
+          UbaaButton(
               onClick = onNext,
               enabled = viewModel.canAdvanceToReservationForm(),
               modifier =
@@ -194,14 +194,14 @@ private fun CgyySecondaryEntriesRow(
       modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
       horizontalArrangement = Arrangement.spacedBy(8.dp),
   ) {
-    AssistChip(
+    UbaaActionChip(
         onClick = onOrdersClick,
         label = { Text("我的预约") },
         leadingIcon = {
           Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
         },
     )
-    AssistChip(
+    UbaaActionChip(
         onClick = onLockCodeClick,
         label = { Text("门锁密码") },
         leadingIcon = {
@@ -278,7 +278,7 @@ private fun CgyyReservationTable(
                       .padding(2.dp),
               contentAlignment = Alignment.Center,
           ) {
-            TextButton(
+            UbaaTextButton(
                 onClick = {
                   if (slotState != null && (isReservable || selected)) {
                     onSlotToggle(space.spaceId, slot.id, space.venueSpaceGroupId)

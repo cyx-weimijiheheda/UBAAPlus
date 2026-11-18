@@ -23,13 +23,11 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,8 +43,10 @@ import cn.edu.ubaa.plus.model.dto.IclassAttendanceRecordDto
 import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
+import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.screens.menu.TodayClassCard
 import cn.edu.ubaa.plus.ui.screens.menu.homeCourseEntries
@@ -193,7 +193,7 @@ internal fun IclassHomeScreen(
                     modifier = Modifier.fillMaxWidth().height(80.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                  CircularProgressIndicator()
+                  UbaaProgressIndicator()
                 }
               }
           uiState.attendanceError != null ->
@@ -276,7 +276,7 @@ private fun RetryRow(message: String, onRetry: () -> Unit) {
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onErrorContainer,
       )
-      TextButton(onClick = onRetry) { Text("重试") }
+      UbaaTextButton(onClick = onRetry) { Text("重试") }
     }
   }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
@@ -29,8 +30,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.BykcCourseDto
 import cn.edu.ubaa.plus.model.dto.BykcCourseStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedMultiSelect
+import cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge
+import cn.edu.ubaa.plus.ui.common.components.UbaaStatusTone
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -79,7 +87,7 @@ fun BykcCoursesScreen(
           modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
           horizontalArrangement = Arrangement.spacedBy(8.dp),
       ) {
-        AssistChip(
+        UbaaActionChip(
             onClick = onChosenClick,
             label = { Text("我的课程") },
             leadingIcon = {
@@ -90,7 +98,7 @@ fun BykcCoursesScreen(
               )
             },
         )
-        AssistChip(
+        UbaaActionChip(
             onClick = onStatisticsClick,
             label = { Text("课程统计") },
             leadingIcon = {
@@ -156,7 +164,7 @@ fun BykcCoursesScreen(
                 ) {
                   if (isLoadingMore) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                      CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                      UbaaProgressIndicator(modifier = Modifier.size(24.dp))
                       Spacer(modifier = Modifier.height(8.dp))
                       Text("加载更多课程...", style = MaterialTheme.typography.bodySmall)
                     }
@@ -197,12 +205,14 @@ internal fun BykcCourseFiltersDialog(
     onDismissRequest: () -> Unit,
     onFiltersChange: (BykcCourseFilters) -> Unit,
 ) {
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismissRequest,
-      confirmButton = { TextButton(onClick = onDismissRequest) { Text("完成") } },
+      confirmButton = {
+        UbaaIconAction(onClick = onDismissRequest, description = "完成", icon = Icons.Default.Check)
+      },
       dismissButton = {
         if (filters.hasCustomSelections(defaultFilters)) {
-          TextButton(onClick = { onFiltersChange(defaultFilters) }) { Text("重置默认") }
+          UbaaTextButton(onClick = { onFiltersChange(defaultFilters) }) { Text("重置默认") }
         }
       },
       title = {
@@ -430,19 +440,9 @@ fun BykcCourseCard(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-          course.subCategory?.let { subCategory ->
-            SuggestionChip(
-                onClick = {},
-                label = {
-                  Text(subCategory.displayName, style = MaterialTheme.typography.labelSmall)
-                },
-            )
-          }
+          course.subCategory?.let { subCategory -> UbaaStatusBadge(text = subCategory.displayName) }
           if (course.hasSignPoints) {
-            SuggestionChip(
-                onClick = {},
-                label = { Text("自主签到", style = MaterialTheme.typography.labelSmall) },
-            )
+            UbaaStatusBadge(text = "自主签到")
           }
         }
       }
@@ -477,50 +477,15 @@ fun BykcCourseCard(
 
 @Composable
 fun CourseStatusChip(status: BykcCourseStatus, selected: Boolean) {
-  val (containerColor, labelColor) =
-      when {
-        selected ->
-            Pair(
-                MaterialTheme.colorScheme.primaryContainer,
-                MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        status == BykcCourseStatus.AVAILABLE ->
-            Pair(
-                MaterialTheme.colorScheme.tertiaryContainer,
-                MaterialTheme.colorScheme.onTertiaryContainer,
-            )
-        status == BykcCourseStatus.FULL ||
-            status == BykcCourseStatus.ENDED ||
-            status == BykcCourseStatus.EXPIRED ->
-            Pair(
-                MaterialTheme.colorScheme.errorContainer,
-                MaterialTheme.colorScheme.onErrorContainer,
-            )
-        else ->
-            Pair(
-                MaterialTheme.colorScheme.secondaryContainer,
-                MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-      }
-
-  AssistChip(
-      onClick = {},
-      label = {
-        Text(
-            text = if (selected) BykcCourseStatus.SELECTED.displayName else status.displayName,
-            style = MaterialTheme.typography.labelMedium,
-            color = labelColor,
-        )
-      },
-      leadingIcon =
-          if (selected) {
-            { Icon(Icons.Default.Check, contentDescription = null, tint = labelColor) }
-          } else null,
-      colors =
-          AssistChipDefaults.assistChipColors(
-              containerColor = containerColor,
-              labelColor = labelColor,
-          ),
+  UbaaStatusBadge(
+      text = if (selected) BykcCourseStatus.SELECTED.displayName else status.displayName,
+      tone =
+          when {
+            selected -> UbaaStatusTone.SUCCESS
+            status == BykcCourseStatus.AVAILABLE -> UbaaStatusTone.INFO
+            status == BykcCourseStatus.FULL -> UbaaStatusTone.WARNING
+            else -> UbaaStatusTone.NEUTRAL
+          },
   )
 }
 

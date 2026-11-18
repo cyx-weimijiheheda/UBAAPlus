@@ -6,11 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -18,6 +17,10 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.LibBookQrScanResultDto
 import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
+import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
+import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
+import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 
 /**
  * 座位操作弹窗集合。
@@ -39,7 +42,7 @@ fun LibBookSeatActionDialogs(
   if (context == null) return
   if (pendingAction == LibBookSeatAction.LEAVE || pendingAction == LibBookSeatAction.CHECKOUT) {
     val checkout = pendingAction == LibBookSeatAction.CHECKOUT
-    AlertDialog(
+    UbaaAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (checkout) "完全离开" else "临时离开") },
         text = {
@@ -52,19 +55,21 @@ fun LibBookSeatActionDialogs(
           )
         },
         confirmButton = {
-          TextButton(
+          UbaaTextButton(
               onClick = { onConfirmLeave(pendingAction) },
               enabled = !submitting && !locating,
           ) {
             Text(if (checkout) "确认离开" else "确认暂离")
           }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+          UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
+        },
     )
     return
   }
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("座位操作") },
       text = {
@@ -89,14 +94,14 @@ fun LibBookSeatActionDialogs(
           )
           Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (context.canTemporaryLeave) {
-              AssistChip(
+              UbaaActionChip(
                   onClick = { onAction(LibBookSeatAction.LEAVE) },
                   enabled = !submitting,
                   label = { Text("临时离开") },
               )
             }
             if (context.canCheckout) {
-              AssistChip(
+              UbaaActionChip(
                   onClick = { onAction(LibBookSeatAction.CHECKOUT) },
                   enabled = !submitting,
                   label = { Text("完全离开") },
@@ -105,7 +110,7 @@ fun LibBookSeatActionDialogs(
           }
         }
       },
-      confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+      confirmButton = {},
   )
 }
 
@@ -117,7 +122,7 @@ fun LibBookReserveConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("确认预约座位") },
       text = {
@@ -137,18 +142,20 @@ fun LibBookReserveConfirmDialog(
         }
       },
       confirmButton = {
-        TextButton(onClick = onConfirm, enabled = !submitting) {
+        UbaaTextButton(onClick = onConfirm, enabled = !submitting) {
           Text(if (submitting) "提交中..." else "确认")
         }
       },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+      dismissButton = {
+        UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
+      },
   )
 }
 
 /** 座位规则全文弹窗，供顶部小问号入口使用。 */
 @Composable
 fun LibBookRulesDialog(onDismiss: () -> Unit) {
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("图书馆座位使用规则") },
       text = {
@@ -161,6 +168,6 @@ fun LibBookRulesDialog(onDismiss: () -> Unit) {
           }
         }
       },
-      confirmButton = { TextButton(onClick = onDismiss) { Text("知道了") } },
+      confirmButton = { UbaaTextButton(onClick = onDismiss) { Text("知道了") } },
   )
 }

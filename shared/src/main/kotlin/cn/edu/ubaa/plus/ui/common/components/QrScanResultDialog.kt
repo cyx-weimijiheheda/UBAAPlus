@@ -4,9 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -23,7 +23,7 @@ fun QrScanResultDialog(
   val clipboard = LocalClipboardManager.current
   val isUrl = content.trim().startsWith("http://") || content.trim().startsWith("https://")
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("扫描结果") },
       text = {
@@ -32,7 +32,7 @@ fun QrScanResultDialog(
         }
       },
       confirmButton = {
-        TextButton(
+        UbaaTextButton(
             onClick = { onOpenUrl(content.trim()) },
             enabled = isUrl,
         ) {
@@ -40,14 +40,14 @@ fun QrScanResultDialog(
         }
       },
       dismissButton = {
-        TextButton(
+        UbaaIconAction(
             onClick = {
               clipboard.setText(AnnotatedString(content))
               onDismiss()
-            }
-        ) {
-          Text("复制")
-        }
+            },
+            description = "复制",
+            icon = Icons.Default.ContentCopy,
+        )
       },
   )
 }

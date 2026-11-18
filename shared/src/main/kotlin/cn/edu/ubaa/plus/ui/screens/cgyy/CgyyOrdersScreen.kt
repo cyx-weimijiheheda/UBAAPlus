@@ -15,7 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.CgyyOrderDto
 import cn.edu.ubaa.plus.model.dto.displayReservationDateText
 import cn.edu.ubaa.plus.model.dto.displayStatus
+import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
+import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
@@ -160,9 +163,9 @@ private fun CgyyOrderCard(
           horizontalArrangement = Arrangement.spacedBy(8.dp),
           verticalAlignment = Alignment.CenterVertically,
       ) {
-        AssistChip(onClick = onOpenDetail, label = { Text("查看详情") })
+        UbaaIconAction(onClick = onOpenDetail, description = "查看详情", icon = Icons.Default.Info)
         if (shouldShowCancelAction(order)) {
-          AssistChip(onClick = onCancel, label = { Text("取消预约") })
+          UbaaActionChip(onClick = onCancel, label = { Text("取消预约") }, destructive = true)
         }
       }
     }

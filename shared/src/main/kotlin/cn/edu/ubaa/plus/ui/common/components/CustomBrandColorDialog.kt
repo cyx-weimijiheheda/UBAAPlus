@@ -8,12 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -59,7 +58,7 @@ fun CustomBrandColorDialog(
     hexError = false
   }
 
-  AlertDialog(
+  UbaaAlertDialog(
       onDismissRequest = onDismiss,
       title = { Text("自定义主题色") },
       text = {
@@ -96,7 +95,7 @@ fun CustomBrandColorDialog(
               valueRange = 0.15f..1f,
               onValueChange = { updateHsv(hue, saturation, it) },
           )
-          OutlinedTextField(
+          UbaaTextField(
               shape = RoundedCornerShape(14.dp),
               value = hexText,
               onValueChange = { input ->
@@ -124,7 +123,7 @@ fun CustomBrandColorDialog(
         }
       },
       confirmButton = {
-        TextButton(
+        UbaaTextButton(
             onClick = {
               val parsed = parseCustomBrandHex(hexText)
               if (parsed != null) {
@@ -137,7 +136,9 @@ fun CustomBrandColorDialog(
           Text("应用")
         }
       },
-      dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+      dismissButton = {
+        UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
+      },
   )
 }
 
