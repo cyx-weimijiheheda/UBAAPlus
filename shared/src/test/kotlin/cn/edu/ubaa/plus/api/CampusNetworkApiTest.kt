@@ -52,14 +52,12 @@ class CampusNetworkApiTest {
                 content = ByteReadChannel(""),
                 status = HttpStatusCode.OK,
             )
-        "app.buaa.edu.cn" ->
+        "zfw.buaa.edu.cn" ->
             respond(
                 content =
                     ByteReadChannel(
                         """
-                        <div class="btn">免费流量<br><span>总量：30</span><span>剩余：20</span></div>
-                        <div class="btn">赠送流量<br><span>总量：10</span><span>剩余：5</span></div>
-                        <div class="btn">计费流量<br><span>已用：2.5</span></div>
+                        <table><thead><tr><th data-col-seq="1">产品名称</th><th data-col-seq="2">已用流量</th><th data-col-seq="3">免费流量剩余(不含套餐)</th><th data-col-seq="4">计费流量剩余(不含套餐)</th></tr></thead><tbody><tr><td data-col-seq="1">校园网</td><td data-col-seq="2">2.5G</td><td data-col-seq="3">20G</td><td data-col-seq="4">0G</td></tr></tbody></table>
                         """
                             .trimIndent()
                     ),
@@ -97,8 +95,7 @@ class CampusNetworkApiTest {
     val result = api.getTraffic()
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
     val traffic = result.getOrThrow()
-    assertEquals(30.0, traffic.freeTotal)
-    assertEquals(20.0, traffic.freeRemain)
-    assertEquals(2.5, traffic.paidUsage)
+    assertEquals("20", traffic.products.single().freeRemaining.value)
+    assertEquals("2.5", traffic.products.single().used.value)
   }
 }

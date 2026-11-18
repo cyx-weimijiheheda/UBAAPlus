@@ -13,6 +13,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
+@kotlinx.serialization.Serializable
 data class CampusNetworkInfoDto(
     val userName: String,
     val realName: String,
@@ -24,12 +25,23 @@ data class CampusNetworkInfoDto(
     val walletBalance: Double,
 )
 
+@kotlinx.serialization.Serializable
+data class CampusTrafficAmount(val value: String, val unit: String) {
+  fun display(): String = "$value ${if (unit == "byte") "B" else unit + "B"}"
+}
+
+@kotlinx.serialization.Serializable
+data class CampusTrafficProduct(
+    val name: String,
+    val used: CampusTrafficAmount,
+    val freeRemaining: CampusTrafficAmount,
+    val billableRemaining: CampusTrafficAmount,
+)
+
+@kotlinx.serialization.Serializable
 data class CampusTrafficDto(
-    val freeTotal: Double? = null,
-    val freeRemain: Double? = null,
-    val giftTotal: Double? = null,
-    val giftRemain: Double? = null,
-    val paidUsage: Double? = null,
+    val products: List<CampusTrafficProduct>,
+    val fetchedAt: Long = System.currentTimeMillis(),
 )
 
 interface CampusNetworkApiBackend {
@@ -86,83 +98,56 @@ internal class LocalCampusNetworkApiBackend : CampusNetworkApiBackend {
       }
 
   override suspend fun getTraffic(): Result<CampusTrafficDto> =
-      execute("校园网流量加载失败") {
-        val client = LocalUpstreamClientProvider.shared()
-        val syncUrl =
-            localUpstreamUrl(
-                "https://sso.buaa.edu.cn/login?service=https%3A%2F%2Fapp.buaa.edu.cn%2Fa_buaa%2Fapi%2Fcas%2Findex%3Fredirect%3Dhttps%253A%252F%252Fapp.buaa.edu.cn%252Fbuaanet%252Fwap%252Fdefault%252Findex%26from%3Dwap%26login_from%3D&noAutoRedirect=1"
-            )
-        client.get(syncUrl) { applyAppBuaaHeaders() }
-        val response =
-            client.get(localUpstreamUrl("https://app.buaa.edu.cn/buaanet/wap/default/index")) {
-              applyAppBuaaHeaders()
+      cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.read("network", "traffic") {
+        execute("校园网流量加载失败") {
+          LocalUpstreamClientProvider.newNoRedirectClient().use { client ->
+            suspend fun home() =
+                client.get(localUpstreamUrl(NETWORK_HOME)) {
+                  header(HttpHeaders.Referrer, localUpstreamUrl("https://zfw.buaa.edu.cn/pay/card"))
+                }
+            var response = home()
+            if (response.status.value in setOf(301, 302, 303, 307, 308, 401, 403)) {
+              activateNetwork(client)
+              response = home()
             }
-        val body = response.bodyAsText()
-        if (!response.status.isSuccess()) {
-          throw ApiCallException(
-              message = "校园网流量服务返回 ${response.status.value}",
-              status = response.status,
-              code = "network_http_error",
-          )
+            if (!response.status.isSuccess())
+                throw ApiCallException("网费自助服务登录失效，请重新登录", code = "unauthenticated")
+            parseCampusTraffic(response.bodyAsText())
+          }
         }
-        if (looksLikeLoginPage(body)) {
-          throw ApiCallException("校园网登录状态已失效，请重新登录", code = "network_auth")
-        }
-        parseTraffic(body)
       }
 
-  private fun io.ktor.client.request.HttpRequestBuilder.applyAppBuaaHeaders() {
-    header(HttpHeaders.UserAgent, APP_BUAA_USER_AGENT)
-    header(HttpHeaders.Accept, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-    header(
-        HttpHeaders.Referrer,
-        localUpstreamUrl("https://app.buaa.edu.cn/buaanet/wap/default/index"),
-    )
-  }
-
-  private fun looksLikeLoginPage(body: String): Boolean {
-    val trimmed = body.trimStart()
-    return trimmed.startsWith("<!DOCTYPE html", ignoreCase = true) &&
-        (body.contains("input name=\"execution\"") ||
-            body.contains("统一身份认证", ignoreCase = true) ||
-            body.contains("CAS Login", ignoreCase = true))
-  }
-
-  private fun parseTraffic(html: String): CampusTrafficDto {
-    val free = parseBlock(html, "免费流量")
-    val gift = parseBlock(html, "赠送流量")
-    val paid = parsePaid(html)
-    return CampusTrafficDto(
-        freeTotal = free?.first,
-        freeRemain = free?.second,
-        giftTotal = gift?.first,
-        giftRemain = gift?.second,
-        paidUsage = paid,
-    )
-  }
-
-  private fun parseBlock(html: String, label: String): Pair<Double, Double>? {
-    val index = html.indexOf(label)
-    if (index < 0) return null
-    val segment = html.substring(index, minOf(html.length, index + 900))
-    val numbers =
-        Regex("""(\d+(?:\.\d+)?)""")
-            .findAll(segment)
-            .mapNotNull { it.groupValues[1].toDoubleOrNull() }
-            .take(2)
-            .toList()
-    if (numbers.size < 2) return null
-    return numbers[0] to numbers[1]
-  }
-
-  private fun parsePaid(html: String): Double? {
-    val index = html.indexOf("计费流量")
-    if (index < 0) return null
-    val segment = html.substring(index, minOf(html.length, index + 600))
-    return Regex("""(\d+(?:\.\d+)?)""")
-        .findAll(segment)
-        .mapNotNull { it.groupValues[1].toDoubleOrNull() }
-        .firstOrNull()
+  private suspend fun activateNetwork(client: io.ktor.client.HttpClient) {
+    var target = "https://zfw.buaa.edu.cn/sso/cas/index"
+    repeat(10) {
+      val response = client.get(localUpstreamUrl(target))
+      if (response.status.value in setOf(301, 302, 303, 307, 308)) {
+        val location =
+            response.headers[HttpHeaders.Location] ?: throw ApiCallException("网费自助服务响应不完整")
+        val next = java.net.URI(localUpstreamUrl(target)).resolve(location)
+        // Only university authentication and the network service may receive this session.
+        if (
+            next.scheme !in setOf("https", "http") ||
+                next.host !in setOf("zfw.buaa.edu.cn", "sso.buaa.edu.cn", "d.buaa.edu.cn")
+        )
+            throw ApiCallException("网费服务重定向异常")
+        val decoded =
+            java.net.URI(
+                cn.edu.ubaa.plus.api.local.LocalWebVpnSupport.fromWebVpnUrl(next.toString())
+            )
+        if (decoded.host !in setOf("zfw.buaa.edu.cn", "sso.buaa.edu.cn"))
+            throw ApiCallException("网费服务重定向异常")
+        target = cn.edu.ubaa.plus.api.local.LocalWebVpnSupport.normalizeRedirectUrl(next.toString())
+      } else {
+        if (
+            response.status.isSuccess() &&
+                (target.contains("/pay/card") || target.contains("/home"))
+        )
+            return
+        throw ApiCallException("网费自助服务需要重新登录", code = "unauthenticated")
+      }
+    }
+    throw ApiCallException("网费自助服务跳转次数过多")
   }
 
   private fun JsonObject.string(key: String): String =
@@ -184,7 +169,6 @@ internal class LocalCampusNetworkApiBackend : CampusNetworkApiBackend {
       }
 
   private companion object {
-    const val APP_BUAA_USER_AGENT =
-        "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 MicroMessenger/7.0.1"
+    const val NETWORK_HOME = "https://zfw.buaa.edu.cn/home"
   }
 }

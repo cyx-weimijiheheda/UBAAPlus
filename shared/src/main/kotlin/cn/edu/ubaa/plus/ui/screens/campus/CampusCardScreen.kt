@@ -31,7 +31,6 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
-import java.util.Locale
 
 @Composable
 fun CampusCardScreen(
@@ -143,6 +142,16 @@ fun CampusCardScreen(
           }
         }
         item {
+          UbaaSecondaryButton(
+              onClick = {
+                onOpenUrl("https://m.icw.buaa.edu.cn/card/#/pages/homepage/index/index?usertype=1")
+              },
+              modifier = Modifier.fillMaxWidth(),
+          ) {
+            Text("校园卡掌上服务大厅")
+          }
+        }
+        item {
           Text(
               text = "账单和充值在校园支付平台完成；本应用只展示余额，不处理支付。",
               style = MaterialTheme.typography.bodySmall,
@@ -154,4 +163,4 @@ fun CampusCardScreen(
   }
 }
 
-private fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f", value)
+private fun formatMoney(value: Double): String = cn.edu.ubaa.plus.util.formatMoney(value)

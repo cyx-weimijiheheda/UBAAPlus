@@ -87,6 +87,8 @@ dependencies {
 
   implementation("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
 
+  implementation(libs.jsoup)
+
   // 业务与网络
   implementation(libs.kotlinx.serialization.json)
   implementation(libs.kotlinx.datetime)

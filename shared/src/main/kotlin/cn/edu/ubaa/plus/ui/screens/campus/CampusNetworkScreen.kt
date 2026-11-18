@@ -63,11 +63,7 @@ fun CampusNetworkScreen(
           contentPadding = PaddingValues(16.dp),
           verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
-        item {
-          CampusOnlyNotice(
-              text = "流量与在线账号信息按当前校园网 IP 查询，需要连接北航 WiFi 或有线网；WebVPN 不能替代校园网。套餐与充值可打开自助服务网页。"
-          )
-        }
+        item { CampusOnlyNotice(text = "账户流量来自网费自助服务，支持校园网和 WebVPN；免费剩余包含套餐可用流量。") }
 
         if (
             state.isLoading && state.info == null && state.traffic == null && state.netFee == null
@@ -103,8 +99,8 @@ fun CampusNetworkScreen(
           }
         }
 
-        state.info?.let { info -> item { SrunInfoCard(info) } }
         state.traffic?.let { traffic -> item { TrafficCard(traffic) } }
+        state.info?.let { info -> item { SrunInfoCard(info) } }
         state.netFee?.let { fee -> item { StatCard(title = "网费余额", value = fee, unit = "元") } }
 
         item {
@@ -117,7 +113,7 @@ fun CampusNetworkScreen(
         }
         item {
           Text(
-              text = "校园网流量按当前在线 IP 查询；离开校园网时可能无法显示。套餐与充值在深澜自助服务中完成。",
+              text = "在线 IP 为当前设备的可选信息。套餐与充值请在校园网自助服务中完成。",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -167,13 +163,21 @@ private fun TrafficCard(traffic: CampusTrafficDto) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
       Text("流量明细", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-      traffic.freeTotal?.let {
-        Text("免费流量：${formatGb(it)} GB（剩余 ${formatGb(traffic.freeRemain ?: 0.0)} GB）")
+      traffic.products.forEach { product ->
+        Text(product.name, style = MaterialTheme.typography.titleSmall)
+        Text("已用流量：${product.used.display()}")
+        Text("免费剩余（含套餐）：${product.freeRemaining.display()}")
+        Text("计费剩余：${product.billableRemaining.display()}")
       }
-      traffic.giftTotal?.let {
-        Text("赠送流量：${formatGb(it)} GB（剩余 ${formatGb(traffic.giftRemain ?: 0.0)} GB）")
-      }
-      traffic.paidUsage?.let { Text("计费流量：${formatGb(it)} GB") }
+      Text(
+          "更新于 " +
+              java.text.DateFormat.getDateTimeInstance(
+                      java.text.DateFormat.SHORT,
+                      java.text.DateFormat.SHORT,
+                  )
+                  .format(java.util.Date(traffic.fetchedAt)),
+          style = MaterialTheme.typography.bodySmall,
+      )
     }
   }
 }
@@ -207,4 +211,4 @@ private fun formatBytes(bytes: Long): String {
 
 private fun formatGb(value: Double): String = String.format(Locale.US, "%.2f", value)
 
-private fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f", value)
+private fun formatMoney(value: Double): String = cn.edu.ubaa.plus.util.formatMoney(value)
