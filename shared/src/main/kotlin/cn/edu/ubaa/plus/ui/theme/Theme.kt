@@ -109,7 +109,7 @@ private fun darkSchemeFor(brand: Color) =
     darkColorScheme(
         primary = lerp(Color.White, brand, 0.55f),
         onPrimary = lerp(Color.Black, brand, 0.7f),
-        primaryContainer = lerp(Color.Black, brand, 0.65f),
+        primaryContainer = lerp(Color(0xFF2B414B), brand, 0.45f),
         onPrimaryContainer = lerp(Color.White, brand, 0.2f),
         inversePrimary = brand,
         secondary = lerp(Color(0xFFB3C7E3), brand, 0.2f),
@@ -144,6 +144,40 @@ private fun darkSchemeFor(brand: Color) =
         surfaceContainerHigh = lerp(Color(0xFF282A2F), brand, 0.04f),
         surfaceContainerHighest = lerp(Color(0xFF33353A), brand, 0.045f),
     )
+
+/** Balanced surfaces also apply to wallpaper palettes: separate cards without pure white/black. */
+internal fun balancedSurfaces(
+    scheme: androidx.compose.material3.ColorScheme,
+    brand: Color,
+    dark: Boolean,
+): androidx.compose.material3.ColorScheme {
+  fun tint(hex: Long, amount: Float) = lerp(Color(hex), brand, amount)
+  return if (dark)
+      scheme.copy(
+          background = tint(0xFF171D24, 0.04f),
+          surface = tint(0xFF171D24, 0.04f),
+          onSurfaceVariant = Color(0xFFCDD8DF),
+          surfaceDim = tint(0xFF171D24, 0.04f),
+          surfaceBright = tint(0xFF40515E, 0.08f),
+          surfaceContainerLowest = tint(0xFF1B242C, 0.04f),
+          surfaceContainerLow = tint(0xFF26333E, 0.08f),
+          surfaceContainer = tint(0xFF2C3B47, 0.10f),
+          surfaceContainerHigh = tint(0xFF344450, 0.10f),
+          surfaceContainerHighest = tint(0xFF3D4F5C, 0.12f),
+      )
+  else
+      scheme.copy(
+          background = tint(0xFFD8E1E8, 0.025f),
+          surface = tint(0xFFECF1F4, 0.025f),
+          surfaceDim = tint(0xFFD9E2E9, 0.025f),
+          surfaceBright = tint(0xFFF1F5F7, 0.025f),
+          surfaceContainerLowest = tint(0xFFF3F6F8, 0.025f),
+          surfaceContainerLow = tint(0xFFF0F4F6, 0.06f),
+          surfaceContainer = tint(0xFFE6EDF2, 0.09f),
+          surfaceContainerHigh = tint(0xFFDEE8EF, 0.08f),
+          surfaceContainerHighest = tint(0xFFD5E1EA, 0.10f),
+      )
+}
 
 /** M3 没有「成功」「信息」这类语义角色，但业务界面需要（例如评教完成、空闲教室、预约状态）。 用 CompositionLocal 扩展，避免各处继续写死颜色。 */
 @Immutable
@@ -211,7 +245,7 @@ fun UBAATheme(
       (followWallpaper || dynamicColor) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
   val context = LocalContext.current
   val seed = palette.brandColor(customBrandArgb)
-  val colorScheme =
+  val rawScheme =
       when {
         useDynamicColor ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -219,7 +253,8 @@ fun UBAATheme(
         else -> lightSchemeFor(seed)
       }
 
-  val brand = if (useDynamicColor) colorScheme.primary else seed
+  val brand = if (useDynamicColor) rawScheme.primary else seed
+  val colorScheme = balancedSurfaces(rawScheme, brand, darkTheme)
   val onBrand = onColorFor(brand)
   val extendedColors = if (darkTheme) darkExtendedColors(brand) else lightExtendedColors(brand)
 

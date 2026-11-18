@@ -16,6 +16,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 
@@ -48,21 +49,26 @@ fun Modifier.ubaaGlassSurface(
           )
 
   val dark = scheme.surface.luminance() < 0.5f
-  val container = if (chrome) scheme.surfaceContainer else scheme.surface
-  val alpha = if (dark) 0.88f else 0.90f
+  val container =
+      lerp(
+          if (chrome) scheme.surfaceContainerHigh else scheme.surfaceContainer,
+          scheme.primary,
+          if (dark) 0.085f else 0.045f,
+      )
+  val alpha = if (dark) 0.94f else 0.96f
   val brush =
       Brush.linearGradient(
           listOf(
               container.copy(alpha = alpha),
+              scheme.surfaceContainerLow.copy(alpha = alpha * 0.98f),
               scheme.surfaceContainerLow.copy(alpha = alpha * 0.96f),
-              scheme.surfaceContainerLow.copy(alpha = alpha * 0.94f),
           )
       )
   return this.clip(shape)
       .background(brush, shape)
       .border(
           0.5.dp,
-          scheme.outlineVariant.copy(alpha = if (dark) 0.22f else 0.30f),
+          scheme.outlineVariant.copy(alpha = if (dark) 0.34f else 0.40f),
           shape,
       )
 }
