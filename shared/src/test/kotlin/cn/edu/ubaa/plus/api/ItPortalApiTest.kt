@@ -100,4 +100,120 @@ class ItPortalApiTest {
     )
     assertEquals(88.0, balance.getOrThrow().value)
   }
+
+  private fun useEngine(engine: MockEngine) {
+    LocalUpstreamClientProvider.reset()
+    LocalUpstreamClientProvider.clientFactory = { redirects ->
+      HttpClient(engine) { followRedirects = redirects }
+    }
+    api = ItPortalApi(LocalItPortalApiBackend())
+  }
+
+  @Test
+  fun `门户实际信封解析动态ID和零余额`() = runTest {
+    useEngine(
+        MockEngine { request ->
+          when (request.url.encodedPath) {
+            "/personal/frontend/data/items" ->
+                respond("""{"e":0,"d":{"data":[{"key":"net.netFee","id":"a+b&c"}]}}""")
+            "/personal/frontend/data/detail" -> {
+              assertEquals("a+b&c", request.url.parameters["id"])
+              respond("""{"e":0,"d":{"data":{"value":0,"unit":"元"}}}""")
+            }
+            else -> error("不应请求网关余额")
+          }
+        }
+    )
+    assertEquals("0", api.findPersonalValue("net.netFee").getOrThrow().value)
+  }
+
+  @Test
+  fun `WebVPN未激活门户时引导一次并重读网费`() = runTest {
+    ConnectionModeStore.save(ConnectionMode.WEBVPN)
+    var activated = false
+    var activations = 0
+    val hosts = mutableListOf<String>()
+    useEngine(
+        MockEngine { request ->
+          assertEquals("d.buaa.edu.cn", request.url.host)
+          val original =
+              io.ktor.http.Url(
+                  cn.edu.ubaa.plus.api.local.LocalWebVpnSupport.fromWebVpnUrl(
+                      request.url.toString()
+                  )
+              )
+          hosts += original.host
+          when (original.encodedPath) {
+            "/personal/frontend/data/items" -> {
+              assertEquals("XMLHttpRequest", request.headers["X-Requested-With"])
+              if (activated)
+                  respond("""{"e":0,"d":{"data":[{"key":"net.netFee","id":"fee-id"}]}}""")
+              else respond("""{"e":10013}""")
+            }
+            "/manage/common/login/index" -> {
+              activations++
+              respond(
+                  "",
+                  HttpStatusCode.Found,
+                  headersOf(HttpHeaders.Location, "https://sso.buaa.edu.cn/login?service=fixture"),
+              )
+            }
+            "/login" ->
+                respond(
+                    "",
+                    HttpStatusCode.Found,
+                    headersOf(
+                        HttpHeaders.Location,
+                        "https://it.buaa.edu.cn/manage/common/cas_login/30001?ticket=fixture",
+                    ),
+                )
+            "/manage/common/cas_login/30001" ->
+                respond(
+                    "",
+                    HttpStatusCode.Found,
+                    headersOf(HttpHeaders.Location, "https://it.buaa.edu.cn/home/"),
+                )
+            "/home/" -> {
+              activated = true
+              respond("<!DOCTYPE html><html>门户首页</html>")
+            }
+            "/personal/frontend/data/detail" ->
+                respond("""{"e":0,"d":{"data":{"value":"18.50"}}}""")
+            else -> error("非预期请求")
+          }
+        }
+    )
+    assertEquals("18.50", api.findPersonalValue("net.netFee").getOrThrow().value)
+    assertEquals(1, activations)
+    assertTrue(hosts.none { it == "gw.buaa.edu.cn" })
+  }
+
+  @Test
+  fun `门户业务错误不能当成空余额成功`() = runTest {
+    useEngine(MockEngine { respond("""{"e":500,"d":{"data":{"value":"0"}}}""") })
+    assertTrue(api.getPersonalDetail("id").isFailure)
+  }
+
+  @Test
+  fun `门户会话仍失效不重复引导`() = runTest {
+    var activations = 0
+    useEngine(
+        MockEngine { request ->
+          when (request.url.encodedPath) {
+            "/manage/common/login/index" -> {
+              activations++
+              respond(
+                  "",
+                  HttpStatusCode.Found,
+                  headersOf(HttpHeaders.Location, "https://it.buaa.edu.cn/home/"),
+              )
+            }
+            "/home/" -> respond("<html>门户首页</html>")
+            else -> respond("""{"e":10013}""")
+          }
+        }
+    )
+    assertTrue(api.findPersonalValue("net.netFee").isFailure)
+    assertEquals(1, activations)
+  }
 }

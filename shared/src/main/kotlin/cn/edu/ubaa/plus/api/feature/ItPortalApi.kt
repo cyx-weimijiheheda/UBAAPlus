@@ -2,12 +2,17 @@ package cn.edu.ubaa.plus.api.feature
 
 import cn.edu.ubaa.plus.api.auth.ApiCallException
 import cn.edu.ubaa.plus.api.local.LocalUpstreamClientProvider
+import cn.edu.ubaa.plus.api.local.LocalWebVpnSupport
 import cn.edu.ubaa.plus.api.local.localUpstreamUrl
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
+import io.ktor.http.Url
+import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
+import java.net.URI
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -92,12 +97,15 @@ internal class LocalItPortalApiBackend : ItPortalApiBackend {
 
   override suspend fun getPersonalDetail(id: String): Result<ItPersonalDetailDto> =
       execute("校园门户数据加载失败") {
-        val body = getText("/personal/frontend/data/detail?id=$id")
+        val body = getText("/personal/frontend/data/detail?id=${id.encodeURLParameter()}")
         val root = parseObject(body)
         val data = root["data"] ?: root["d"] ?: root
-        val obj = data as? JsonObject ?: root
+        val outer = data as? JsonObject ?: root
+        val obj = outer["data"] as? JsonObject ?: outer
+        val value = obj.string("value")
+        if (value.isBlank()) throw ApiCallException("网费数据缺少数值", code = "portal_parse_error")
         ItPersonalDetailDto(
-            value = obj.string("value"),
+            value = value,
             url = obj.string("url").ifBlank { null },
         )
       }
@@ -115,10 +123,12 @@ internal class LocalItPortalApiBackend : ItPortalApiBackend {
         )
       }
 
-  private suspend fun getText(path: String): String {
+  private suspend fun getText(path: String, allowActivation: Boolean = true): String {
     val response =
         LocalUpstreamClientProvider.shared().get(localUpstreamUrl("https://it.buaa.edu.cn$path")) {
           header(HttpHeaders.Accept, "application/json, text/plain, */*")
+          header("X-Requested-With", "XMLHttpRequest")
+          header(HttpHeaders.Referrer, localUpstreamUrl(PORTAL_HOME))
         }
     val body = response.bodyAsText()
     if (!response.status.isSuccess()) {
@@ -128,10 +138,70 @@ internal class LocalItPortalApiBackend : ItPortalApiBackend {
           code = "portal_http_error",
       )
     }
-    if (looksLikeLoginPage(body)) {
-      throw ApiCallException("请先在校园门户完成登录", code = "portal_unauthenticated")
+    val payload = if (looksLikeLoginPage(body)) null else parseObject(body)
+    val error = (payload?.get("e") as? JsonPrimitive)?.contentOrNull
+    if (payload == null || error == "10013") {
+      if (allowActivation) {
+        activatePortal()
+        return getText(path, allowActivation = false)
+      }
+      throw ApiCallException("校园门户登录状态已失效，请重新登录", code = "portal_unauthenticated")
+    }
+    if (error != null && error != "0") {
+      throw ApiCallException("校园门户数据暂不可用", code = "portal_upstream_error")
     }
     return body
+  }
+
+  /** 使用当前路线的 SSO Cookie 激活门户；重定向仅允许门户及统一认证的已知入口。 */
+  private suspend fun activatePortal() {
+    var target =
+        "https://it.buaa.edu.cn/manage/common/login/index?redirect=${PORTAL_HOME.encodeURLParameter()}"
+    val client = LocalUpstreamClientProvider.newNoRedirectClient()
+    try {
+      repeat(10) {
+        val url = Url(target)
+        val allowed =
+            url.protocol.name == "https" &&
+                url.port == 443 &&
+                url.user.isNullOrEmpty() &&
+                url.password.isNullOrEmpty() &&
+                ((url.host == "it.buaa.edu.cn" &&
+                    url.encodedPath in
+                        setOf(
+                            "/manage/common/login/index",
+                            "/manage/common/cas_login/30001",
+                            "/home/",
+                        )) || (url.host == "sso.buaa.edu.cn" && url.encodedPath == "/login"))
+        if (!allowed) throw ApiCallException("校园门户登录跳转异常", code = "portal_redirect_error")
+        val response = client.get(localUpstreamUrl(target))
+        if (response.status.value in setOf(301, 302, 303, 307, 308)) {
+          val location =
+              response.headers[HttpHeaders.Location]
+                  ?: throw ApiCallException("校园门户登录跳转缺失", code = "portal_redirect_error")
+          val resolved = URI(localUpstreamUrl(target)).resolve(location).toString()
+          target =
+              LocalWebVpnSupport.fromWebVpnUrl(LocalWebVpnSupport.normalizeRedirectUrl(resolved))
+        } else {
+          val body = response.bodyAsText()
+          if (
+              response.status.isSuccess() &&
+                  target.substringBefore('?') == PORTAL_HOME &&
+                  !body.contains("CAS Login", ignoreCase = true) &&
+                  !body.contains("name=\"execution\"")
+          )
+              return
+          throw ApiCallException("校园门户登录状态已失效，请重新登录", code = "portal_unauthenticated")
+        }
+      }
+      throw ApiCallException("校园门户登录跳转次数过多", code = "portal_redirect_error")
+    } finally {
+      client.close()
+    }
+  }
+
+  private companion object {
+    const val PORTAL_HOME = "https://it.buaa.edu.cn/home/"
   }
 
   private fun looksLikeLoginPage(body: String): Boolean {
@@ -162,6 +232,8 @@ internal class LocalItPortalApiBackend : ItPortalApiBackend {
   private suspend fun <T> execute(message: String, block: suspend () -> T): Result<T> =
       try {
         Result.success(block())
+      } catch (e: CancellationException) {
+        throw e
       } catch (e: ApiCallException) {
         Result.failure(e)
       } catch (e: Exception) {
