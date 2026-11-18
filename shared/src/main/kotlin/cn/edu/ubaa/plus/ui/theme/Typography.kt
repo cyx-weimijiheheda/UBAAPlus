@@ -3,6 +3,8 @@ package cn.edu.ubaa.plus.ui.theme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 @Composable fun getAppFontFamily(): FontFamily = FontFamily.Default
 
@@ -22,8 +24,20 @@ fun getAppTypography(): Typography {
       headlineLarge = defaultTypography.headlineLarge.copy(fontFamily = chineseFontFamily),
       headlineMedium = defaultTypography.headlineMedium.copy(fontFamily = chineseFontFamily),
       headlineSmall = defaultTypography.headlineSmall.copy(fontFamily = chineseFontFamily),
-      titleLarge = defaultTypography.titleLarge.copy(fontFamily = chineseFontFamily),
-      titleMedium = defaultTypography.titleMedium.copy(fontFamily = chineseFontFamily),
+      titleLarge =
+          defaultTypography.titleLarge.copy(
+              fontFamily = chineseFontFamily,
+              fontSize = 20.sp,
+              lineHeight = 28.sp,
+              fontWeight = FontWeight.SemiBold,
+          ),
+      titleMedium =
+          defaultTypography.titleMedium.copy(
+              fontFamily = chineseFontFamily,
+              fontSize = 16.sp,
+              lineHeight = 24.sp,
+              fontWeight = FontWeight.Medium,
+          ),
       titleSmall = defaultTypography.titleSmall.copy(fontFamily = chineseFontFamily),
       bodyLarge = defaultTypography.bodyLarge.copy(fontFamily = chineseFontFamily),
       bodyMedium = defaultTypography.bodyMedium.copy(fontFamily = chineseFontFamily),

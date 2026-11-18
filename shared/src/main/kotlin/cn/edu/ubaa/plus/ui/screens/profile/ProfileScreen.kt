@@ -105,12 +105,12 @@ fun ProfileScreen(
               ),
       ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
           Box(
               modifier =
-                  Modifier.size(72.dp)
+                  Modifier.size(56.dp)
                       .clip(CircleShape)
                       .background(MaterialTheme.colorScheme.primary)
           ) {

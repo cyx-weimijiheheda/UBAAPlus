@@ -62,7 +62,7 @@ fun Modifier.ubaaGlassSurface(
       .background(brush, shape)
       .border(
           0.5.dp,
-          scheme.outlineVariant.copy(alpha = if (dark) 0.32f else 0.48f),
+          scheme.outlineVariant.copy(alpha = if (dark) 0.22f else 0.30f),
           shape,
       )
 }
@@ -110,9 +110,9 @@ fun Modifier.ubaaLiquidGlass(shape: Shape, outlined: Boolean = true): Modifier {
 fun UbaaAmbientBackground(modifier: Modifier = Modifier) {
   val scheme = MaterialTheme.colorScheme
   val dark = scheme.surface.luminance() < 0.5f
-  val primaryAlpha = if (dark) 0.18f else 0.11f
-  val secondaryAlpha = if (dark) 0.12f else 0.07f
-  val tertiaryAlpha = if (dark) 0.10f else 0.06f
+  val primaryAlpha = if (dark) 0.10f else 0.07f
+  val secondaryAlpha = if (dark) 0.06f else 0.04f
+  val tertiaryAlpha = if (dark) 0.04f else 0.03f
   Canvas(modifier = modifier.fillMaxSize()) {
     drawRect(color = scheme.background)
     drawCircle(

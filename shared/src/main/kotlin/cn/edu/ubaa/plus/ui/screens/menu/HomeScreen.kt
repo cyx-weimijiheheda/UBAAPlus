@@ -118,7 +118,7 @@ internal fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
       item {
-        Column(modifier = Modifier.padding(top = 16.dp)) {
+        Column(modifier = Modifier.padding(top = 8.dp)) {
           // 章节标题与待办区一致，并与日期底部对齐。
           Row(
               horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -127,7 +127,7 @@ internal fun HomeScreen(
             Text(
                 text = "今日课表",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
             )
             if (isLoading && courseEntries.isEmpty()) {
               HomeSectionLoadingChip(text = "加载中")
@@ -364,7 +364,16 @@ internal fun TodayClassCard(
       }
   Card(
       modifier = modifier.ubaaGlassSurface().fillMaxWidth().clickable(onClick = onClick),
-      colors = CardDefaults.cardColors(containerColor = tint.copy(alpha = 0.16f)),
+      colors =
+          CardDefaults.cardColors(
+              containerColor =
+                  tint.copy(
+                      alpha =
+                          if (status in setOf(HomeCourseStatus.COMPLETE, HomeCourseStatus.MISSED))
+                              0.16f
+                          else 0.08f
+                  )
+          ),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),

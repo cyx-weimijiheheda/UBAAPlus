@@ -110,7 +110,7 @@ internal fun regularFeatureItems(): List<FeatureItem> =
         FeatureItem(
             id = "venue",
             title = "运动场地",
-            description = "查询体育场馆空闲时段并自动预约",
+            description = "查看空闲时段、预约场地和管理订单",
             icon = Icons.Default.SportsTennis,
             webUrl = "https://cgyy.buaa.edu.cn/venue/",
         ),
@@ -310,7 +310,7 @@ private fun FeatureCard(
           modifier
               .ubaaGlassSurface()
               .fillMaxWidth()
-              .heightIn(min = 160.dp)
+              .heightIn(min = 136.dp)
               .onGloballyPositioned { cardPosition = it.positionInWindow() }
               .pointerInput(feature.id) {
                 detectTapGestures(
@@ -318,7 +318,7 @@ private fun FeatureCard(
                     onLongPress = { offset -> onLongPress(cardPosition + offset) },
                 )
               },
-      elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+      elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -328,7 +328,7 @@ private fun FeatureCard(
       Icon(
           imageVector = feature.icon,
           contentDescription = null,
-          modifier = Modifier.size(48.dp),
+          modifier = Modifier.size(36.dp),
           tint = MaterialTheme.colorScheme.primary,
       )
 
@@ -337,7 +337,7 @@ private fun FeatureCard(
       Text(
           text = feature.title,
           style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
+          fontWeight = FontWeight.SemiBold,
           textAlign = TextAlign.Center,
       )
 
@@ -391,7 +391,7 @@ private fun FeatureCompactRow(
         Text(
             text = feature.title,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

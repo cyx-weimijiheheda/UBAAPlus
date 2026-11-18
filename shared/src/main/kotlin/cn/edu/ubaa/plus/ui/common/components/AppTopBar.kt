@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.ui.theme.ubaaLiquidGlass
 
@@ -25,9 +26,11 @@ fun AppTopBar(
   Box(
       modifier = modifier.fillMaxWidth().ubaaLiquidGlass(shape = RectangleShape, outlined = false)
   ) {
-    CenterAlignedTopAppBar(
+    TopAppBar(
         expandedHeight = 56.dp,
-        title = { Text(title) },
+        title = {
+          Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        },
         navigationIcon = {
           if (canNavigateBack) {
             IconButton(onClick = onNavigationIconClick) {
