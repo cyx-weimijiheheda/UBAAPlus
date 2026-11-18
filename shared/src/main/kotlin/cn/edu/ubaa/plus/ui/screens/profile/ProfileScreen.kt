@@ -126,6 +126,13 @@ fun ProfileScreen(
             )
           }
           Spacer(modifier = Modifier.height(12.dp))
+          Text(
+              text = userData.name,
+              style = MaterialTheme.typography.titleLarge,
+              fontWeight = FontWeight.SemiBold,
+              textAlign = TextAlign.Center,
+          )
+          Spacer(modifier = Modifier.height(8.dp))
           FlowRow(
               horizontalArrangement = Arrangement.spacedBy(8.dp),
               verticalArrangement = Arrangement.spacedBy(4.dp),
