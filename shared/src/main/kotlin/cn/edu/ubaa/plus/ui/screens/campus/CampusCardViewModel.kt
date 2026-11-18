@@ -22,10 +22,12 @@ class CampusCardViewModel(
   private val _uiState = MutableStateFlow(CampusCardUiState())
   val uiState: StateFlow<CampusCardUiState> = _uiState.asStateFlow()
   private var loadedOnce = false
+  internal var consumptionRefresh: (() -> Unit)? = null
 
   fun ensureLoaded(forceRefresh: Boolean = false) {
     if (!forceRefresh && loadedOnce) return
     refresh()
+    if (forceRefresh) consumptionRefresh?.invoke()
   }
 
   fun refresh() {

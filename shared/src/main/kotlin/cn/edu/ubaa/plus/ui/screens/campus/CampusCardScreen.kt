@@ -18,7 +18,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,7 +38,31 @@ fun CampusCardScreen(
     onOpenUrl: (String) -> Unit,
 ) {
   val state by viewModel.uiState.collectAsState()
-  LaunchedEffect(Unit) { viewModel.ensureLoaded() }
+  val consumption: CampusCardConsumptionViewModel =
+      androidx.lifecycle.viewmodel.compose.viewModel { CampusCardConsumptionViewModel() }
+  val trades by consumption.state.collectAsState()
+  var pickingStart by remember { mutableStateOf<Boolean?>(null) }
+  DisposableEffect(viewModel, consumption) {
+    viewModel.consumptionRefresh = consumption::query
+    onDispose { viewModel.consumptionRefresh = null }
+  }
+  LaunchedEffect(Unit) {
+    viewModel.ensureLoaded()
+    consumption.ensureLoaded()
+  }
+  pickingStart?.let { first ->
+    ConsumptionDateDialog(
+        first,
+        trades.start,
+        trades.end,
+        cn.edu.ubaa.plus.api.feature.campusToday(),
+        onDismiss = { pickingStart = null },
+        onSelect = { date ->
+          if (first) consumption.selectStart(date) else consumption.selectEnd(date)
+          pickingStart = null
+        },
+    )
+  }
 
   UbaaToastEffect(state.error) {}
 
@@ -48,8 +72,11 @@ fun CampusCardScreen(
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
   ) { padding ->
     UbaaPullToRefresh(
-        refreshing = state.isLoading,
-        onRefresh = viewModel::refresh,
+        refreshing = state.isLoading || trades.loading,
+        onRefresh = {
+          viewModel.refresh()
+          consumption.query()
+        },
         modifier = Modifier.padding(padding),
     ) {
       LazyColumn(
@@ -130,7 +157,7 @@ fun CampusCardScreen(
               onClick = { onOpenUrl("https://pass.cc-pay.cn/mcampcard") },
               modifier = Modifier.fillMaxWidth(),
           ) {
-            Text("查看账单")
+            Text("校园卡管理（官网）")
           }
         }
         item {
@@ -153,11 +180,12 @@ fun CampusCardScreen(
         }
         item {
           Text(
-              text = "账单和充值在校园支付平台完成；本应用只展示余额，不处理支付。",
+              text = "消费记录可在下方查询，充值等操作在校园支付平台完成。",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
+        campusConsumptionItems(trades, consumption) { pickingStart = it }
       }
     }
   }
