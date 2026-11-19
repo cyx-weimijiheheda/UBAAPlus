@@ -82,7 +82,8 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.campusConsumptionIte
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
-    if (snapshot.trades.isEmpty()) item { UbaaEmptyState("该日期范围内没有消费记录") }
+    if (snapshot.trades.isEmpty())
+        item { UbaaEmptyState("该日期范围内没有消费记录", modifier = Modifier.fillMaxWidth()) }
     snapshot.trades
         .groupBy { it.dateTime.substringBefore(' ') }
         .toSortedMap()
@@ -109,17 +110,8 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.campusConsumptionIte
             ConsumptionTradeCard(trade)
           }
         }
-    item {
-      val updated =
-          Instant.fromEpochMilliseconds(snapshot.fetchedAt)
-              .toLocalDateTime(TimeZone.of("Asia/Shanghai"))
-      Text(
-          "更新于 ${updated.date} ${updated.time.toString().take(5)}",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-    }
-  } else if (!state.loading && state.error == null) item { UbaaEmptyState("选择日期后点击查询") }
+  } else if (!state.loading && state.error == null)
+      item { UbaaEmptyState("选择日期后点击查询", modifier = Modifier.fillMaxWidth()) }
 }
 
 @Composable
