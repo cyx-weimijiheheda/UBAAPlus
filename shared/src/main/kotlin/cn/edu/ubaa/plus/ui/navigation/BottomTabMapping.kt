@@ -42,5 +42,6 @@ internal fun bottomTabFor(screen: AppScreen): BottomNavTab? =
       AppScreen.DORM_ELECTRICITY,
       AppScreen.CAMPUS_NETWORK,
       AppScreen.CAMPUS_CARD,
+      AppScreen.FINANCE,
       AppScreen.LIBRARY_BORROW -> BottomNavTab.REGULAR
     }

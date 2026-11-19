@@ -121,6 +121,7 @@ internal class MainScreenContentState(
     val dormElectricityViewModel: DormElectricityViewModel?,
     val campusNetworkViewModel: CampusNetworkViewModel?,
     val campusCardViewModel: CampusCardViewModel?,
+    val financeViewModel: cn.edu.ubaa.plus.ui.screens.finance.FinanceViewModel?,
     val libraryBorrowViewModel: LibraryBorrowViewModel?,
     val classroomViewModel: ClassroomViewModel?,
     val spocViewModel: SpocViewModel,
@@ -219,6 +220,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                     "dorm" -> navigateTo(AppScreen.DORM_ELECTRICITY)
                     "network" -> navigateTo(AppScreen.CAMPUS_NETWORK)
                     "card" -> navigateTo(AppScreen.CAMPUS_CARD)
+                    "finance" -> navigateTo(AppScreen.FINANCE)
                   }
                 },
                 onLongPressWeb = onFeatureLongPressWeb,
@@ -495,6 +497,10 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
         AppScreen.CAMPUS_NETWORK ->
             campusNetworkViewModel?.let {
               CampusNetworkScreen(viewModel = it, onOpenUrl = onOpenUrl)
+            }
+        AppScreen.FINANCE ->
+            financeViewModel?.let {
+              cn.edu.ubaa.plus.ui.screens.finance.FinanceScreen(it, onOpenUrl)
             }
         AppScreen.CAMPUS_CARD ->
             campusCardViewModel?.let { CampusCardScreen(viewModel = it, onOpenUrl = onOpenUrl) }

@@ -62,6 +62,9 @@ fun ProfileScreen(
     metricsViewModel.onCacheRevision(cacheRevision)
     metricsViewModel.refresh(isAuthenticated)
   }
+  LaunchedEffect(showDetails, isAuthenticated) {
+    if (showDetails) metricsViewModel.loadFinanceProfile(isAuthenticated)
+  }
   if (showDetails) {
     UbaaAlertDialog(
         onDismissRequest = { showDetails = false },
@@ -72,10 +75,36 @@ fun ProfileScreen(
             ProfileInfoRow("学号", userData.schoolid)
             ProfileInfoRow("学院", metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "未提供")
             ProfileInfoRow("学生类型", profileStudentType(metrics.profile?.studentType))
-            ProfileInfoRow("手机号", userInfo?.phone?.takeIf { it.isNotBlank() } ?: "未提供")
-            ProfileInfoRow("邮箱", userInfo?.email?.takeIf { it.isNotBlank() } ?: "未提供")
+            ProfileInfoRow(
+                "手机号",
+                metrics.financeProfile?.phone
+                    ?: userInfo?.phone?.takeIf { it.isNotBlank() }
+                    ?: "未提供",
+            )
+            ProfileInfoRow(
+                "邮箱",
+                metrics.financeProfile?.email
+                    ?: userInfo?.email?.takeIf { it.isNotBlank() }
+                    ?: "未提供",
+            )
             ProfileInfoRow("证件类型", userInfo?.idCardTypeName?.takeIf { it.isNotBlank() } ?: "未提供")
-            ProfileInfoRow("证件号码", userInfo?.idCardNumber?.takeIf { it.isNotBlank() } ?: "未提供")
+            ProfileInfoRow(
+                "证件号码",
+                metrics.financeProfile?.identityNumber
+                    ?: userInfo?.idCardNumber?.takeIf { it.isNotBlank() }
+                    ?: "未提供",
+            )
+            metrics.financeProfile?.department?.let { ProfileInfoRow("财务所属部门", it) }
+            metrics.financeProfile?.bankCard?.let { ProfileInfoRow("银行卡号", it) }
+            if (metrics.financeProfileLoading)
+                Text("正在读取财务个人资料…", style = MaterialTheme.typography.bodySmall)
+            metrics.financeProfileError?.let {
+              Text(
+                  it,
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.error,
+              )
+            }
           }
         },
         confirmButton = {},

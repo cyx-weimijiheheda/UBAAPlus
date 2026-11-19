@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 internal data class ProfileMetricsState(
+    val financeProfile: FinanceProfile? = FeatureReadCache.get("finance", "profile"),
+    val financeProfileLoading: Boolean = false,
+    val financeProfileError: String? = null,
     val avatar: SchoolAvatarDto? = FeatureReadCache.get("profile", "school-avatar"),
     val profile: BykcUserProfileDto? = FeatureReadCache.get("bykc", "profile"),
     val card: CampusCardBalanceDto? = FeatureReadCache.get("card", "balance"),
@@ -35,6 +38,24 @@ internal class ProfileMetricsViewModel(
     if (observedCacheRevision != revision) {
       observedCacheRevision = revision
       mutable.value = ProfileMetricsState()
+    }
+  }
+
+  fun loadFinanceProfile(online: Boolean) {
+    if (!online || mutable.value.financeProfileLoading) return
+    val scope = SchoolReadCoordinator.capture()
+    mutable.value = mutable.value.copy(financeProfileLoading = true, financeProfileError = null)
+    viewModelScope.launch {
+      val result = FinanceApi().profile()
+      if (!scope.isCurrent()) return@launch
+      mutable.value =
+          mutable.value.copy(
+              financeProfileLoading = false,
+              financeProfile = result.getOrNull() ?: mutable.value.financeProfile,
+              financeProfileError =
+                  result.exceptionOrNull()?.message
+                      ?: FeatureReadCache.readWarning("finance", "profile"),
+          )
     }
   }
 

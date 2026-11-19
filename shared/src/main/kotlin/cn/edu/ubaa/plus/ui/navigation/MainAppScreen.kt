@@ -123,6 +123,7 @@ enum class AppScreen {
   DORM_ELECTRICITY,
   CAMPUS_NETWORK,
   CAMPUS_CARD,
+  FINANCE,
   LIBRARY_BORROW,
 }
 
@@ -427,6 +428,12 @@ private fun MainAppContent(
       } else {
         null
       }
+  val financeViewModel: cn.edu.ubaa.plus.ui.screens.finance.FinanceViewModel? =
+      if (currentScreen == AppScreen.FINANCE)
+          viewModel(key = "finance-${userData.schoolid}") {
+            cn.edu.ubaa.plus.ui.screens.finance.FinanceViewModel()
+          }
+      else null
   val libraryBorrowViewModel: LibraryBorrowViewModel? =
       if (currentScreen == AppScreen.LIBRARY_BORROW) {
         viewModel(key = "library-${userData.schoolid}") { LibraryBorrowViewModel() }
@@ -1016,6 +1023,7 @@ private fun MainAppContent(
       AppScreen.DORM_ELECTRICITY -> dormElectricityViewModel?.ensureLoaded(forceRefresh = true)
       AppScreen.CAMPUS_NETWORK -> campusNetworkViewModel?.ensureLoaded(forceRefresh = true)
       AppScreen.CAMPUS_CARD -> campusCardViewModel?.ensureLoaded(forceRefresh = true)
+      AppScreen.FINANCE -> financeViewModel?.refresh()
       AppScreen.LIBRARY_BORROW -> libraryBorrowViewModel?.ensureLoaded(forceRefresh = true)
       AppScreen.FEATURE_ORDER -> Unit
       else -> Unit
@@ -1088,6 +1096,7 @@ private fun MainAppContent(
       AppScreen.DORM_ELECTRICITY -> dormElectricityViewModel?.ensureLoaded()
       AppScreen.CAMPUS_NETWORK -> campusNetworkViewModel?.ensureLoaded()
       AppScreen.CAMPUS_CARD -> campusCardViewModel?.ensureLoaded()
+      AppScreen.FINANCE -> financeViewModel?.ensureLoaded()
       AppScreen.LIBRARY_BORROW -> libraryBorrowViewModel?.ensureLoaded()
       AppScreen.FEATURE_ORDER -> Unit
       else -> Unit
@@ -1138,6 +1147,7 @@ private fun MainAppContent(
         AppScreen.DORM_ELECTRICITY -> "寝室用电"
         AppScreen.CAMPUS_NETWORK -> "校园网络"
         AppScreen.CAMPUS_CARD -> "校园卡"
+        AppScreen.FINANCE -> "财务查询"
         AppScreen.LIBRARY_BORROW -> "图书借阅"
       }
 
@@ -1341,6 +1351,7 @@ private fun MainAppContent(
               dormElectricityViewModel = dormElectricityViewModel,
               campusNetworkViewModel = campusNetworkViewModel,
               campusCardViewModel = campusCardViewModel,
+              financeViewModel = financeViewModel,
               libraryBorrowViewModel = libraryBorrowViewModel,
               classroomViewModel = classroomViewModel,
               spocViewModel = spocViewModel,

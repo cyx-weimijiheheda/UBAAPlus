@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CoPresent
@@ -148,6 +149,13 @@ internal fun regularFeatureItems(): List<FeatureItem> =
             description = "查看余额、账单与充值",
             icon = Icons.Default.CreditCard,
             webUrl = "https://pass.cc-pay.cn/mcampcard",
+        ),
+        FeatureItem(
+            id = "finance",
+            title = "财务查询",
+            description = "查询补助与收入记录",
+            icon = Icons.Default.AccountBalanceWallet,
+            webUrl = "https://chaxun.icw.buaa.edu.cn/zl/tjtb",
         ),
         FeatureItem(
             id = "evaluation",
