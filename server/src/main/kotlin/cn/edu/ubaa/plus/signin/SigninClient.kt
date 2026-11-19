@@ -253,19 +253,29 @@ class SigninClient(
     }
   }
 
+  /**
+   * 把上游 ERRMSG 转成人话。
+   *
+   * 学校签到策略会变，关键词表不可能穷举；映射不到时**原样带上上游文案**， 否则用户只看到「签到失败，请稍后重试」，既没法自救也没法反馈。
+   */
   internal fun sanitizeSignInMessage(success: Boolean, rawMessage: String?): String {
     if (success) return rawMessage?.takeIf { it.isNotBlank() } ?: "签到成功"
-    val message = rawMessage.orEmpty()
-    return when {
-      "已签到" in message -> "您今天已经签到过了"
-      "未开始" in message -> "当前还未到签到时间"
-      "不是上课时间" in message -> "当前不是上课时间，无法签到"
-      "已结束" in message -> "本次签到已结束"
-      "范围" in message -> "当前不在可签到范围内"
-      "用户不存在" in message -> "签到账号不存在，请联系管理员"
-      "课程" in message && "不存在" in message -> "未找到对应课程，请刷新后重试"
-      else -> "签到失败，请稍后重试"
-    }
+    val message = rawMessage.orEmpty().trim()
+    val mapped =
+        when {
+          message.isEmpty() -> null
+          "已签到" in message -> "您今天已经签到过了"
+          "未开始" in message -> "当前还未到签到时间"
+          "不是上课时间" in message -> "当前不是上课时间，无法签到"
+          "已结束" in message -> "本次签到已结束"
+          "范围" in message -> "当前不在可签到范围内"
+          "校验" in message || "参数" in message -> "签到参数校验失败，请更新应用后重试"
+          "扫码" in message || "二维码" in message -> "学校要求现场扫码签到，请使用扫码入口"
+          "用户不存在" in message -> "签到账号不存在，请联系管理员"
+          "课程" in message && "不存在" in message -> "未找到对应课程，请刷新后重试"
+          else -> null
+        }
+    return mapped ?: if (message.isEmpty()) "签到失败，请稍后重试" else "签到失败：$message"
   }
 
   // 8347 的签到提交入口没有 /eschool 前缀，端口和路径需要一起选择。

@@ -43,6 +43,35 @@ class SigninClientTest {
   }
 
   @Test
+  fun `sanitizeSignInMessage keeps unknown upstream message`() {
+    // 学校改了策略时关键词表不可能提前覆盖，必须把原始文案透出来便于定位。
+    val client = SigninClient(studentId = "24182104")
+
+    try {
+      assertEquals(
+          "签到失败：策略调整，请勿重复提交",
+          client.sanitizeSignInMessage(success = false, rawMessage = "策略调整，请勿重复提交"),
+      )
+    } finally {
+      client.close()
+    }
+  }
+
+  @Test
+  fun `sanitizeSignInMessage maps scan requirement`() {
+    val client = SigninClient(studentId = "24182104")
+
+    try {
+      assertEquals(
+          "学校要求现场扫码签到，请使用扫码入口",
+          client.sanitizeSignInMessage(success = false, rawMessage = "请扫码签到"),
+      )
+    } finally {
+      client.close()
+    }
+  }
+
+  @Test
   fun `get classes follows iclass SSO redirects and app logs in with loginName`() = runBlocking {
     val originalVpnEnabled = VpnCipher.isEnabled
     VpnCipher.isEnabled = false
