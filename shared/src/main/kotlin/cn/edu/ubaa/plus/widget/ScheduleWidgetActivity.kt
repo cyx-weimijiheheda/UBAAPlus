@@ -20,6 +20,8 @@ class ScheduleWidgetActivity : ComponentActivity() {
       val prefs by cn.edu.ubaa.plus.api.storage.AppPreferencesStore.state.collectAsState()
       UBAATheme(
           palette = prefs.themePalette,
+          glassEnabled = prefs.glassEnabled,
+          glassMaterial = prefs.glassMaterial,
           customBrandArgb = prefs.customBrandArgb,
           followWallpaper = prefs.followWallpaper,
           darkTheme =

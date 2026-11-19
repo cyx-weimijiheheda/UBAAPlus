@@ -19,9 +19,24 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.api.storage.GlassMaterial
 
 /** 液态玻璃效果开关；默认开启，设置页可关闭。 */
 val LocalUbaaGlassEnabled = staticCompositionLocalOf { true }
+
+val LocalUbaaGlassMaterial = staticCompositionLocalOf { GlassMaterial() }
+
+/** Adjust only the surface paint; content and school images retain their original colors. */
+internal fun glassMaterialColor(color: Color, material: GlassMaterial): Color {
+  val value = material.normalized()
+  val saturation = value.saturation / 50f
+  val contrast = 0.7f + value.contrast * 0.006f
+  val brightness = (value.brightness - 50) / 250f
+  val gray = color.red * 0.2126f + color.green * 0.7152f + color.blue * 0.0722f
+  fun channel(c: Float) =
+      (((gray + (c - gray) * saturation) - 0.5f) * contrast + 0.5f + brightness).coerceIn(0f, 1f)
+  return Color(channel(color.red), channel(color.green), channel(color.blue), color.alpha)
+}
 
 object UbaaGlass {
   val enabled: Boolean
@@ -48,6 +63,7 @@ fun Modifier.ubaaGlassSurface(
               shape,
           )
 
+  val material = LocalUbaaGlassMaterial.current
   val dark = scheme.surface.luminance() < 0.5f
   val container =
       lerp(
@@ -55,20 +71,20 @@ fun Modifier.ubaaGlassSurface(
           scheme.primary,
           if (dark) 0.085f else 0.045f,
       )
-  val alpha = if (dark) 0.94f else 0.96f
+  val alpha = material.opacity.coerceIn(0, 100) / 100f
   val brush =
       Brush.linearGradient(
           listOf(
-              container.copy(alpha = alpha),
-              scheme.surfaceContainerLow.copy(alpha = alpha * 0.98f),
-              scheme.surfaceContainerLow.copy(alpha = alpha * 0.96f),
+              glassMaterialColor(container, material).copy(alpha = alpha),
+              glassMaterialColor(scheme.surfaceContainerLow, material).copy(alpha = alpha * 0.98f),
+              glassMaterialColor(scheme.surfaceContainerLow, material).copy(alpha = alpha * 0.96f),
           )
       )
   return this.clip(shape)
       .background(brush, shape)
       .border(
           0.5.dp,
-          scheme.outlineVariant.copy(alpha = if (dark) 0.34f else 0.40f),
+          scheme.outlineVariant.copy(alpha = material.edgeStrength.coerceIn(0, 100) / 100f),
           shape,
       )
 }

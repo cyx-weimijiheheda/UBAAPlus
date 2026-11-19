@@ -40,6 +40,24 @@ enum class FeatureLayout(val displayName: String) {
   COMPACT_LIST("紧凑列表"),
 }
 
+/** 磨砂材质参数统一使用 0–100；50 为颜色调节的中性值。 */
+data class GlassMaterial(
+    val contrast: Int = 50,
+    val saturation: Int = 50,
+    val brightness: Int = 50,
+    val opacity: Int = 94,
+    val edgeStrength: Int = 35,
+) {
+  fun normalized() =
+      copy(
+          contrast = contrast.coerceIn(0, 100),
+          saturation = saturation.coerceIn(0, 100),
+          brightness = brightness.coerceIn(0, 100),
+          opacity = opacity.coerceIn(0, 100),
+          edgeStrength = edgeStrength.coerceIn(0, 100),
+      )
+}
+
 /** 非敏感的用户外观与功能偏好。 */
 data class AppPreferences(
     val themePalette: ThemePalette = ThemePalette.BUAA_BLUE,
@@ -50,6 +68,7 @@ data class AppPreferences(
     val followWallpaper: Boolean = false,
     val customBrandArgb: Int = DEFAULT_CUSTOM_BRAND_ARGB,
     val glassEnabled: Boolean = true,
+    val glassMaterial: GlassMaterial = GlassMaterial(),
     val mysterySwitchEnabled: Boolean = false,
     val backgroundRemindersEnabled: Boolean = true,
     val featureLayout: FeatureLayout = FeatureLayout.GRID,
@@ -135,6 +154,16 @@ object AppPreferencesStore {
   fun setMysterySwitchEnabled(enabled: Boolean) {
     settings.putBoolean("app_mystery_switch", enabled)
     _state.value = _state.value.copy(mysterySwitchEnabled = enabled)
+  }
+
+  fun setGlassMaterial(material: GlassMaterial) {
+    val value = material.normalized()
+    settings.putInt("glass_contrast", value.contrast)
+    settings.putInt("glass_saturation", value.saturation)
+    settings.putInt("glass_brightness", value.brightness)
+    settings.putInt("glass_opacity", value.opacity)
+    settings.putInt("glass_edge_strength", value.edgeStrength)
+    _state.value = _state.value.copy(glassMaterial = value)
   }
 
   fun setGlassEnabled(enabled: Boolean) {
@@ -238,6 +267,15 @@ object AppPreferencesStore {
         followWallpaper = settings.getBoolean(KEY_FOLLOW_WALLPAPER, false),
         customBrandArgb = settings.getInt(KEY_CUSTOM_BRAND_ARGB, DEFAULT_CUSTOM_BRAND_ARGB),
         glassEnabled = settings.getBoolean(KEY_GLASS_ENABLED, true),
+        glassMaterial =
+            GlassMaterial(
+                    contrast = settings.getInt("glass_contrast", 50),
+                    saturation = settings.getInt("glass_saturation", 50),
+                    brightness = settings.getInt("glass_brightness", 50),
+                    opacity = settings.getInt("glass_opacity", 94),
+                    edgeStrength = settings.getInt("glass_edge_strength", 35),
+                )
+                .normalized(),
         mysterySwitchEnabled = settings.getBoolean("app_mystery_switch", false),
         backgroundRemindersEnabled = settings.getBoolean(KEY_BACKGROUND_REMINDERS, true),
         featureLayout = layout,

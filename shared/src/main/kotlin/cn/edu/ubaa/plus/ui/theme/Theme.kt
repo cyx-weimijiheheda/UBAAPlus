@@ -239,6 +239,8 @@ fun UBAATheme(
     dynamicColor: Boolean = false,
     customBrandArgb: Int? = null,
     glassEnabled: Boolean = true,
+    glassMaterial: cn.edu.ubaa.plus.api.storage.GlassMaterial =
+        cn.edu.ubaa.plus.api.storage.GlassMaterial(),
     content: @Composable () -> Unit,
 ) {
   val useDynamicColor =
@@ -262,6 +264,7 @@ fun UBAATheme(
       LocalUbaaExtendedColors provides extendedColors,
       LocalUbaaBrandColors provides UbaaBrandColors(brand, onBrand),
       LocalUbaaGlassEnabled provides glassEnabled,
+      LocalUbaaGlassMaterial provides glassMaterial,
   ) {
     MaterialTheme(colorScheme = colorScheme, typography = getAppTypography(), shapes = UbaaShapes) {
       Surface(modifier = Modifier.fillMaxSize(), color = colorScheme.background) {

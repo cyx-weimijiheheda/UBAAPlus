@@ -42,6 +42,7 @@ import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.ui.common.components.CustomBrandColorDialog
 import cn.edu.ubaa.plus.ui.common.components.ThemePalettePicker
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
@@ -72,6 +73,9 @@ fun SettingsScreen(
 ) {
   val diagnosticCacheContext = androidx.compose.ui.platform.LocalContext.current
   val cacheScope = androidx.compose.runtime.rememberCoroutineScope()
+  var showMaterial by remember { mutableStateOf(false) }
+  var showDormDefaults by remember { mutableStateOf(false) }
+  var showDiagnostics by remember { mutableStateOf(false) }
   var showClearCache by remember { mutableStateOf(false) }
   var clearingCache by remember { mutableStateOf(false) }
   var cacheBytes by remember { mutableStateOf<Long?>(null) }
@@ -102,7 +106,7 @@ fun SettingsScreen(
           )
         },
         confirmButton = {
-          UbaaTextButton(
+          UbaaConfirmAction(
               enabled = !clearingCache,
               onClick = {
                 onBeforeClearCache()
@@ -124,9 +128,8 @@ fun SettingsScreen(
                   }
                 }
               },
-          ) {
-            Text(if (clearingCache) "清理中…" else "清理")
-          }
+              description = if (clearingCache) "清理中…" else "清理",
+          )
         },
     )
   }
@@ -151,6 +154,15 @@ fun SettingsScreen(
   var pendingMode by remember { mutableStateOf<ConnectionMode?>(null) }
   val preferences by AppPreferencesStore.state.collectAsState()
   var showWidgetColorPicker by remember { mutableStateOf(false) }
+  if (showMaterial)
+      GlassMaterialDialog(
+          initial = preferences.glassMaterial,
+          onDismiss = { showMaterial = false },
+          onApply = {
+            AppPreferencesStore.setGlassMaterial(it)
+            showMaterial = false
+          },
+      )
   if (showWidgetColorPicker)
       CustomBrandColorDialog(
           initialArgb = preferences.widgetCustomArgb,
@@ -170,14 +182,13 @@ fun SettingsScreen(
           )
         },
         confirmButton = {
-          UbaaTextButton(
+          UbaaConfirmAction(
               onClick = {
                 showMysteryDisclaimer = false
                 AppPreferencesStore.setMysterySwitchEnabled(true)
-              }
-          ) {
-            Text("我已了解，开启")
-          }
+              },
+              description = "我已了解，开启",
+          )
         },
         dismissButton = {
           UbaaIconAction(
@@ -204,8 +215,8 @@ fun SettingsScreen(
     dormState = DormRoomsState.Loading
   }
 
-  LaunchedEffect(dormState) {
-    if (allowSchoolReads && dormState is DormRoomsState.Loading) {
+  LaunchedEffect(dormState, showDormDefaults) {
+    if (showDormDefaults && allowSchoolReads && dormState is DormRoomsState.Loading) {
       dormApi
           .getRooms()
           .onSuccess { dormState = DormRoomsState.Ready(it) }
@@ -242,44 +253,26 @@ fun SettingsScreen(
             onCheckedChange = AppPreferencesStore::setGlassEnabled,
             supportingText = "底部导航使用透亮玻璃，内容卡片使用柔和磨砂",
         )
-        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsOptionRow(
+            "磨砂材质",
+            "对比度、饱和度、亮度与透明度",
+            enabled = preferences.glassEnabled,
+            onClick = { showMaterial = true },
+        )
+      }
+    }
+    item {
+      SettingsSection(title = "功能与提醒") {
         Text("功能页布局", style = MaterialTheme.typography.bodyLarge)
         UbaaSegmentedTabs(
             labels = FeatureLayout.entries.map { it.displayName },
             selectedIndex = preferences.featureLayout.ordinal,
             onSelected = { AppPreferencesStore.setFeatureLayout(FeatureLayout.entries[it]) },
         )
-      }
-    }
 
-    item {
-      SettingsSection(title = "功能") {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .clickable(onClick = onFeatureOrderClick)
-                    .padding(vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text("功能排序与显示", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = "分显示/隐藏两层，用上下按钮调整顺序",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-          Icon(
-              imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-      }
-    }
+        SettingsOptionRow("功能排序与显示", "调整入口顺序及显示状态", onClick = onFeatureOrderClick)
 
-    item {
-      SettingsSection(title = "通知") {
         val context = LocalContext.current
         UbaaToggleRow(
             label = "后台提醒",
@@ -299,7 +292,6 @@ fun SettingsScreen(
         }
       }
     }
-
     item {
       SettingsSection(title = "桌面小组件") {
         Text("显示模式", style = MaterialTheme.typography.bodyLarge)
@@ -326,84 +318,8 @@ fun SettingsScreen(
         )
       }
     }
-
     item {
-      SettingsSection(title = "寝室用电默认值") {
-        Text(
-            text = "宿舍列表与用电查询需要连接校园网；校外访问时服务可能返回 302 跳转。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-        when (val state = dormState) {
-          DormRoomsState.Loading -> Text("正在加载宿舍列表…")
-          is DormRoomsState.Error -> {
-            Text(
-                text = state.message,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-            )
-            UbaaTextButton(onClick = ::loadDormRooms) { Text("重试") }
-            Text(
-                text = "也可以手动填写，查询页会直接使用这些值。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            UbaaTextField(
-                shape = RoundedCornerShape(14.dp),
-                value = preferences.dormCampus,
-                onValueChange = {
-                  AppPreferencesStore.setDormDefaults(
-                      it,
-                      preferences.dormBuilding,
-                      preferences.dormRoom,
-                  )
-                },
-                label = { Text("校区") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            UbaaTextField(
-                shape = RoundedCornerShape(14.dp),
-                value = preferences.dormBuilding,
-                onValueChange = {
-                  AppPreferencesStore.setDormDefaults(
-                      preferences.dormCampus,
-                      it,
-                      preferences.dormRoom,
-                  )
-                },
-                label = { Text("宿舍楼") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            UbaaTextField(
-                shape = RoundedCornerShape(14.dp),
-                value = preferences.dormRoom,
-                onValueChange = {
-                  AppPreferencesStore.setDormDefaults(
-                      preferences.dormCampus,
-                      preferences.dormBuilding,
-                      it,
-                  )
-                },
-                label = { Text("宿舍号") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-          }
-          is DormRoomsState.Ready -> {
-            DormDefaultsPicker(
-                rooms = state.rooms,
-                preferences = preferences,
-            )
-          }
-        }
-      }
-    }
-
-    item {
-      SettingsSection(title = "连接模式") {
+      SettingsSection(title = "连接与数据") {
         Text(
             text = "当前模式：${currentMode.displayName}",
             style = MaterialTheme.typography.bodyMedium,
@@ -422,45 +338,121 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-      }
-    }
 
-    item {
-      SettingsSection(title = "缓存") {
-        Text("可清理缓存约 $cacheSizeLabel", style = MaterialTheme.typography.bodyLarge)
-        Text(
-            "清理临时业务数据，保留登录信息、设置和已本地化课表。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        SettingsOptionRow(
+            "寝室用电默认值",
+            listOf(preferences.dormCampus, preferences.dormBuilding, preferences.dormRoom)
+                .filter { it.isNotBlank() }
+                .joinToString(" · ")
+                .ifBlank { "尚未设置" },
+            expanded = showDormDefaults,
+            onClick = { showDormDefaults = !showDormDefaults },
         )
-        UbaaTextButton(enabled = !clearingCache, onClick = { showClearCache = true }) {
-          Text(if (clearingCache) "清理中…" else "清理缓存")
+        if (showDormDefaults) {
+          Text(
+              text = "宿舍列表与用电查询需要连接校园网；校外访问时服务可能返回 302 跳转。",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.padding(bottom = 8.dp),
+          )
+          when (val state = dormState) {
+            DormRoomsState.Loading -> Text("正在加载宿舍列表…")
+            is DormRoomsState.Error -> {
+              Text(
+                  text = state.message,
+                  color = MaterialTheme.colorScheme.error,
+                  style = MaterialTheme.typography.bodySmall,
+              )
+              UbaaTextButton(onClick = ::loadDormRooms) { Text("重试") }
+              Text(
+                  text = "也可以手动填写，查询页会直接使用这些值。",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+              UbaaTextField(
+                  shape = RoundedCornerShape(14.dp),
+                  value = preferences.dormCampus,
+                  onValueChange = {
+                    AppPreferencesStore.setDormDefaults(
+                        it,
+                        preferences.dormBuilding,
+                        preferences.dormRoom,
+                    )
+                  },
+                  label = { Text("校区") },
+                  singleLine = true,
+                  modifier = Modifier.fillMaxWidth(),
+              )
+              UbaaTextField(
+                  shape = RoundedCornerShape(14.dp),
+                  value = preferences.dormBuilding,
+                  onValueChange = {
+                    AppPreferencesStore.setDormDefaults(
+                        preferences.dormCampus,
+                        it,
+                        preferences.dormRoom,
+                    )
+                  },
+                  label = { Text("宿舍楼") },
+                  singleLine = true,
+                  modifier = Modifier.fillMaxWidth(),
+              )
+              UbaaTextField(
+                  shape = RoundedCornerShape(14.dp),
+                  value = preferences.dormRoom,
+                  onValueChange = {
+                    AppPreferencesStore.setDormDefaults(
+                        preferences.dormCampus,
+                        preferences.dormBuilding,
+                        it,
+                    )
+                  },
+                  label = { Text("宿舍号") },
+                  singleLine = true,
+                  modifier = Modifier.fillMaxWidth(),
+              )
+            }
+            is DormRoomsState.Ready -> {
+              DormDefaultsPicker(
+                  rooms = state.rooms,
+                  preferences = preferences,
+              )
+            }
+          }
+        }
+        SettingsOptionRow(
+            "清理缓存",
+            if (clearingCache) "清理中…" else "$cacheSizeLabel · 保留登录信息、设置与本地课表",
+            enabled = !clearingCache,
+            onClick = { showClearCache = true },
+        )
+        SettingsOptionRow(
+            "问题诊断",
+            "$diagnosticCount 条脱敏记录",
+            expanded = showDiagnostics,
+            onClick = { showDiagnostics = !showDiagnostics },
+        )
+        if (showDiagnostics) {
+          Text(
+              "本机已记录 $diagnosticCount 条诊断，仅包含功能、连接方式和错误分类。",
+              style = MaterialTheme.typography.bodySmall,
+          )
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            UbaaTextButton(onClick = { diagnosticExport.launch("UBAAPlus-diagnostics.json") }) {
+              Text("导出脱敏诊断")
+            }
+            UbaaTextButton(
+                onClick = {
+                  LocalDiagnostics.clear()
+                  diagnosticCount = 0
+                }
+            ) {
+              Text("清除记录")
+            }
+          }
         }
       }
     }
-
-    item {
-      SettingsSection(title = "问题诊断") {
-        Text(
-            "本机已记录 $diagnosticCount 条诊断，仅包含功能、连接方式和错误分类。",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          UbaaTextButton(onClick = { diagnosticExport.launch("UBAAPlus-diagnostics.json") }) {
-            Text("导出脱敏诊断")
-          }
-          UbaaTextButton(
-              onClick = {
-                LocalDiagnostics.clear()
-                diagnosticCount = 0
-              }
-          ) {
-            Text("清除记录")
-          }
-        }
-      }
-    }
-
     item {
       SettingsSection(title = "其他选项") {
         UbaaToggleRow(
@@ -481,14 +473,13 @@ fun SettingsScreen(
         title = { Text("切换连接模式") },
         text = { Text("将退出当前登录并清除本模式会话，需重新登录。") },
         confirmButton = {
-          UbaaTextButton(
+          UbaaConfirmAction(
               onClick = {
                 pendingMode = null
                 onModeSelected(mode)
-              }
-          ) {
-            Text("确认切换")
-          }
+              },
+              description = "确认切换",
+          )
         },
         dismissButton = {
           UbaaIconAction(
@@ -587,4 +578,40 @@ private fun <T> SettingsDropdown(
 @Composable
 private fun SettingsSection(title: String, content: @Composable () -> Unit) {
   UbaaSectionCard(title = title, modifier = Modifier.fillMaxWidth()) { content() }
+}
+
+@Composable
+private fun SettingsOptionRow(
+    title: String,
+    summary: String,
+    enabled: Boolean = true,
+    expanded: Boolean = false,
+    onClick: () -> Unit,
+) {
+  Row(
+      Modifier.fillMaxWidth()
+          .clickable(enabled = enabled, onClick = onClick)
+          .padding(vertical = 8.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+  ) {
+    Column(Modifier.weight(1f)) {
+      Text(
+          title,
+          style = MaterialTheme.typography.bodyLarge,
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f),
+      )
+      Text(
+          summary,
+          style = MaterialTheme.typography.bodySmall,
+          color =
+              MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f),
+      )
+    }
+    Icon(
+        if (expanded) Icons.Default.ExpandLess else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f),
+    )
+  }
 }

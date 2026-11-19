@@ -56,16 +56,40 @@ fun UbaaIconAction(
     icon: ImageVector = Icons.Default.Close,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    colors: IconButtonColors = IconButtonDefaults.iconButtonColors(),
 ) {
   TooltipBox(
       positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
       tooltip = { PlainTooltip { Text(description) } },
       state = rememberTooltipState(),
   ) {
-    UbaaIconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+    UbaaIconButton(onClick = onClick, modifier = modifier, enabled = enabled, colors = colors) {
       Icon(icon, contentDescription = description, modifier = Modifier.size(20.dp))
     }
   }
+}
+
+/** Dialog acceptance always uses a check mark while retaining its specific accessible label. */
+@Composable
+fun UbaaConfirmAction(
+    onClick: () -> Unit,
+    description: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.textButtonColors(),
+) {
+  UbaaIconAction(
+      onClick = onClick,
+      description = description,
+      icon = Icons.Default.Check,
+      modifier = modifier,
+      enabled = enabled,
+      colors =
+          IconButtonDefaults.iconButtonColors(
+              contentColor = colors.contentColor,
+              disabledContentColor = colors.disabledContentColor,
+          ),
+  )
 }
 
 @Composable

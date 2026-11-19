@@ -16,10 +16,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -49,6 +47,7 @@ import cn.edu.ubaa.plus.reminder.ReminderServiceController
 import cn.edu.ubaa.plus.repository.ScheduleStore
 import cn.edu.ubaa.plus.ui.common.components.FirstRunDisclaimerDialog
 import cn.edu.ubaa.plus.ui.common.components.ReleaseNotesText
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.navigation.MainAppScreen
 import cn.edu.ubaa.plus.ui.screens.auth.AuthViewModel
 import cn.edu.ubaa.plus.ui.screens.auth.ConnectionModeSelectionScreen
@@ -91,6 +90,7 @@ fun App() {
       darkTheme = darkTheme,
       customBrandArgb = preferences.customBrandArgb,
       glassEnabled = preferences.glassEnabled,
+      glassMaterial = preferences.glassMaterial,
   ) {
     val authViewModel: AuthViewModel = viewModel { AuthViewModel() }
     val uiState by authViewModel.uiState.collectAsState()
@@ -262,7 +262,7 @@ fun App() {
         append(releaseNotes)
       }
 
-      AlertDialog(
+      cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog(
           onDismissRequest = { updateInfo = null },
           title = { Text("发现新版本") },
           text = {
@@ -271,23 +271,23 @@ fun App() {
             }
           },
           confirmButton = {
-            TextButton(
+            UbaaConfirmAction(
                 onClick = {
                   uriHandler.openUri(release.downloadUrl)
                   updateInfo = null
-                }
-            ) {
-              Text("前往下载")
-            }
+                },
+                description = "前往下载",
+            )
           },
-          dismissButton = { TextButton(onClick = { updateInfo = null }) { Text("稍后再说") } },
+          dismissButton = {},
       )
     }
 
     if (disclaimerAccepted && shouldShowAnnouncementDialog(updateInfo, announcementInfo)) {
       val announcement = announcementInfo!!
-      AlertDialog(
+      cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog(
           onDismissRequest = {},
+          dismissEnabled = false,
           title = { Text(announcement.title) },
           text = {
             Box(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
@@ -295,7 +295,7 @@ fun App() {
             }
           },
           confirmButton = {
-            TextButton(
+            UbaaConfirmAction(
                 onClick = {
                   confirmAnnouncement(
                       announcement = announcement,
@@ -303,10 +303,9 @@ fun App() {
                       markRead = AnnouncementReadStore::markRead,
                   )
                   announcementInfo = null
-                }
-            ) {
-              Text(announcement.confirmText?.takeIf { it.isNotBlank() } ?: "我知道了")
-            }
+                },
+                description = announcement.confirmText?.takeIf { it.isNotBlank() } ?: "我知道了",
+            )
           },
       )
     }

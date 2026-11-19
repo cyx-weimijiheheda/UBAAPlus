@@ -152,4 +152,26 @@ class AppPreferencesStoreTest {
     assertEquals("3号楼", state.dormBuilding)
     assertEquals("101", state.dormRoom)
   }
+
+  @Test
+  fun `材质偏好有兼容默认值并在写入和读取时限制为百分制`() {
+    val defaults = cn.edu.ubaa.plus.api.storage.GlassMaterial()
+    assertEquals(defaults, AppPreferencesStore.state.value.glassMaterial)
+    val chosen =
+        cn.edu.ubaa.plus.api.storage.GlassMaterial(
+            contrast = -1,
+            saturation = 120,
+            brightness = 73,
+            opacity = 0,
+            edgeStrength = 100,
+        )
+    AppPreferencesStore.setGlassMaterial(chosen)
+    AppPreferencesStore.reload()
+    assertEquals(chosen.normalized(), AppPreferencesStore.state.value.glassMaterial)
+    AppPreferencesStore.settings.putInt("glass_brightness", 101)
+    AppPreferencesStore.reload()
+    assertEquals(100, AppPreferencesStore.state.value.glassMaterial.brightness)
+    AppPreferencesStore.setGlassMaterial(defaults)
+    assertEquals(defaults, AppPreferencesStore.state.value.glassMaterial)
+  }
 }
