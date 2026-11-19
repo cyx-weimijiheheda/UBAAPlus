@@ -1,5 +1,8 @@
 package cn.edu.ubaa.plus.api.local
 
+import cn.edu.ubaa.plus.api.ConnectionMode
+import cn.edu.ubaa.plus.api.ConnectionRuntime
+import cn.edu.ubaa.plus.api.auth.ApiCallException
 import cn.edu.ubaa.plus.api.auth.toUserFacingApiException
 import cn.edu.ubaa.plus.api.feature.ClassroomApiBackend
 import cn.edu.ubaa.plus.model.dto.ClassroomQueryResponse
@@ -11,99 +14,153 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.*
 import kotlinx.serialization.json.Json
 
 internal class LocalClassroomApiBackend : ClassroomApiBackend {
   private val json = Json { ignoreUnknownKeys = true }
   private val syncMutex = Mutex()
-  private var sessionSynced = false
+  @Volatile private var syncedSession: ClassroomSessionKey? = null
+
+  private data class ClassroomSessionKey(
+      val mode: ConnectionMode?,
+      val username: String,
+      val authenticatedAt: String,
+  )
+
+  private fun currentSessionKey(): ClassroomSessionKey? =
+      LocalAuthSessionStore.get()?.let {
+        ClassroomSessionKey(ConnectionRuntime.currentMode(), it.username, it.authenticatedAt)
+      }
+
+  private fun checkSession(key: ClassroomSessionKey) {
+    if (currentSessionKey() != key) throw CancellationException("账户或连接模式已切换")
+  }
 
   internal fun clearCache() {
-    sessionSynced = false
+    syncedSession = null
   }
 
   override suspend fun queryClassrooms(xqid: Int, date: String): Result<ClassroomQueryResponse> {
-    if (LocalAuthSessionStore.get() == null) {
-      return Result.failure(localUnauthenticatedApiException())
-    }
-
+    val key = currentSessionKey() ?: return Result.failure(localUnauthenticatedApiException())
     return try {
-      syncLocalClassroomSession()
-      val noRedirectClient = LocalUpstreamClientProvider.newNoRedirectClient()
-      try {
-        val response =
-            noRedirectClient.get(
-                localUpstreamUrl("https://app.buaa.edu.cn/buaafreeclass/wap/default/search1")
-            ) {
-              parameter("xqid", xqid)
-              parameter("floorid", "")
-              parameter("date", date)
-              applyClassroomHeaders()
+      syncLocalClassroomSession(key)
+      LocalUpstreamClientProvider.newNoRedirectClient().use { client ->
+        for (attempt in 0..1) {
+          checkSession(key)
+          val response =
+              client.get(
+                  localUpstreamUrl("https://app.buaa.edu.cn/buaafreeclass/wap/default/search1")
+              ) {
+                attributes.put(LocalPrivateRead, true)
+                parameter("xqid", xqid)
+                parameter("floorid", "")
+                parameter("date", date)
+                applyClassroomHeaders()
+              }
+          val body = response.bodyAsText()
+          currentCoroutineContext().ensureActive()
+          checkSession(key)
+          if (isLocalClassroomSessionExpired(response, body)) {
+            syncedSession = null
+            if (attempt == 0) {
+              // Only re-activate this read-only subsystem using the existing SSO cookie.
+              syncLocalClassroomSession(key)
+              continue
             }
-        parseClassroomResponse(response)
-      } finally {
-        noRedirectClient.close()
+            return@use Result.failure(
+                resolveLocalBusinessAuthenticationFailure("classroom_query_failed")
+            )
+          }
+          return@use parseClassroomResponse(response, body)
+        }
+        Result.failure(localBusinessApiException("classroom_query_failed", "空闲教室查询失败，请稍后重试"))
       }
+    } catch (e: CancellationException) {
+      throw e
     } catch (e: Exception) {
       Result.failure(e.toUserFacingApiException("空闲教室查询失败，请稍后重试"))
     }
   }
 
-  private suspend fun syncLocalClassroomSession() {
-    if (sessionSynced) return
+  private suspend fun syncLocalClassroomSession(key: ClassroomSessionKey) {
+    if (syncedSession == key) return
     syncMutex.withLock {
-      if (sessionSynced) return@withLock
-      runCatching {
+      checkSession(key)
+      if (syncedSession == key) return@withLock
+      val response =
+          try {
             LocalUpstreamClientProvider.shared().get(classroomSyncUrl()) {
+              attributes.put(LocalPrivateRead, true)
               header(HttpHeaders.UserAgent, LOCAL_CLASSROOM_USER_AGENT)
             }
+          } catch (e: CancellationException) {
+            throw e
+          } catch (_: Exception) {
+            // A sync failure must stay retryable; an existing application cookie may still work.
+            return@withLock
           }
-          .onSuccess { response ->
-            if (response.status.value in 200..399) {
-              sessionSynced = true
-            }
-          }
+      currentCoroutineContext().ensureActive()
+      checkSession(key)
+      if (response.status.value in 200..399) syncedSession = key
     }
   }
 
-  private suspend fun parseClassroomResponse(
-      response: HttpResponse
+  private fun parseClassroomResponse(
+      response: HttpResponse,
+      body: String,
   ): Result<ClassroomQueryResponse> {
-    val body = response.bodyAsText()
-    if (isLocalClassroomSessionExpired(response, body)) {
-      sessionSynced = false
-      return Result.failure(resolveLocalBusinessAuthenticationFailure("classroom_query_failed"))
-    }
-    if (response.status != HttpStatusCode.OK) {
-      return Result.failure(
-          localBusinessApiException(
-              code = "classroom_query_failed",
-              defaultMessage = "空闲教室查询失败，请稍后重试",
-              status = response.status,
-          )
-      )
-    }
+    if (response.status != HttpStatusCode.OK)
+        return Result.failure(
+            localBusinessApiException(
+                code = "classroom_query_failed",
+                defaultMessage = "空闲教室查询失败，请稍后重试",
+                status = response.status,
+            )
+        )
     return try {
-      Result.success(json.decodeFromString<ClassroomQueryResponse>(body))
+      val root = json.parseToJsonElement(body) as? JsonObject ?: throw IllegalArgumentException()
+      if ((root["e"] as? JsonPrimitive)?.intOrNull != 0) {
+        return Result.failure(
+            ApiCallException("空教室查询未成功，请刷新后重试", code = "classroom_response_error")
+        )
+      }
+      val data = root["d"] as? JsonObject ?: throw IllegalArgumentException()
+      // PHP represents an empty associative array as []; only accept the empty form.
+      val list = data["list"]
+      val normalized =
+          if (list is JsonArray && list.isEmpty())
+              JsonObject(root + ("d" to JsonObject(data + ("list" to JsonObject(emptyMap())))))
+          else root
+      Result.success(json.decodeFromJsonElement<ClassroomQueryResponse>(normalized))
     } catch (e: Exception) {
-      Result.failure(e.toUserFacingApiException("空闲教室查询失败，请稍后重试"))
+      Result.failure(
+          ApiCallException("空教室响应格式异常，请刷新后重试", code = "classroom_response_error", cause = e)
+      )
     }
   }
 }
 
 private fun isLocalClassroomSessionExpired(response: HttpResponse, body: String): Boolean {
   if (response.status == HttpStatusCode.Unauthorized) return true
-  val location = response.headers[HttpHeaders.Location]
+  val location =
+      response.headers[HttpHeaders.Location]?.let {
+        runCatching { java.net.URI(response.call.request.url.toString()).resolve(it).toString() }
+            .getOrNull()
+      }
   if (localIsSsoUrl(location)) return true
-
-  val trimmed = body.trimStart()
-  if (trimmed.startsWith("<!DOCTYPE html", ignoreCase = true)) {
-    return body.contains("input name=\"execution\"") || body.contains("统一身份认证", ignoreCase = true)
+  if (location != null) {
+    val uri = runCatching { java.net.URI(location) }.getOrNull()
+    if (uri?.host == "d.buaa.edu.cn" && uri.path == "/login") return true
   }
-  if (trimmed.startsWith("<html", ignoreCase = true)) {
-    return body.contains("input name=\"execution\"") || body.contains("统一身份认证", ignoreCase = true)
+  if (body.trimStart().startsWith("<")) {
+    return org.jsoup.Jsoup.parse(body).selectFirst("input[name=execution]") != null ||
+        body.contains("统一身份认证")
   }
   return false
 }

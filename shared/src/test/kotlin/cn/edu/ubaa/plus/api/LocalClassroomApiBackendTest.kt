@@ -34,6 +34,7 @@ class LocalClassroomApiBackendTest {
   @BeforeTest
   fun setup() {
     runTest { localConnectionTestMutex.lock() }
+    cn.edu.ubaa.plus.testing.TestSettings.installInMemorySettings()
     ConnectionModeStore.settings = MapSettings()
     LocalAuthSessionStore.settings = MapSettings()
     LocalCookieStore.settings = MapSettings()
@@ -160,6 +161,163 @@ class LocalClassroomApiBackendTest {
         assertEquals("unauthenticated", exception.code)
         assertNull(LocalAuthSessionStore.get())
       }
+
+  @Test
+  fun `expired classroom cookie resynchronizes once without clearing a valid main session`() =
+      runTest {
+        var syncs = 0
+        var reads = 0
+        useMockUpstream(
+            MockEngine { request ->
+              when (request.url.host) {
+                "sso.buaa.edu.cn" -> {
+                  syncs++
+                  respond("", HttpStatusCode.OK)
+                }
+                "app.buaa.edu.cn" -> {
+                  reads++
+                  if (reads == 1)
+                      respond(
+                          "",
+                          HttpStatusCode.Found,
+                          headersOf(HttpHeaders.Location, "https://sso.buaa.edu.cn/login"),
+                      )
+                  else respond("""{"e":0,"m":"ok","d":{"list":{}}}""", HttpStatusCode.OK)
+                }
+                "uc.buaa.edu.cn" ->
+                    respond(
+                        """{"code":0,"data":{"schoolid":"22373333","name":"Test User"}}""",
+                        HttpStatusCode.OK,
+                    )
+                else -> error("Unexpected host")
+              }
+            }
+        )
+        val result = ClassroomApi().queryClassrooms(1, "2026-04-20")
+        assertTrue(result.isSuccess)
+        assertEquals(2, syncs)
+        assertEquals(2, reads)
+        assertTrue(LocalAuthSessionStore.get() != null)
+      }
+
+  @Test
+  fun `HTTP success with a business error is not a successful empty query`() = runTest {
+    useMockUpstream(
+        MockEngine { request ->
+          if (request.url.host == "sso.buaa.edu.cn") respond("", HttpStatusCode.OK)
+          else respond("""{"e":1,"m":"query unavailable","d":{"list":{}}}""", HttpStatusCode.OK)
+        }
+    )
+    val result = ClassroomApi().queryClassrooms(1, "2026-04-20")
+    assertTrue(result.isFailure)
+    assertEquals(
+        "classroom_response_error",
+        assertIs<ApiCallException>(result.exceptionOrNull()).code,
+    )
+  }
+
+  @Test
+  fun `successful empty PHP list is accepted without accepting a nonempty array`() = runTest {
+    var array = "[]"
+    useMockUpstream(
+        MockEngine { request ->
+          if (request.url.host == "sso.buaa.edu.cn") respond("", HttpStatusCode.OK)
+          else respond("""{"e":0,"m":"ok","d":{"list":$array}}""", HttpStatusCode.OK)
+        }
+    )
+    assertTrue(ClassroomApi().queryClassrooms(1, "2026-04-20").getOrThrow().d.list.isEmpty())
+    array = "[{}]"
+    assertTrue(ClassroomApi().queryClassrooms(1, "2026-04-20").isFailure)
+  }
+
+  @Test
+  fun `persistent subsystem expiry is retried only once and does not log out a valid account`() =
+      runTest {
+        var reads = 0
+        useMockUpstream(
+            MockEngine { request ->
+              when (request.url.host) {
+                "sso.buaa.edu.cn" -> respond("", HttpStatusCode.OK)
+                "uc.buaa.edu.cn" ->
+                    respond(
+                        """{"code":0,"data":{"schoolid":"22373333","name":"Test User"}}""",
+                        HttpStatusCode.OK,
+                    )
+                else -> {
+                  reads++
+                  respond("<html><input name='execution'></html>", HttpStatusCode.OK)
+                }
+              }
+            }
+        )
+        val result = ClassroomApi().queryClassrooms(1, "2026-04-20")
+        assertTrue(result.isFailure)
+        assertEquals(2, reads)
+        assertTrue(LocalAuthSessionStore.get() != null)
+      }
+
+  @Test
+  fun `replacing a login session invalidates subsystem synchronization`() = runTest {
+    var syncs = 0
+    useMockUpstream(
+        MockEngine { request ->
+          if (request.url.host == "sso.buaa.edu.cn") {
+            syncs++
+            respond("", HttpStatusCode.OK)
+          } else respond("""{"e":0,"m":"ok","d":{"list":{}}}""", HttpStatusCode.OK)
+        }
+    )
+    val backend = cn.edu.ubaa.plus.api.local.LocalClassroomApiBackend()
+    assertTrue(backend.queryClassrooms(1, "2026-04-20").isSuccess)
+    assertTrue(backend.queryClassrooms(1, "2026-04-21").isSuccess)
+    assertEquals(1, syncs)
+    LocalAuthSessionStore.save(
+        LocalAuthSessionStore.get()!!.copy(authenticatedAt = "2026-04-21T00:00:00Z")
+    )
+    assertTrue(backend.queryClassrooms(1, "2026-04-21").isSuccess)
+    assertEquals(2, syncs)
+  }
+
+  @Test
+  fun `webvpn relative gateway login redirects trigger bounded resynchronization`() = runTest {
+    val session = LocalAuthSessionStore.get()!!
+    ConnectionRuntime.clearSelectedMode()
+    ConnectionModeStore.save(ConnectionMode.WEBVPN)
+    ConnectionRuntime.resolveSelectedMode()
+    LocalAuthSessionStore.save(session)
+    var syncs = 0
+    var reads = 0
+    LocalUpstreamClientProvider.clientFactory = { redirects ->
+      HttpClient(
+          MockEngine { request ->
+            assertEquals("d.buaa.edu.cn", request.url.host)
+            assertTrue(
+                request.attributes.getOrNull(cn.edu.ubaa.plus.api.local.LocalPrivateRead) == true
+            )
+            val url =
+                io.ktor.http.Url(
+                    cn.edu.ubaa.plus.api.local.LocalWebVpnSupport.fromWebVpnUrl(
+                        request.url.toString()
+                    )
+                )
+            if (url.host == "sso.buaa.edu.cn") {
+              syncs++
+              respond("", HttpStatusCode.OK)
+            } else {
+              reads++
+              if (reads == 1)
+                  respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "/login"))
+              else respond("""{"e":0,"m":"ok","d":{"list":{}}}""", HttpStatusCode.OK)
+            }
+          }
+      ) {
+        followRedirects = redirects
+      }
+    }
+    assertTrue(ClassroomApi().queryClassrooms(1, "2026-04-20").isSuccess)
+    assertEquals(2, syncs)
+    assertEquals(2, reads)
+  }
 
   private fun useMockUpstream(engine: MockEngine) {
     LocalUpstreamClientProvider.clientFactory = { followRedirects ->
