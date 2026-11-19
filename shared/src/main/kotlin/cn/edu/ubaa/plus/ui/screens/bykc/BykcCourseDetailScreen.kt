@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,7 @@ fun BykcCourseDetailScreen(
     onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+  val clipboard = LocalClipboardManager.current
   val preferences by cn.edu.ubaa.plus.api.storage.AppPreferencesStore.state.collectAsState()
   val conflictScope = rememberCoroutineScope()
   var checkingConflicts by remember { mutableStateOf(false) }
@@ -237,7 +240,19 @@ fun BykcCourseDetailScreen(
             }
 
             item {
-              DetailCard(title = "基本信息") {
+              DetailCard(
+                  title = "基本信息",
+                  trailing = {
+                    UbaaIconAction(
+                        onClick = {
+                          clipboard.setText(AnnotatedString(course.bykcClipboardText()))
+                          UbaaToast.show("博雅课程信息已复制")
+                        },
+                        description = "复制博雅课程信息",
+                        icon = Icons.Default.ContentCopy,
+                    )
+                  },
+              ) {
                 course.courseTeacher?.let { teacher ->
                   DetailItem(label = "授课教师", value = teacher, icon = Icons.Default.Person)
                 }
@@ -366,13 +381,22 @@ fun BykcCourseDetailScreen(
                 ?.takeIf { it.isNotBlank() }
                 ?.let { desc ->
                   item {
-                    val parsedDesc = remember(desc) { desc.toPlainText() }
-                    DetailCard(title = "课程简介") {
-                      Text(
-                          text = parsedDesc,
-                          style = MaterialTheme.typography.bodyMedium,
-                          modifier = Modifier.padding(vertical = 8.dp),
-                      )
+                    DetailCard(
+                        title = "课程简介",
+                        trailing = {
+                          UbaaIconAction(
+                              onClick = {
+                                clipboard.setText(
+                                    AnnotatedString(bykcDescriptionClipboardText(desc))
+                                )
+                                UbaaToast.show("课程简介已复制")
+                              },
+                              description = "复制课程简介文字",
+                              icon = Icons.Default.ContentCopy,
+                          )
+                        },
+                    ) {
+                      BykcCourseDescription(desc)
                     }
                   }
                 }
@@ -534,9 +558,12 @@ fun BykcCourseDetailScreen(
 fun DetailCard(
     title: String,
     modifier: Modifier = Modifier,
+    trailing: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
-  UbaaSectionCard(title = title, modifier = modifier.fillMaxWidth()) { content() }
+  UbaaSectionCard(title = title, modifier = modifier.fillMaxWidth(), trailing = trailing) {
+    content()
+  }
 }
 
 @Composable
@@ -575,19 +602,30 @@ fun DetailItem(
   }
 }
 
-private fun String.toPlainText(): String {
-  // Basic HTML-to-text cleanup for BYKC descriptions
-  return this.replace(Regex("(?i)<br\\s*/?>"), "\n")
-      .replace(Regex("(?i)</p>"), "\n\n")
-      .replace(Regex("<[^>]+>"), "")
-      .replace("&nbsp;", " ")
-      .replace("&lt;", "<")
-      .replace("&gt;", ">")
-      .replace("&amp;", "&")
-      .replace("&quot;", "\"")
-      .replace("&#39;", "'")
-      .lines()
-      .joinToString("\n") { it.trimEnd() }
-      .replace(Regex("\n{3,}"), "\n\n")
-      .trim()
-}
+internal fun BykcCourseDetailDto.bykcClipboardText(): String =
+    buildString {
+          appendLine(courseName)
+          fun field(label: String, value: String?) {
+            if (!value.isNullOrBlank()) appendLine("$label：$value")
+          }
+          field("授课教师", courseTeacher)
+          field("上课地点", coursePosition)
+          field("开课单位", organizerCollegeName)
+          field(
+              "课程分类",
+              listOfNotNull(category?.displayName, subCategory?.displayName).joinToString(" / "),
+          )
+          field("开始时间", courseStartDate?.let(::formatDateTimeDisplay))
+          field("结束时间", courseEndDate?.let(::formatDateTimeDisplay))
+          field("选课开始", courseSelectStartDate?.let(::formatDateTimeDisplay))
+          field("选课截止", courseSelectEndDate?.let(::formatDateTimeDisplay))
+          field("退选截止", courseCancelEndDate?.let(::formatDateTimeDisplay))
+          field("适用校区", audienceCampuses.joinToString("、"))
+          field("适用学院", audienceColleges.joinToString("、"))
+          field("适用年级", audienceTerms.joinToString("、"))
+          field("适用人群", audienceGroups.joinToString("、"))
+          field("联系人", courseContact)
+          field("联系电话", courseContactMobile)
+          courseDesc?.let { html -> field("课程简介", bykcDescriptionClipboardText(html)) }
+        }
+        .trim()

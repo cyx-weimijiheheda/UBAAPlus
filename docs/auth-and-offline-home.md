@@ -90,3 +90,15 @@ JVM 用实际模型识别 UBAA 的公开合成样本 `a2b3c4`。这些检查不�
 继续从实际官网脚本追踪，已确认门户头像由 `/personal/frontend/data/info` 的 `d.info.avatar` 提供，照片与校园卡掌上服务大厅脚本无关；下载前核对 `xgh`，只接受门户同源 HTTPS 图片和受支持图片格式，限制大小，缓存不保存完整资料或图片 URL。本机选图已按用户选择删除，照片与其它业务缓存一起按账户隔离和清理。
 
 消费接口来自校园支付平台的校园卡流水页，使用 `https://mall.cc-pay.cn/api/campus_card/trades`，当前用户的 `stuNo`、`tradeType=consume`、UTC 格式 `minTsCreation/maxTsCreation`、`pageSize/pageNum`。默认北京日期当天，选择范围包含首末日。实际返回 `data.data`、`pageSize/pageNum`；`count` 不作为完整性的依据。金额/余额按分转元，记录排序及显示在原校园卡页下方，失败回退同账户同日期范围的完整缓存。读取与会话激活均复用现有 Direct/WebVPN 和 SSO Cookie；没有实现或调用业务写接口。
+
+## 财务查询与个人资料（2026-11-19）
+
+参照 UBAA `crates/ubaa_core/src/features/finance/{auth,mod,parser}.rs` 的只读合同，新增功能页入口「财务查询」。使用现有 Direct/WebVPN Cookie，CAS service 原值保持 `http://icw.buaa.edu.cn/checkbuaa.aspx`，跟随已知门户跳转时升级 HTTPS；仅允许 SSO login、门户 checkbuaa/Newindex/jump 和查询系统 gxzhcxzhb/login 路径，不跟随外站。网关要求重新登录时返回认证失效。
+
+`jump.aspx?sysid=wscx` 的临时 Userid/Cypt/Stamp 只用于表单认证 `/api-zhcx/login`；Bearer 只保留在本次读取的内存中。`getStudentSRCX` POST 是只读查询，参数 userId/currentPage/limit，按 total 与 ID 去重验证完整分页，失效最多重建一次查询会话。只投影项目、摘要、应发/扣税/实发、税率、录入日期及所属年月；不保存收入响应里的银行卡、证件或认证材料。完整结果按账户加密缓存，失败保留最近成功值。
+
+Newindex 页通过指定的 Lab_* 控件提取个人资料，先验证 Lab_Num 与当前账户一致。姓名、部门、证件、银行卡和联系方式仅在用户打开「个人资料」弹窗后读取/显示；不会把整页 HTML、ASP.NET 隐藏字段或临时票据缓存。实际只读验证已确认身份投影及收入投影可解析，未调用资料修改或其它财务业务写接口。
+
+### 博雅简介图片
+
+简介 HTML 只提取文字与图片，不执行脚本或嵌入页面。相对图片地址基于博雅站点解析；站内图片复用当前连接模式的登录 Cookie 和 WebVPN 地址转换，异步读取并检查账户作用域，限制单张 12 MiB。站内图片不写入 Coil 内存或磁盘缓存；外部 HTTPS 图片使用匿名图片加载器，不携带校园登录凭据。失败只影响对应图片，可单独重试。基本信息和课程简介均提供复制图标；复制简介只包含正文文字，图片位置换行，不含图片说明或链接。
