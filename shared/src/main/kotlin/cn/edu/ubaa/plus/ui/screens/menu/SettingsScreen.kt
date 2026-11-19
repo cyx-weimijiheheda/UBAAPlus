@@ -462,7 +462,7 @@ fun SettingsScreen(
     }
 
     item {
-      SettingsSection(title = "功能选项") {
+      SettingsSection(title = "其他选项") {
         UbaaToggleRow(
             label = "？！！？",
             checked = preferences.mysterySwitchEnabled,
