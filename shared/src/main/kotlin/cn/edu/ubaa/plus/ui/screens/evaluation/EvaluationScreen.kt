@@ -22,8 +22,8 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.evaluation.EvaluationCourse
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
 import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
@@ -180,14 +180,13 @@ fun EvaluationScreen(viewModel: EvaluationViewModel) {
               }
             },
             confirmButton = {
-              UbaaTextButton(
+              UbaaConfirmAction(
                   onClick = {
                     viewModel.clearResults()
                     viewModel.loadPendingCourses()
-                  }
-              ) {
-                Text("确定")
-              }
+                  },
+                  description = "确定",
+              )
             },
         )
       }

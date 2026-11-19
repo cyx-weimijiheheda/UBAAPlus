@@ -26,6 +26,7 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.model.dto.UserData
 import cn.edu.ubaa.plus.model.dto.UserInfo
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
@@ -77,9 +78,7 @@ fun ProfileScreen(
             ProfileInfoRow("学生类型", profileStudentType(metrics.profile?.studentType))
             ProfileInfoRow(
                 "手机号",
-                metrics.financeProfile?.phone
-                    ?: userInfo?.phone?.takeIf { it.isNotBlank() }
-                    ?: "未提供",
+                maskProfileValue(metrics.financeProfile?.phone ?: userInfo?.phone, 2, 2),
             )
             ProfileInfoRow(
                 "邮箱",
@@ -90,12 +89,16 @@ fun ProfileScreen(
             ProfileInfoRow("证件类型", userInfo?.idCardTypeName?.takeIf { it.isNotBlank() } ?: "未提供")
             ProfileInfoRow(
                 "证件号码",
-                metrics.financeProfile?.identityNumber
-                    ?: userInfo?.idCardNumber?.takeIf { it.isNotBlank() }
-                    ?: "未提供",
+                maskProfileValue(
+                    metrics.financeProfile?.identityNumber ?: userInfo?.idCardNumber,
+                    2,
+                    1,
+                ),
             )
             metrics.financeProfile?.department?.let { ProfileInfoRow("财务所属部门", it) }
-            metrics.financeProfile?.bankCard?.let { ProfileInfoRow("银行卡号", it) }
+            metrics.financeProfile?.bankCard?.let {
+              ProfileInfoRow("银行卡号", maskProfileValue(it, 4, 4))
+            }
             if (metrics.financeProfileLoading)
                 Text("正在读取财务个人资料…", style = MaterialTheme.typography.bodySmall)
             metrics.financeProfileError?.let {
@@ -144,14 +147,13 @@ fun ProfileScreen(
           title = { Text("清除当前账户的本地数据？") },
           text = { Text("将删除当前账户的密码、课表、业务缓存及提醒记录，其他账户和外观设置保留。") },
           confirmButton = {
-            UbaaTextButton(
+            UbaaConfirmAction(
                 onClick = {
                   confirmClear = false
                   onLogoutClick(true)
-                }
-            ) {
-              Text("清除并退出")
-            }
+                },
+                description = "清除并退出",
+            )
           },
       )
   val quips = remember { profileQuips() }
@@ -192,15 +194,19 @@ fun ProfileScreen(
                 textAlign = TextAlign.Start,
             )
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "学院未提供",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(6.dp))
-            cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge(
-                profileStudentType(metrics.profile?.studentType)
-            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+              cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge(
+                  metrics.profile?.collegeName?.takeIf { it.isNotBlank() } ?: "学院未提供",
+                  tone = cn.edu.ubaa.plus.ui.common.components.UbaaStatusTone.INFO,
+              )
+              cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge(
+                  profileStudentType(metrics.profile?.studentType),
+                  tone = cn.edu.ubaa.plus.ui.common.components.UbaaStatusTone.INFO,
+              )
+            }
           }
           Icon(
               Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -426,4 +432,11 @@ internal fun profileInitials(name: String): String {
   val words = clean.split(Regex("\\s+")).filter { it.isNotBlank() }
   return if (words.size >= 2) (words.first().take(1) + words.last().take(1)).uppercase(Locale.ROOT)
   else clean.take(2).uppercase(Locale.ROOT)
+}
+
+/** Never expose a complete short or malformed value, even when prefix/suffix would overlap. */
+internal fun maskProfileValue(value: String?, prefix: Int, suffix: Int): String {
+  val text = value?.filterNot { it.isWhitespace() }?.takeIf { it.isNotEmpty() } ?: return "未提供"
+  if (text.length <= prefix + suffix) return "*".repeat(text.length)
+  return text.take(prefix) + "*".repeat(text.length - prefix - suffix) + text.takeLast(suffix)
 }

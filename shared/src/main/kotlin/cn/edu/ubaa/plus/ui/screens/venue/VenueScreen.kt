@@ -40,6 +40,7 @@ import cn.edu.ubaa.plus.model.format.formatUbaaFlexibleRange
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
 import cn.edu.ubaa.plus.ui.common.components.UbaaButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaCheckboxRow
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
@@ -246,7 +247,10 @@ fun VenueScreen(
                         enabled = state.canReserveOnce && !grabbing,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                      Text("确认预约")
+                      androidx.compose.material3.Icon(
+                          androidx.compose.material.icons.Icons.Default.Check,
+                          contentDescription = "确认预约",
+                      )
                     }
                     if (
                         reservation.phase in
@@ -292,14 +296,13 @@ fun VenueScreen(
           )
         },
         confirmButton = {
-          UbaaTextButton(
+          UbaaConfirmAction(
               onClick = {
                 confirmReservation = false
                 viewModel.reserveOnce()
-              }
-          ) {
-            Text("提交预约")
-          }
+              },
+              description = "提交预约",
+          )
         },
         dismissButton = {
           UbaaIconAction(

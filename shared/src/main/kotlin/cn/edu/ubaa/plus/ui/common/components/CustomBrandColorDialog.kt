@@ -123,7 +123,7 @@ fun CustomBrandColorDialog(
         }
       },
       confirmButton = {
-        UbaaTextButton(
+        UbaaConfirmAction(
             onClick = {
               val parsed = parseCustomBrandHex(hexText)
               if (parsed != null) {
@@ -131,10 +131,9 @@ fun CustomBrandColorDialog(
               } else {
                 hexError = true
               }
-            }
-        ) {
-          Text("应用")
-        }
+            },
+            description = "应用",
+        )
       },
       dismissButton = {
         UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)

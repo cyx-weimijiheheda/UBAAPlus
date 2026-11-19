@@ -57,7 +57,7 @@ fun FirstRunDisclaimerDialog(onAccept: () -> Unit) {
           }
         }
       },
-      confirmButton = { UbaaTextButton(onClick = onAccept) { Text("我已知悉并同意") } },
+      confirmButton = { UbaaConfirmAction(onClick = onAccept, description = "我已知悉并同意") },
   )
 }
 
@@ -105,7 +105,7 @@ fun GrabConfirmDialog(
           }
         }
       },
-      confirmButton = { UbaaTextButton(onClick = onConfirm) { Text("确认开始") } },
+      confirmButton = { UbaaConfirmAction(onClick = onConfirm, description = "确认开始") },
       dismissButton = {
         UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
       },

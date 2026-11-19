@@ -320,7 +320,10 @@ fun LibBookReserveScreen(
                       shape = RoundedCornerShape(14.dp),
                       onClick = { showConfirmDialog = true },
                   ) {
-                    Text("确认预约")
+                    androidx.compose.material3.Icon(
+                        androidx.compose.material.icons.Icons.Default.Check,
+                        contentDescription = "确认预约",
+                    )
                   }
                 }
               }

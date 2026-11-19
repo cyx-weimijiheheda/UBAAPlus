@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.feature.*
 import cn.edu.ubaa.plus.ui.common.components.*
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import kotlin.time.Instant
 import kotlinx.datetime.*
 
@@ -181,14 +182,13 @@ internal fun ConsumptionDateDialog(
       shape = UbaaDialogShape,
       colors = colors,
       confirmButton = {
-        UbaaTextButton(
+        UbaaConfirmAction(
             onClick = { selected?.let(onSelect) },
             enabled =
                 selected != null &&
                     consumptionDateSelectable(selected, pickingStart, start, end, today),
-        ) {
-          Text("确定")
-        }
+            description = "确定",
+        )
       },
   ) {
     DatePicker(

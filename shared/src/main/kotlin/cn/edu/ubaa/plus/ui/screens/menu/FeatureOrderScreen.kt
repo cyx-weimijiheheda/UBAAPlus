@@ -36,10 +36,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaSecondaryButton
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 
 /**
@@ -145,14 +145,13 @@ fun FeatureOrderScreen(modifier: Modifier = Modifier) {
         title = { Text("恢复默认设置") },
         text = { Text("所有功能将恢复默认顺序，并重新显示全部功能。此操作不可撤销。") },
         confirmButton = {
-          UbaaTextButton(
+          UbaaConfirmAction(
               onClick = {
                 showResetConfirm = false
                 AppPreferencesStore.resetFeatureCustomization()
-              }
-          ) {
-            Text("恢复默认")
-          }
+              },
+              description = "恢复默认",
+          )
         },
         dismissButton = {
           UbaaIconAction(

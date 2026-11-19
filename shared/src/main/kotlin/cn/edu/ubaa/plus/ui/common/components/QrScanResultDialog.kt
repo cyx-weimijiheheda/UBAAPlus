@@ -32,12 +32,11 @@ fun QrScanResultDialog(
         }
       },
       confirmButton = {
-        UbaaTextButton(
+        UbaaConfirmAction(
             onClick = { onOpenUrl(content.trim()) },
             enabled = isUrl,
-        ) {
-          Text("在浏览器打开")
-        }
+            description = "在浏览器打开",
+        )
       },
       dismissButton = {
         UbaaIconAction(

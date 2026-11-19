@@ -14,9 +14,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
 import cn.edu.ubaa.plus.ui.common.components.UbaaCheckboxRow
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.screens.judge.JudgeSortField
 import cn.edu.ubaa.plus.ui.screens.spoc.SpocSortField
 
@@ -71,7 +71,7 @@ internal fun SpocSortFilterDialog(
         }
       },
       confirmButton = {
-        UbaaTextButton(
+        UbaaConfirmAction(
             onClick = {
               onApply(
                   selectedSortField,
@@ -79,10 +79,9 @@ internal fun SpocSortFilterDialog(
                   selectedShowExpired,
                   selectedShowOnlyUnsubmitted,
               )
-            }
-        ) {
-          Text("应用")
-        }
+            },
+            description = "应用",
+        )
       },
       dismissButton = {
         UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
@@ -141,7 +140,7 @@ internal fun JudgeSortFilterDialog(
         }
       },
       confirmButton = {
-        UbaaTextButton(
+        UbaaConfirmAction(
             onClick = {
               onApply(
                   selectedSortField,
@@ -149,10 +148,9 @@ internal fun JudgeSortFilterDialog(
                   selectedShowExpired,
                   selectedShowOnlyUnfinished,
               )
-            }
-        ) {
-          Text("应用")
-        }
+            },
+            description = "应用",
+        )
       },
       dismissButton = {
         UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)

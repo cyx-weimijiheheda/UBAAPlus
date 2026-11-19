@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.plus.model.dto.SpocAssignmentSummaryDto
 import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
 import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
@@ -43,7 +44,6 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSearchField
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionHeader
 import cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
@@ -142,19 +142,18 @@ private fun SearchAssignmentsDialog(
             modifier = Modifier.fillMaxWidth(),
         )
       },
-      confirmButton = { UbaaTextButton(onClick = { onApply(query) }) { Text("搜索") } },
+      confirmButton = { UbaaConfirmAction(onClick = { onApply(query) }, description = "搜索") },
       dismissButton = {
-        UbaaTextButton(
+        cn.edu.ubaa.plus.ui.common.components.UbaaIconAction(
             onClick = {
               if (initialQuery.isNotBlank()) {
                 onClear()
               } else {
                 onDismiss()
               }
-            }
-        ) {
-          Text(if (initialQuery.isNotBlank()) "清空" else "取消")
-        }
+            },
+            description = if (initialQuery.isNotBlank()) "清空" else "关闭",
+        )
       },
   )
 }

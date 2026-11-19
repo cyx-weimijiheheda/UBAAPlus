@@ -24,13 +24,13 @@ import cn.edu.ubaa.plus.model.dto.canCancelAt
 import cn.edu.ubaa.plus.model.dto.displayReservationDateText
 import cn.edu.ubaa.plus.model.dto.displayStatus
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaEmptyState
 import cn.edu.ubaa.plus.ui.common.components.UbaaErrorState
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaSectionCard
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.common.components.UbaaStatusBadge
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToggleRow
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import kotlinx.serialization.json.JsonElement
@@ -165,15 +165,14 @@ internal fun CgyyOrderDetailDialog(
       },
       confirmButton = {
         if (shouldShowCancelAction(order)) {
-          UbaaTextButton(
+          UbaaConfirmAction(
               onClick = onCancel,
               colors =
                   androidx.compose.material3.ButtonDefaults.textButtonColors(
                       contentColor = MaterialTheme.colorScheme.error
                   ),
-          ) {
-            Text("取消预约")
-          }
+              description = "取消预约",
+          )
         }
       },
       dismissButton = {},

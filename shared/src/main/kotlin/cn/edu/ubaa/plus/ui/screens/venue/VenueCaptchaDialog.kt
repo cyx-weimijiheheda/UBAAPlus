@@ -33,8 +33,8 @@ import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.api.venue.VenueCaptchaChallenge
 import cn.edu.ubaa.plus.api.venue.VenuePoint
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 
 /**
  * 点击文字验证码弹窗。
@@ -118,16 +118,15 @@ fun VenueCaptchaDialog(
         }
       },
       confirmButton = {
-        UbaaTextButton(
+        UbaaConfirmAction(
             onClick = {
               if (bitmap != null && points.size == expected) {
                 onSubmit(points, bitmap.width, bitmap.height)
               }
             },
             enabled = bitmap != null && points.size == expected,
-        ) {
-          Text("提交")
-        }
+            description = "提交",
+        )
       },
       dismissButton = {
         Row {

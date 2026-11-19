@@ -54,6 +54,7 @@ import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
 import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaProgressIndicator
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
@@ -320,14 +321,13 @@ internal fun HomeScreen(
         title = { Text(label) },
         text = { Text("确认对「$place」执行$label？") },
         confirmButton = {
-          UbaaTextButton(
+          UbaaConfirmAction(
               onClick = {
                 pendingLibBookAction = null
                 onLibBookAction(booking, action)
-              }
-          ) {
-            Text("确认")
-          }
+              },
+              description = "确认",
+          )
         },
         dismissButton = {
           UbaaIconAction(

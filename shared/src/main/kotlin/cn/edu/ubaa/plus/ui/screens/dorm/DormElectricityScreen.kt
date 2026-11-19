@@ -47,6 +47,7 @@ import cn.edu.ubaa.plus.model.format.formatUbaaDateTime
 import cn.edu.ubaa.plus.ui.common.components.CampusOnlyNotice
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
 import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaDropdownSelector
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
@@ -363,7 +364,7 @@ private fun DormRechargeConfirmDialog(
           Text("确认后将打开校园支付平台。")
         }
       },
-      confirmButton = { UbaaTextButton(onClick = onConfirm) { Text("去支付") } },
+      confirmButton = { UbaaConfirmAction(onClick = onConfirm, description = "去支付") },
       dismissButton = {
         UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
       },

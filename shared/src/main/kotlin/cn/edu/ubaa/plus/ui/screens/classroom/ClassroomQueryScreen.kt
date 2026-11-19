@@ -20,12 +20,12 @@ import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.ClassroomInfo
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
 import cn.edu.ubaa.plus.ui.common.components.UbaaButton
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSearchField
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
 import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
@@ -65,7 +65,7 @@ fun ClassroomQueryScreen(
     DatePickerDialog(
         onDismissRequest = { showDatePicker = false },
         confirmButton = {
-          UbaaTextButton(
+          UbaaConfirmAction(
               onClick = {
                 datePickerState.selectedDateMillis?.let {
                   viewModel.setDate(
@@ -76,10 +76,9 @@ fun ClassroomQueryScreen(
                   )
                 }
                 showDatePicker = false
-              }
-          ) {
-            Text("确定")
-          }
+              },
+              description = "确定",
+          )
         },
         dismissButton = {
           UbaaIconAction(

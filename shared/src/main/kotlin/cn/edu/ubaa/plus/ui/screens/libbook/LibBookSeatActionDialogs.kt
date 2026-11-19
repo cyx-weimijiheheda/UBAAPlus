@@ -19,8 +19,8 @@ import cn.edu.ubaa.plus.model.dto.LibBookSeatAction
 import cn.edu.ubaa.plus.model.format.formatUbaaDateWithTimeRange
 import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
 import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
+import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 
 /**
  * 座位操作弹窗集合。
@@ -55,12 +55,11 @@ fun LibBookSeatActionDialogs(
           )
         },
         confirmButton = {
-          UbaaTextButton(
+          UbaaConfirmAction(
               onClick = { onConfirmLeave(pendingAction) },
               enabled = !submitting && !locating,
-          ) {
-            Text(if (checkout) "确认离开" else "确认暂离")
-          }
+              description = if (checkout) "确认离开" else "确认暂离",
+          )
         },
         dismissButton = {
           UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
@@ -142,9 +141,11 @@ fun LibBookReserveConfirmDialog(
         }
       },
       confirmButton = {
-        UbaaTextButton(onClick = onConfirm, enabled = !submitting) {
-          Text(if (submitting) "提交中..." else "确认")
-        }
+        UbaaConfirmAction(
+            onClick = onConfirm,
+            enabled = !submitting,
+            description = if (submitting) "提交中..." else "确认",
+        )
       },
       dismissButton = {
         UbaaIconAction(onClick = onDismiss, description = "取消", icon = Icons.Default.Close)
@@ -168,6 +169,11 @@ fun LibBookRulesDialog(onDismiss: () -> Unit) {
           }
         }
       },
-      confirmButton = { UbaaTextButton(onClick = onDismiss) { Text("知道了") } },
+      confirmButton = {
+        cn.edu.ubaa.plus.ui.common.components.UbaaIconAction(
+            onClick = onDismiss,
+            description = "关闭",
+        )
+      },
   )
 }
