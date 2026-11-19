@@ -7,6 +7,8 @@ import cn.edu.ubaa.plus.model.dto.ClassroomInfo
 import cn.edu.ubaa.plus.model.dto.ClassroomQueryResponse
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -41,6 +43,8 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
   /** 当前的搜索关键字流。 */
   val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+  private var queryJob: Job? = null
+  private var queryGeneration = 0L
   private var preferMainBuilding = true
   private val _selectedBuilding = MutableStateFlow<String?>(null)
   /** 当前选中的楼栋。null 表示展示全部楼栋。 */
@@ -111,21 +115,32 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
 
   /** 执行查询动作。 */
   fun query() {
-    viewModelScope.launch {
-      _uiState.value = ClassroomUiState.Loading
-      api.queryClassrooms(_xqid.value, _date.value)
-          .onSuccess {
-            _uiState.value = ClassroomUiState.Success(it)
-            if (
-                preferMainBuilding ||
-                    (_selectedBuilding.value != null && _selectedBuilding.value !in it.d.list.keys)
-            ) {
-              _selectedBuilding.value = it.d.list.keys.firstOrNull { name -> name.trim() == "主楼" }
-              preferMainBuilding = false
-            }
-          }
-          .onFailure { _uiState.value = ClassroomUiState.Error(it.message ?: "未知错误") }
-    }
+    val generation = ++queryGeneration
+    val campus = _xqid.value
+    val day = _date.value
+    queryJob?.cancel()
+    queryJob =
+        viewModelScope.launch {
+          _uiState.value = ClassroomUiState.Loading
+          val result = api.queryClassrooms(campus, day)
+          ensureActive()
+          if (generation != queryGeneration || campus != _xqid.value || day != _date.value)
+              return@launch
+          result
+              .onSuccess {
+                if (
+                    preferMainBuilding ||
+                        (_selectedBuilding.value != null &&
+                            _selectedBuilding.value !in it.d.list.keys)
+                ) {
+                  _selectedBuilding.value =
+                      it.d.list.keys.firstOrNull { name -> name.trim() == "主楼" }
+                  preferMainBuilding = false
+                }
+                _uiState.value = ClassroomUiState.Success(it)
+              }
+              .onFailure { _uiState.value = ClassroomUiState.Error(it.message ?: "未知错误") }
+        }
   }
 
   @OptIn(ExperimentalTime::class)

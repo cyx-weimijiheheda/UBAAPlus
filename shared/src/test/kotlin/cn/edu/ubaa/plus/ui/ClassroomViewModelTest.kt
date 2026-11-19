@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
@@ -213,6 +214,45 @@ class ClassroomViewModelTest {
         listOf("A-101", "A-102"),
         model.filteredData.value.getValue("教学楼A").map { it.name },
     )
+  }
+
+  @Test
+  fun `late results from a previous campus cannot replace the latest campus`() = runTest {
+    setMainDispatcher(testScheduler)
+    val results =
+        mutableListOf<kotlinx.coroutines.CompletableDeferred<Result<ClassroomQueryResponse>>>()
+    val model =
+        ClassroomViewModel(
+            object : ClassroomApi() {
+              override suspend fun queryClassrooms(
+                  xqid: Int,
+                  date: String,
+              ): Result<ClassroomQueryResponse> {
+                val result =
+                    kotlinx.coroutines.CompletableDeferred<Result<ClassroomQueryResponse>>()
+                results += result
+                return kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                  result.await()
+                }
+              }
+            }
+        )
+    model.query()
+    runCurrent()
+    model.setXqid(2)
+    runCurrent()
+    val latest =
+        classroomResponse(mapOf("沙河楼" to listOf(ClassroomInfo("new", "new", "SH-201", "1,2"))))
+    results[1].complete(Result.success(latest))
+    runCurrent()
+    results[0].complete(
+        Result.success(
+            classroomResponse(mapOf("主楼" to listOf(ClassroomInfo("old", "old", "主M201", "1,2"))))
+        )
+    )
+    advanceUntilIdle()
+    assertEquals(2, model.xqid.value)
+    assertEquals(listOf("沙河楼"), model.filteredData.value.keys.toList())
   }
 
   private fun setMainDispatcher(testScheduler: TestCoroutineScheduler) {
