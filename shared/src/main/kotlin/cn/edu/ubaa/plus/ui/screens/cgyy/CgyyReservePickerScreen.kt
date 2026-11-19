@@ -1,17 +1,14 @@
 package cn.edu.ubaa.plus.ui.screens.cgyy
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,7 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Card
@@ -34,37 +33,33 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.CgyyReservationSelectionDto
 import cn.edu.ubaa.plus.model.dto.CgyySpaceAvailabilityDto
 import cn.edu.ubaa.plus.model.dto.CgyyTimeSlotDto
 import cn.edu.ubaa.plus.model.dto.CgyyVenueSiteDto
 import cn.edu.ubaa.plus.model.format.formatUbaaCompactDate
 import cn.edu.ubaa.plus.model.format.formatUbaaMonthDay
+import cn.edu.ubaa.plus.ui.common.components.*
 import cn.edu.ubaa.plus.ui.common.components.UbaaActionChip
 import cn.edu.ubaa.plus.ui.common.components.UbaaButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaLoadingState
 import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
-import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
-import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-
-private val roomColumnWidth = 112.dp
-private val timeSlotColumnWidth = 86.dp
-private val tableHeaderHeight = 62.dp
-private val tableRowHeight = 56.dp
 
 @Composable
 fun CgyyReservePickerScreen(
@@ -89,6 +84,7 @@ fun CgyyReservePickerScreen(
   val availableDates = uiState.dayInfo?.availableDates.orEmpty()
   val visibleSpaces = uiState.dayInfo?.spaces.orEmpty()
   Scaffold(
+      containerColor = Color.Transparent,
       contentWindowInsets =
           WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
       bottomBar = {
@@ -218,144 +214,129 @@ private fun CgyyReservationTable(
     selectedSelections: List<CgyyReservationSelectionDto>,
     onSlotToggle: (Int, Int, Int?) -> Unit,
 ) {
-  val horizontalScroll = rememberScrollState()
-  LazyColumn(modifier = Modifier.fillMaxSize()) {
-    item {
-      Row(
-          modifier =
-              Modifier.fillMaxWidth()
-                  .horizontalScroll(horizontalScroll)
-                  .background(MaterialTheme.colorScheme.surface)
-                  .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-      ) {
-        CgyyTableRoomHeaderCell("教室")
-        timeSlots.forEach { slot -> CgyyTableTimeHeaderCell(slot) }
-      }
-    }
-    items(spaces) { space ->
-      Row(
-          modifier =
-              Modifier.fillMaxWidth()
-                  .height(tableRowHeight)
-                  .horizontalScroll(horizontalScroll)
-                  .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-      ) {
-        Box(
-            modifier =
-                Modifier.width(roomColumnWidth)
-                    .fillMaxHeight()
-                    .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-                    .padding(horizontal = 8.dp),
-            contentAlignment = Alignment.CenterStart,
+  val scroll = rememberScrollState()
+  val scale = androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)
+  val roomWidth = 100.dp * scale
+  val breaks = remember(timeSlots) { cgyyTimeBreaks(timeSlots) }
+  Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+    UbaaAvailabilityLegend(includeSelected = true, modifier = Modifier.padding(vertical = 8.dp))
+    BoxWithConstraints(Modifier.weight(1f)) {
+      val slotWidth = maxOf(66.dp * scale, (maxWidth - roomWidth) / timeSlots.size.coerceAtLeast(1))
+      Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().height(84.dp * scale),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
           Text(
-              text = space.spaceName,
-              style = MaterialTheme.typography.bodyMedium,
-              fontWeight = FontWeight.Bold,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis,
+              "时段",
+              Modifier.width(roomWidth),
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-        }
-
-        timeSlots.forEach { slot ->
-          val slotState = space.slots.firstOrNull { it.timeId == slot.id }
-          val selected =
-              selectedSelections.any { it.spaceId == space.spaceId && it.timeId == slot.id }
-          val isReservable = slotState?.isReservable == true
-          val background =
-              when {
-                selected -> MaterialTheme.colorScheme.primary
-                isReservable -> UbaaColors.current.successContainer
-                else -> Color.Transparent
+          Row(Modifier.weight(1f).horizontalScroll(scroll)) {
+            timeSlots.forEachIndexed { index, slot ->
+              Column(
+                  Modifier.width(slotWidth).padding(vertical = 4.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  verticalArrangement = Arrangement.spacedBy(3.dp),
+              ) {
+                UbaaTimelineMarker((index + 1).toString(), 20.dp * scale)
+                Text(
+                    slot.beginTime.ifBlank { "未提供" },
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                )
+                Text(
+                    slot.endTime.ifBlank { "未提供" },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
               }
-
-          Box(
-              modifier =
-                  Modifier.width(timeSlotColumnWidth)
-                      .fillMaxHeight()
-                      .background(background)
-                      .border(0.3.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                      .padding(2.dp),
-              contentAlignment = Alignment.Center,
-          ) {
-            UbaaTextButton(
-                onClick = {
-                  if (slotState != null && (isReservable || selected)) {
-                    onSlotToggle(space.spaceId, slot.id, space.venueSpaceGroupId)
-                  }
-                },
-                enabled = slotState != null && (isReservable || selected),
-                contentPadding = PaddingValues(0.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-              Text(
-                  text = if (selected) "已选" else "",
-                  color =
-                      if (selected) {
-                        MaterialTheme.colorScheme.onPrimary
-                      } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                      },
-                  fontSize = 11.sp,
-              )
             }
           }
         }
+        LazyColumn(Modifier.weight(1f)) {
+          items(spaces, key = { it.spaceId }) { space ->
+            val statuses =
+                timeSlots.map { slot ->
+                  when {
+                    selectedSelections.any {
+                      it.spaceId == space.spaceId && it.timeId == slot.id
+                    } -> AvailabilityTone.SELECTED
+                    space.slots.firstOrNull { it.timeId == slot.id }?.isReservable == true ->
+                        AvailabilityTone.AVAILABLE
+                    else -> AvailabilityTone.UNAVAILABLE
+                  }
+                }
+            Row(
+                Modifier.fillMaxWidth().height(56.dp * scale),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                  space.spaceName,
+                  modifier = Modifier.width(roomWidth).padding(end = 12.dp),
+                  style = MaterialTheme.typography.bodyMedium,
+                  fontWeight = FontWeight.Medium,
+                  maxLines = 2,
+                  overflow = TextOverflow.Ellipsis,
+              )
+              Box(
+                  Modifier.weight(1f).horizontalScroll(scroll),
+                  contentAlignment = Alignment.CenterStart,
+              ) {
+                UbaaAvailabilityTrack(statuses, slotWidth, breaks)
+                Row {
+                  timeSlots.forEachIndexed { index, slot ->
+                    val slotState = space.slots.firstOrNull { it.timeId == slot.id }
+                    val selected = statuses[index] == AvailabilityTone.SELECTED
+                    val enabled = slotState != null && (slotState.isReservable || selected)
+                    Box(
+                        Modifier.width(slotWidth)
+                            .height(56.dp * scale)
+                            .toggleable(
+                                value = selected,
+                                enabled = enabled,
+                                role = Role.Checkbox,
+                                onValueChange = {
+                                  onSlotToggle(space.spaceId, slot.id, space.venueSpaceGroupId)
+                                },
+                            )
+                            .semantics {
+                              contentDescription =
+                                  "${space.spaceName}，${slot.beginTime}至${slot.endTime}，" +
+                                      if (selected) "已选" else if (enabled) "可预约" else "不可选"
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                      if (selected)
+                          Icon(
+                              Icons.Default.Check,
+                              contentDescription = null,
+                              tint = MaterialTheme.colorScheme.onPrimary,
+                              modifier = Modifier.size(16.dp),
+                          )
+                    }
+                  }
+                }
+              }
+            }
+          }
+          item { Spacer(Modifier.height(16.dp)) }
+        }
       }
     }
-    item { Spacer(modifier = Modifier.height(16.dp)) }
   }
 }
 
-@Composable
-private fun CgyyTableRoomHeaderCell(text: String) {
-  Box(
-      modifier =
-          Modifier.width(roomColumnWidth)
-              .height(tableHeaderHeight)
-              .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-              .padding(horizontal = 8.dp),
-      contentAlignment = Alignment.CenterStart,
-  ) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
-  }
-}
-
-@Composable
-private fun CgyyTableTimeHeaderCell(slot: CgyyTimeSlotDto) {
-  Column(
-      modifier =
-          Modifier.width(timeSlotColumnWidth)
-              .height(tableHeaderHeight)
-              .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-              .padding(horizontal = 4.dp, vertical = 6.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center,
-  ) {
-    Text(
-        text = slot.beginTime,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
-    Text(
-        text = "-${slot.endTime}",
-        style = MaterialTheme.typography.labelSmall,
-        textAlign = TextAlign.Center,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
-  }
-}
+internal fun cgyyTimeBreaks(slots: List<CgyyTimeSlotDto>): Set<Int> =
+    (1 until slots.size)
+        .filter { index ->
+          val previous = slots[index - 1].endTime.trim()
+          val next = slots[index].beginTime.trim()
+          previous.isBlank() || next.isBlank() || previous != next
+        }
+        .toSet()
 
 private fun siteSelectionLabel(site: CgyyVenueSiteDto): String = buildString {
   append(shortVenueName(site.venueName))
