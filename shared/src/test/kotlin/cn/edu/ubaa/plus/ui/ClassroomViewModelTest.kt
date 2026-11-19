@@ -29,7 +29,7 @@ class ClassroomViewModelTest {
   }
 
   @Test
-  fun `query defaults to all buildings with no selection`() = runTest {
+  fun `query without main building defaults to all buildings with no selection`() = runTest {
     setMainDispatcher(testScheduler)
     val viewModel = ClassroomViewModel(fakeApi())
 
@@ -183,11 +183,43 @@ class ClassroomViewModelTest {
     assertEquals(listOf("教学楼A", "教学楼B"), viewModel.filteredData.value.keys.toList())
   }
 
+  @Test
+  fun `有主楼时默认选择主楼而非新主楼且日期切换恢复默认`() = runTest {
+    setMainDispatcher(testScheduler)
+    val model = ClassroomViewModel(fakeApi(includeMain = true))
+    model.query()
+    advanceUntilIdle()
+    assertEquals("主楼", model.selectedBuilding.value)
+    assertEquals(listOf("主楼"), model.filteredData.value.keys.toList())
+    model.toggleBuilding("新主楼")
+    model.setDate("2026-03-20")
+    advanceUntilIdle()
+    assertEquals("主楼", model.selectedBuilding.value)
+  }
+
+  @Test
+  fun `主动查看全部后刷新不覆盖选择且楼栋搜索保留教室`() = runTest {
+    setMainDispatcher(testScheduler)
+    val model = ClassroomViewModel(fakeApi(includeMain = true))
+    model.query()
+    advanceUntilIdle()
+    model.toggleBuilding("主楼")
+    model.query()
+    advanceUntilIdle()
+    assertNull(model.selectedBuilding.value)
+    model.setSearchQuery("教学楼A")
+    advanceUntilIdle()
+    assertEquals(
+        listOf("A-101", "A-102"),
+        model.filteredData.value.getValue("教学楼A").map { it.name },
+    )
+  }
+
   private fun setMainDispatcher(testScheduler: TestCoroutineScheduler) {
     Dispatchers.setMain(StandardTestDispatcher(testScheduler))
   }
 
-  private fun fakeApi(): ClassroomApi {
+  private fun fakeApi(includeMain: Boolean = false): ClassroomApi {
     return object : ClassroomApi() {
       override suspend fun queryClassrooms(
           xqid: Int,
@@ -239,7 +271,30 @@ class ClassroomViewModelTest {
                       )
                   )
             }
-        return Result.success(response)
+        val result =
+            if (includeMain && xqid == 1)
+                response.copy(
+                    d =
+                        response.d.copy(
+                            list =
+                                response.d.list +
+                                    mapOf(
+                                        "主楼" to
+                                            listOf(ClassroomInfo("main", "main", "主M201", "1,2,3")),
+                                        "新主楼" to
+                                            listOf(
+                                                ClassroomInfo(
+                                                    "new-main",
+                                                    "new-main",
+                                                    "新M201",
+                                                    "2,3",
+                                                )
+                                            ),
+                                    )
+                        )
+                )
+            else response
+        return Result.success(result)
       }
     }
   }

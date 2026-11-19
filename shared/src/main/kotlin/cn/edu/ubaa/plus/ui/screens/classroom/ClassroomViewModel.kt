@@ -41,6 +41,7 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
   /** 当前的搜索关键字流。 */
   val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+  private var preferMainBuilding = true
   private val _selectedBuilding = MutableStateFlow<String?>(null)
   /** 当前选中的楼栋。null 表示展示全部楼栋。 */
   val selectedBuilding: StateFlow<String?> = _selectedBuilding.asStateFlow()
@@ -71,10 +72,11 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
                 buildingFilteredData
               } else {
                 buildingFilteredData
-                    .mapValues { (_, list) -> list.filter { it.name.contains(query, true) } }
-                    .filter { (building, list) ->
-                      building.contains(query, true) || list.isNotEmpty()
+                    .mapValues { (building, list) ->
+                      if (building.contains(query, true)) list
+                      else list.filter { it.name.contains(query, true) }
                     }
+                    .filterValues { it.isNotEmpty() }
               }
             } else emptyMap()
           }
@@ -87,12 +89,14 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
 
   /** 切换楼栋筛选；再次点击当前楼栋会恢复到全部楼栋。 */
   fun toggleBuilding(building: String) {
+    preferMainBuilding = false
     _selectedBuilding.value = if (_selectedBuilding.value == building) null else building
   }
 
   /** 切换校区并自动重新查询。 */
   fun setXqid(id: Int) {
     _xqid.value = id
+    preferMainBuilding = true
     _selectedBuilding.value = null
     query()
   }
@@ -100,6 +104,7 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
   /** 切换日期并自动重新查询。 */
   fun setDate(date: String) {
     _date.value = date
+    preferMainBuilding = true
     _selectedBuilding.value = null
     query()
   }
@@ -111,8 +116,12 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
       api.queryClassrooms(_xqid.value, _date.value)
           .onSuccess {
             _uiState.value = ClassroomUiState.Success(it)
-            if (_selectedBuilding.value !in it.d.list.keys) {
-              _selectedBuilding.value = null
+            if (
+                preferMainBuilding ||
+                    (_selectedBuilding.value != null && _selectedBuilding.value !in it.d.list.keys)
+            ) {
+              _selectedBuilding.value = it.d.list.keys.firstOrNull { name -> name.trim() == "主楼" }
+              preferMainBuilding = false
             }
           }
           .onFailure { _uiState.value = ClassroomUiState.Error(it.message ?: "未知错误") }

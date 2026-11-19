@@ -11,14 +11,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cn.edu.ubaa.plus.model.dto.ClassroomInfo
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
+import cn.edu.ubaa.plus.ui.common.components.*
 import cn.edu.ubaa.plus.ui.common.components.UbaaButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaConfirmAction
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconAction
@@ -27,7 +26,6 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaPullToRefresh
 import cn.edu.ubaa.plus.ui.common.components.UbaaSearchField
 import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.common.components.UbaaToastEffect
-import cn.edu.ubaa.plus.ui.theme.UbaaColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassCardColors
 import cn.edu.ubaa.plus.ui.theme.ubaaGlassSurface
 import kotlin.time.Instant
@@ -148,19 +146,7 @@ fun ClassroomQueryScreen(
       )
     }
 
-    // 简单的图例
-    Row(
-        Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-      Box(
-          Modifier.size(12.dp)
-              .background(UbaaColors.current.successContainer, RoundedCornerShape(2.dp))
-              .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-      )
-      Text(" 空闲", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelSmall)
-    }
+    UbaaAvailabilityLegend(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
 
     UbaaPullToRefresh(
         refreshing = uiState is ClassroomUiState.Loading,
@@ -191,109 +177,79 @@ fun ClassroomQueryScreen(
   }
 }
 
-/** 教室排布表。 使用 LazyColumn 实现，包含表头和楼栋分组。 */
+/** Fixed room names and a shared horizontal timeline; no grid borders or repeated building tags. */
 @Composable
 fun ClassroomTable(list: Map<String, List<ClassroomInfo>>) {
-  LazyColumn(Modifier.fillMaxSize()) {
-    // 固定表头
-    stickyHeader {
+  val scroll = rememberScrollState()
+  val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)
+  val nameWidth = 68.dp * fontScale
+  val markerSize = 18.dp * fontScale
+  BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+    val slotWidth = maxOf(20.dp * fontScale, (maxWidth - nameWidth) / 14)
+    Column(Modifier.fillMaxSize()) {
       Row(
-          Modifier.fillMaxWidth()
-              .background(MaterialTheme.colorScheme.surface)
-              .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+          Modifier.fillMaxWidth().height(44.dp * fontScale),
+          verticalAlignment = Alignment.CenterVertically,
       ) {
-        TableCell("教室", 2.2f, true)
-        for (i in 1..14) {
-          TableCell(i.toString(), 1f, true)
+        Text(
+            "节次",
+            Modifier.width(nameWidth),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            Modifier.weight(1f).horizontalScroll(scroll),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+          for (section in 1..14) {
+            Box(Modifier.width(slotWidth), contentAlignment = Alignment.Center) {
+              UbaaTimelineMarker(section.toString(), markerSize)
+            }
+          }
         }
       }
-    }
-
-    list.forEach { (building, classrooms) ->
-      item { BuildingHeader(building) }
-      items(classrooms) { ClassroomRow(it) }
-    }
-    item { Spacer(Modifier.height(16.dp)) }
-  }
-}
-
-/** 楼栋分组标题 (恢复原有的圆角 Surface 风格)。 */
-@Composable
-fun BuildingHeader(name: String) {
-  Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), Alignment.Center) {
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(4.dp),
-    ) {
-      Text(
-          text = name,
-          Modifier.padding(24.dp, 4.dp),
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-      )
-    }
-  }
-}
-
-/** 教室详情行。 使用 Weight 布局实现一页宽度的 1-14 节课展示，无需水平滚动。 */
-@Composable
-fun ClassroomRow(classroom: ClassroomInfo) {
-  val freePeriods =
-      remember(classroom.kxsds) {
-        classroom.kxsds.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+      LazyColumn(Modifier.weight(1f)) {
+        list.forEach { (building, classrooms) ->
+          items(classrooms, key = { "$building:${it.id}" }) { classroom ->
+            val free = remember(classroom.kxsds) { classroomFreeSections(classroom.kxsds) }
+            Row(
+                Modifier.fillMaxWidth().height(48.dp * fontScale),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                  classroom.name,
+                  modifier = Modifier.width(nameWidth).padding(end = 8.dp),
+                  style = MaterialTheme.typography.labelMedium,
+                  maxLines = 2,
+                  overflow = TextOverflow.Ellipsis,
+                  color = MaterialTheme.colorScheme.primary,
+              )
+              Box(
+                  Modifier.weight(1f).horizontalScroll(scroll).semantics {
+                    contentDescription =
+                        if (free.isEmpty()) "没有列为空闲的节次"
+                        else "空闲节次：" + free.sorted().joinToString("、")
+                  },
+                  contentAlignment = Alignment.CenterStart,
+              ) {
+                UbaaAvailabilityTrack(
+                    (1..14).map {
+                      if (it in free) AvailabilityTone.AVAILABLE else AvailabilityTone.UNAVAILABLE
+                    },
+                    slotWidth,
+                )
+              }
+            }
+          }
+        }
+        item { Spacer(Modifier.height(16.dp)) }
       }
-
-  Row(
-      Modifier.fillMaxWidth().height(44.dp).border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-  ) {
-    // 教室名单元格
-    Box(
-        Modifier.weight(2.2f)
-            .fillMaxHeight()
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-        Alignment.Center,
-    ) {
-      Text(
-          text = classroom.name,
-          style = MaterialTheme.typography.bodySmall,
-          fontWeight = FontWeight.Medium,
-          color = MaterialTheme.colorScheme.primary,
-          textAlign = TextAlign.Center,
-          fontSize = 11.sp,
-          lineHeight = 12.sp,
-      )
-    }
-
-    // 1-14 节课状态单元格
-    for (i in 1..14) {
-      val isFree = i in freePeriods
-      Box(
-          Modifier.weight(1f)
-              .fillMaxHeight()
-              .background(if (isFree) UbaaColors.current.successContainer else Color.Transparent)
-              .border(0.3.dp, MaterialTheme.colorScheme.outlineVariant.copy(0.3f))
-      )
     }
   }
 }
 
-/** 通用单元格容器 (表头用)。 */
-@Composable
-fun RowScope.TableCell(text: String, weight: Float, isHeader: Boolean) {
-  Box(
-      Modifier.weight(weight)
-          .height(40.dp) // 略微增加高度以匹配之前的风格
-          .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-      Alignment.Center,
-  ) {
-    Text(
-        text = text,
-        style =
-            if (isHeader) MaterialTheme.typography.labelSmall
-            else MaterialTheme.typography.bodySmall,
-        fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 10.sp,
-    )
-  }
-}
+internal fun classroomFreeSections(value: String): Set<Int> =
+    value
+        .split(',')
+        .mapNotNull { it.trim().toIntOrNull()?.takeIf { section -> section in 1..14 } }
+        .toSet()
