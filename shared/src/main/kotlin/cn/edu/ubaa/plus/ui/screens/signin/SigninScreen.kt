@@ -94,6 +94,9 @@ internal fun formatSigninTimeRange(beginRaw: String, endRaw: String): String {
 @Composable
 fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningIn: Boolean) {
   val isSigned = clazz.signStatus == 1
+  // 所有签到入口统一按「上课前 10 分钟 ~ 下课」判断，未到点或已结束禁用按钮。
+  val window = signinWindow(clazz.classBeginTime, clazz.classEndTime)
+  val windowHint = window.describe()
   Card(
       modifier = Modifier.ubaaGlassSurface().fillMaxWidth(),
       colors =
@@ -129,6 +132,16 @@ fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningI
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
+        if (!isSigned && windowHint != null) {
+          Spacer(modifier = Modifier.height(4.dp))
+          Text(
+              text = windowHint,
+              style = MaterialTheme.typography.bodySmall,
+              color =
+                  if (window.state == SigninWindowState.OPEN) MaterialTheme.colorScheme.primary
+                  else MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
       }
       if (isSigned)
           Icon(
@@ -140,7 +153,7 @@ fun SigninClassCard(clazz: SigninClassDto, onSigninClick: () -> Unit, isSigningI
       else
           UbaaButton(
               onClick = onSigninClick,
-              enabled = !isSigningIn,
+              enabled = !isSigningIn && window.allowsSubmit,
               loading = isSigningIn,
           ) {
             Text(if (isSigningIn) "签到中…" else "签到")
