@@ -25,6 +25,40 @@ interface SigninApiBackend {
       termCode: String,
       courseId: String,
   ): Result<SigninAttendanceResponse>
+
+  /**
+   * 当前课时的排课信息，用于拼课堂签到链接。
+   *
+   * 不在课时时 `courseSchedId` 为 `0`，其余字段为空。
+   */
+  suspend fun getCurrentSocketInfo(): Result<IclassSocketInfoDto> =
+      Result.failure(UnsupportedOperationException("当前连接方式不支持读取课时信息"))
+
+  /**
+   * 读取服务端毫秒时间戳，用于拼签到链接。
+   *
+   * 必须是整数：上游把字符串时间戳当成无效参数并静默丢弃。
+   */
+  suspend fun currentTimestamp(): Long? = null
+}
+
+/**
+ * 当前课时信息。
+ *
+ * @property courseSchedId 排课 ID，`0` 表示当前没有正在进行的课。
+ * @property courseName 课程名，可能为空。
+ * @property classBeginTime 本堂课开始时间。
+ * @property classEndTime 本堂课结束时间。
+ */
+data class IclassSocketInfoDto(
+    val courseSchedId: String = "0",
+    val courseName: String = "",
+    val classBeginTime: String = "",
+    val classEndTime: String = "",
+) {
+  /** 是否处于某节课内；只有此时签到链接才有意义。 */
+  val hasCurrentCourse: Boolean
+    get() = IclassSigninLink.isUsableCourseSchedId(courseSchedId)
 }
 
 /** 课堂签到 API 服务。 用于查询今日可签到的课堂及执行签到动作。 */
@@ -36,6 +70,13 @@ class SigninApi(
   internal constructor(backend: SigninApiBackend) : this({ backend })
 
   private fun currentBackend(): SigninApiBackend = backendProvider()
+
+  /** 当前课时的排课信息，用于拼课堂签到链接。 */
+  suspend fun getCurrentSocketInfo(): Result<IclassSocketInfoDto> =
+      currentBackend().getCurrentSocketInfo()
+
+  /** 服务端毫秒时间戳，用于拼课堂签到链接。 */
+  suspend fun currentTimestamp(): Long? = currentBackend().currentTimestamp()
 
   /**
    * 获取今日所有有签到任务的课堂列表。

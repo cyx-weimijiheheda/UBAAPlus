@@ -210,23 +210,29 @@ class SigninClient(
           return false to error
         }
     return try {
-      // 学校 2026-11 起停用了 stu_scan_sign，提交改走 8181 的 stu_auto_sign：
-      // 不带时间戳、不带查询串，六个字段全部放在表单正文里。
+      val serverTimestamp =
+          AppObservability.observeUpstreamRequest("iclass", "get_timestamp") {
+            client
+                .get(signinCheckinUrl("app/common/get_timestamp.action"))
+                .body<JsonObject>()
+                .get("timestamp")
+                ?.jsonPrimitive
+                ?.content
+          } ?: return false to "获取服务器时间失败"
+
       AppObservability.observeUpstreamRequest("iclass", "sign_in") {
         val response =
             client.submitForm(
-                url = autoSigninUrl(),
-                formParameters =
-                    Parameters.build {
-                      append("id", userId!!)
-                      append("courseSchedId", courseId)
-                      append("routerInfo", AUTO_SIGN_ROUTER_INFO)
-                      append("longitude", AUTO_SIGN_COORDINATE)
-                      append("latitude", AUTO_SIGN_COORDINATE)
-                      append("machineInfo", AUTO_SIGN_MACHINE_INFO)
-                    },
+                url =
+                    signinCheckinUrl(
+                        directPath = "eschool/app/course/stu_scan_sign.action",
+                        webVpnPath = "app/course/stu_scan_sign.action",
+                    ),
+                formParameters = Parameters.build { append("id", userId!!) },
             ) {
               header("sessionId", sessionId)
+              parameter("courseSchedId", courseId)
+              parameter("timestamp", serverTimestamp)
             }
         val jsonResponse = json.parseToJsonElement(response.bodyAsText()).jsonObject
         val success =
@@ -272,14 +278,7 @@ class SigninClient(
     return mapped ?: if (message.isEmpty()) "签到失败，请稍后重试" else "签到失败：$message"
   }
 
-  /**
-   * 直接签到提交地址。
-   *
-   * 直连与 WebVPN 都使用 8181 的 HTTPS 入口；WebVPN 模式下额外包一层 VPN 网关。
-   */
-  private fun autoSigninUrl(): String = VpnCipher.toVpnUrl(AUTO_SIGN_URL)
-
-  // 8347 的只读入口没有 /eschool 前缀，端口和路径需要一起选择。
+  // 8347 的签到提交入口没有 /eschool 前缀，端口和路径需要一起选择。
   private fun signinCheckinUrl(directPath: String, webVpnPath: String = directPath): String {
     val upstreamUrl =
         if (VpnCipher.isEnabled) {
@@ -297,14 +296,6 @@ class SigninClient(
     lastLoginError = null
   }
 }
-
-/** 直接签到提交入口：2026-11 起学校停用 stu_scan_sign，改用 8181 的 stu_auto_sign。 */
-private const val AUTO_SIGN_URL = "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action"
-
-// stu_auto_sign 要求原样提交的固定字段；官方端在非教室场景下也是这些默认值。
-private const val AUTO_SIGN_ROUTER_INFO = "02:00:00:00:00:00"
-private const val AUTO_SIGN_COORDINATE = "0"
-private const val AUTO_SIGN_MACHINE_INFO = "Android"
 
 /** 创建专用于 iclass 的 HttpClient，配置较宽松的 SSL 验证。 */
 private fun buildSigninHttpClient(): HttpClient =

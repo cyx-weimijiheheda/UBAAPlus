@@ -3,7 +3,9 @@ package cn.edu.ubaa.plus.ui.screens.schedule
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -12,16 +14,26 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cn.edu.ubaa.plus.api.feature.IclassSigninLink
+import cn.edu.ubaa.plus.api.feature.SigninApi
 import cn.edu.ubaa.plus.model.dto.CourseClass
 import cn.edu.ubaa.plus.model.dto.TodayClass
 import cn.edu.ubaa.plus.model.format.formatUbaaDate
@@ -33,6 +45,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaAlertDialog
 import cn.edu.ubaa.plus.ui.common.components.UbaaIconButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaToast
 import cn.edu.ubaa.plus.ui.common.util.addCourseToCalendar
+import kotlinx.coroutines.launch
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
@@ -152,6 +165,8 @@ fun CourseDetailDialog(info: CourseDetailInfo, onDismiss: () -> Unit) {
           info.timeText()?.let { DetailLine("时间", it) }
           info.weeksAndTeachers?.takeIf { it.isNotBlank() }?.let { DetailLine("周次/教师", it) }
           info.teachingTarget?.takeIf { it.isNotBlank() }?.let { DetailLine("教学班组成", it) }
+          Spacer(modifier = Modifier.height(4.dp))
+          SigninLinkCard()
         }
       },
       titleActions = {
@@ -206,4 +221,100 @@ private fun DetailLine(label: String, value: String) {
     )
     Text(text = value, style = MaterialTheme.typography.bodyMedium)
   }
+}
+
+/**
+ * 课程详情里的「课程签到链接」卡片。
+ *
+ * 学校每节课前会用二维码公布签到链接，除时间戳外内容固定。这里在本地把链接拼好， 复制后可以直接在浏览器或企业微信里打开——走学校原始入口，不伪造签名。
+ */
+@Composable
+private fun SigninLinkCard() {
+  val clipboard = LocalClipboardManager.current
+  val scope = rememberCoroutineScope()
+  val signinApi = remember { SigninApi() }
+  var state by remember { mutableStateOf<SigninLinkState>(SigninLinkState.Loading) }
+
+  LaunchedEffect(Unit) {
+    state =
+        signinApi
+            .getCurrentSocketInfo()
+            .fold(
+                onSuccess = { info ->
+                  if (!info.hasCurrentCourse) {
+                    SigninLinkState.NoCourse
+                  } else {
+                    val timestamp = signinApi.currentTimestamp()
+                    if (timestamp == null) {
+                      SigninLinkState.Failed("无法获取服务器时间戳")
+                    } else {
+                      val link =
+                          IclassSigninLink.build(
+                              courseSchedId = info.courseSchedId,
+                              timestamp = timestamp,
+                          )
+                      SigninLinkState.Ready(link, info.courseName)
+                    }
+                  }
+                },
+                onFailure = { SigninLinkState.Failed(it.message ?: "课时信息读取失败") },
+            )
+  }
+
+  Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+      Text(
+          text = "课程签到链接",
+          style = MaterialTheme.typography.bodyMedium,
+          fontWeight = FontWeight.Medium,
+      )
+      val hint =
+          when (val current = state) {
+            SigninLinkState.Loading -> "正在获取当前课时…"
+            SigninLinkState.NoCourse -> "当前不在上课时间"
+            is SigninLinkState.Failed -> current.message
+            is SigninLinkState.Ready -> "已带最新时间戳，可复制后打开"
+          }
+      Text(
+          text = hint,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+    UbaaIconButton(
+        onClick = {
+          val current = state
+          if (current is SigninLinkState.Ready) {
+            clipboard.setText(AnnotatedString(current.link))
+            UbaaToast.show("签到链接已复制")
+          } else {
+            scope.launch { UbaaToast.show("当前没有可用的签到链接") }
+          }
+        },
+        enabled = state is SigninLinkState.Ready,
+        modifier = Modifier.size(48.dp),
+    ) {
+      Icon(
+          imageVector = Icons.Default.Link,
+          contentDescription = "复制签到链接",
+          modifier = Modifier.size(18.dp),
+      )
+    }
+  }
+}
+
+/** 签到链接卡片的加载状态。 */
+private sealed interface SigninLinkState {
+  data object Loading : SigninLinkState
+
+  /** 当前不在课时，学校还没生成签到链接。 */
+  data object NoCourse : SigninLinkState
+
+  data class Ready(val link: String, val courseName: String) : SigninLinkState
+
+  data class Failed(val message: String) : SigninLinkState
 }

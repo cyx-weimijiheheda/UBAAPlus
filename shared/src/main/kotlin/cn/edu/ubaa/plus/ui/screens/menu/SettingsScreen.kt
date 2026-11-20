@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +48,7 @@ import cn.edu.ubaa.plus.ui.common.components.UbaaSegmentedTabs
 import cn.edu.ubaa.plus.ui.common.components.UbaaTextButton
 import cn.edu.ubaa.plus.ui.common.components.UbaaTextField
 import cn.edu.ubaa.plus.ui.common.components.UbaaToggleRow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private sealed interface DormRoomsState {
@@ -131,6 +133,8 @@ fun SettingsScreen(
     )
   }
   var showMysteryDisclaimer by remember { mutableStateOf(false) }
+  // 免责声明必须读满 8 秒才允许确认开启，避免一闪而过就点掉。
+  var mysteryDisclaimerSecondsLeft by remember { mutableIntStateOf(MYSTERY_DISCLAIMER_SECONDS) }
   var pendingMode by remember { mutableStateOf<ConnectionMode?>(null) }
   val preferences by AppPreferencesStore.state.collectAsState()
   var showWidgetColorPicker by remember { mutableStateOf(false) }
@@ -153,13 +157,30 @@ fun SettingsScreen(
           },
       )
   if (showMysteryDisclaimer) {
+    // 每次打开都重新计时；倒计时结束前确认按钮不可用。
+    LaunchedEffect(Unit) {
+      mysteryDisclaimerSecondsLeft = MYSTERY_DISCLAIMER_SECONDS
+      while (mysteryDisclaimerSecondsLeft > 0) {
+        delay(1_000)
+        mysteryDisclaimerSecondsLeft -= 1
+      }
+    }
     UbaaAlertDialog(
         onDismissRequest = { showMysteryDisclaimer = false },
         title = { Text("免责声明") },
         text = {
-          Text(
-              "开启后显示博雅抢课与场地抢单控件。自动任务仅在应用前台运行，不保证成功；请求可能受学校规则、名额和网络状况影响。请遵守学校规定，确认课程时间、预约费用及取消规则。结果未确认时请先查询记录，避免重复操作。关闭开关会停止正在运行的自动任务。"
-          )
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "开启后显示博雅抢课与场地抢单控件。自动任务仅在应用前台运行，不保证成功；请求可能受学校规则、名额和网络状况影响。请遵守学校规定，确认课程时间、预约费用及取消规则。结果未确认时请先查询记录，避免重复操作。关闭开关会停止正在运行的自动任务。"
+            )
+            if (mysteryDisclaimerSecondsLeft > 0) {
+              Text(
+                  text = "请阅读完整内容，$mysteryDisclaimerSecondsLeft 秒后可确认",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+          }
         },
         confirmButton = {
           UbaaConfirmAction(
@@ -167,6 +188,7 @@ fun SettingsScreen(
                 showMysteryDisclaimer = false
                 AppPreferencesStore.setMysterySwitchEnabled(true)
               },
+              enabled = mysteryDisclaimerSecondsLeft <= 0,
               description = "我已了解，开启",
           )
         },
@@ -575,3 +597,6 @@ private fun SettingsOptionRow(
     )
   }
 }
+
+/** 免责声明的最短阅读时长（秒）。 */
+internal const val MYSTERY_DISCLAIMER_SECONDS = 8

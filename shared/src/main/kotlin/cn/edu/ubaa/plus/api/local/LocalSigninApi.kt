@@ -6,6 +6,7 @@ import cn.edu.ubaa.plus.api.SIGNIN_LOGIN_REDIRECT_LIMIT
 import cn.edu.ubaa.plus.api.SIGNIN_MY_CENTER_URL
 import cn.edu.ubaa.plus.api.auth.ApiCallException
 import cn.edu.ubaa.plus.api.extractSigninLoginNameFromUrl
+import cn.edu.ubaa.plus.api.feature.IclassSocketInfoDto
 import cn.edu.ubaa.plus.api.feature.SigninApiBackend
 import cn.edu.ubaa.plus.api.resolveSigninRedirectUrl
 import cn.edu.ubaa.plus.model.dto.IclassAttendanceCourseDto
@@ -153,22 +154,25 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     }
 
     return try {
-      // 学校 2026-11 起停用 stu_scan_sign，改走 8181 的 stu_auto_sign：
-      // 不再需要时间戳，六个固定字段全部放正文。scannedTimestamp 保留参数以兼容扫码入口。
+      val timestamp = scannedTimestamp?.takeIf { it.isNotBlank() } ?: fetchSigninTimestamp()
+      if (timestamp.isNullOrBlank()) {
+        return Result.success(
+            SigninActionResponse(code = 400, success = false, message = "获取服务器时间失败")
+        )
+      }
+
       val response =
           LocalUpstreamClientProvider.shared().submitForm(
-              url = localAutoSigninUrl(),
-              formParameters =
-                  Parameters.build {
-                    append("id", signinSession.userId)
-                    append("courseSchedId", courseId)
-                    append("routerInfo", AUTO_SIGN_ROUTER_INFO)
-                    append("longitude", AUTO_SIGN_COORDINATE)
-                    append("latitude", AUTO_SIGN_COORDINATE)
-                    append("machineInfo", AUTO_SIGN_MACHINE_INFO)
-                  },
+              url =
+                  localSigninCheckinUrl(
+                      directPath = "eschool/app/course/stu_scan_sign.action",
+                      webVpnPath = "app/course/stu_scan_sign.action",
+                  ),
+              formParameters = Parameters.build { append("id", signinSession.userId) },
           ) {
             header("sessionId", signinSession.sessionId)
+            parameter("courseSchedId", courseId)
+            parameter("timestamp", timestamp)
           }
       if (response.status != HttpStatusCode.OK) {
         throw ApiCallException("签到服务未返回有效回执", code = "signin_response_unknown")
@@ -185,8 +189,7 @@ internal class LocalSigninApiBackend : SigninApiBackend {
         if (allowRetry && rawMessage?.contains("登录") == true) {
           invalidateSession(authSession.studentId())
           val refreshed = runCatching { currentSession(authSession.studentId()) }.getOrNull()
-          if (refreshed != null)
-              return performSignin(courseId, scannedTimestamp, allowRetry = false)
+          if (refreshed != null) return performSignin(courseId, timestamp, allowRetry = false)
         }
       }
       Result.success(
@@ -215,6 +218,52 @@ internal class LocalSigninApiBackend : SigninApiBackend {
                 ?.content
           }
           .getOrNull()
+
+  /**
+   * 读取当前课时，用于拼课堂签到链接。
+   *
+   * `get_socket_info` 是唯一同时返回 `courseSchedId` 与上下课时间的接口； 不在课时时它返回 `courseSchedId=0`，此时没有必要给出签到链接。
+   */
+  override suspend fun getCurrentSocketInfo(): Result<IclassSocketInfoDto> {
+    val authSession =
+        LocalAuthSessionStore.get() ?: return Result.failure(localUnauthenticatedApiException())
+    val signinSession =
+        runCatching { currentSession(authSession.studentId()) }.getOrNull()
+            ?: return Result.success(IclassSocketInfoDto())
+    return try {
+      val response =
+          LocalUpstreamClientProvider.shared().submitForm(
+              url =
+                  localUpstreamUrl(
+                      "https://iclass.buaa.edu.cn:8181/eschool/app/service/get_socket_info.action"
+                  ),
+              formParameters = Parameters.build { append("id", signinSession.userId) },
+          ) {
+            header("sessionId", signinSession.sessionId)
+          }
+      if (response.status != HttpStatusCode.OK) {
+        return Result.failure(ApiCallException("课时信息暂不可用", code = "signin_socket_unavailable"))
+      }
+      val payload = json.parseToJsonElement(response.bodyAsText()).jsonObject
+      val result = payload["result"]?.jsonObject ?: return Result.success(IclassSocketInfoDto())
+      Result.success(
+          IclassSocketInfoDto(
+              courseSchedId = jsonStringValue(result, "courseSchedId") ?: "0",
+              courseName = jsonStringValue(result, "courseName").orEmpty(),
+              classBeginTime = jsonStringValue(result, "classBeginTime").orEmpty(),
+              classEndTime = jsonStringValue(result, "classEndTime").orEmpty(),
+          )
+      )
+    } catch (e: kotlinx.coroutines.CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      Result.failure(ApiCallException("课时信息读取失败", code = "signin_socket_failed", cause = e))
+    }
+  }
+
+  /** 服务端毫秒时间戳；解析失败返回 null，交给调用方提示。 */
+  override suspend fun currentTimestamp(): Long? =
+      runCatching { fetchSigninTimestamp()?.trim()?.toLongOrNull() }.getOrNull()
 
   override suspend fun getAttendanceTerms(): Result<List<IclassAttendanceTermDto>> =
       withSigninSession("考勤学期加载失败" + localSigninNetworkHint()) { _, session ->
@@ -587,16 +636,6 @@ private fun localSigninNetworkHint(): String =
     } else {
       "，请连接校园网后重试"
     }
-
-/** 直接签到提交地址：直连与 WebVPN 都走 8181 的 HTTPS 入口。 */
-private const val LOCAL_AUTO_SIGN_URL =
-    "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action"
-
-private const val AUTO_SIGN_ROUTER_INFO = "02:00:00:00:00:00"
-private const val AUTO_SIGN_COORDINATE = "0"
-private const val AUTO_SIGN_MACHINE_INFO = "Android"
-
-private fun localAutoSigninUrl(): String = localUpstreamUrl(LOCAL_AUTO_SIGN_URL)
 
 private fun localSigninCheckinUrl(directPath: String, webVpnPath: String = directPath): String {
   val upstreamUrl =

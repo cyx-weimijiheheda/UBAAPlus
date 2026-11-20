@@ -192,51 +192,27 @@ class SigninClientTest {
   }
 
   @Test
-  fun `直连签到使用 8181 stu_auto_sign 且提交六个字段`() = runBlocking { assertSigninRequest(useWebVpn = false) }
+  fun `直连签到使用 8081 eschool 路径且保留提交参数`() = runBlocking { assertSigninRequest(useWebVpn = false) }
 
   @Test
-  fun `WebVPN 签到包装 8181 stu_auto_sign`() = runBlocking { assertSigninRequest(useWebVpn = true) }
-
-  @Test
-  fun `签到提交不再请求时间戳`() = runBlocking {
-    // stu_auto_sign 不带时间戳，旧实现会先 GET get_timestamp.action，这里断言它不再发生。
-    val originalVpnEnabled = VpnCipher.isEnabled
-    VpnCipher.isEnabled = false
-    var timestampRequested = false
-    val sessionManager = buildSigninSessionManager { request ->
-      if (VpnCipher.fromVpnUrl(request.url.toString()).contains("get_timestamp")) {
-        timestampRequested = true
-      }
-    }
-    val appClient = buildSigninAppClient { request, upstreamUrl ->
-      when {
-        upstreamUrl.encodedPath == "/app/user/login.action" ->
-            respondJson("""{"STATUS":0,"result":{"id":"user-1","sessionId":"session-1"}}""")
-        upstreamUrl.port == 8181 -> respondJson("""{"STATUS":0,"result":{"stuSignStatus":1}}""")
-        else -> error("未预期的 app 请求：${request.method.value} ${request.url}")
-      }
-    }
-
-    try {
-      val candidate = sessionManager.prepareSession("24182104")
-      sessionManager.commitSession(candidate, UserData("Test User", "24182104"))
-      val client = SigninClient("24182104", sessionManager = sessionManager, client = appClient)
-
-      assertTrue(client.signIn("course-1").first)
-      assertEquals(false, timestampRequested)
-    } finally {
-      appClient.close()
-      sessionManager.close()
-      VpnCipher.isEnabled = originalVpnEnabled
-    }
-  }
+  fun `WebVPN 签到使用 8347 app 路径且保留提交参数`() = runBlocking { assertSigninRequest(useWebVpn = true) }
 
   private suspend fun assertSigninRequest(useWebVpn: Boolean) {
     val originalVpnEnabled = VpnCipher.isEnabled
     VpnCipher.isEnabled = useWebVpn
     val expectedHost = if (useWebVpn) "d.buaa.edu.cn" else "iclass.buaa.edu.cn"
-    // stu_auto_sign 固定走 8181 的 HTTPS 入口，两条路线一致，WebVPN 只额外包一层网关。
-    val submitUrl = "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action"
+    val timestampUrl =
+        if (useWebVpn) {
+          "https://iclass.buaa.edu.cn:8347/app/common/get_timestamp.action"
+        } else {
+          "http://iclass.buaa.edu.cn:8081/app/common/get_timestamp.action"
+        }
+    val submitUrl =
+        if (useWebVpn) {
+          "https://iclass.buaa.edu.cn:8347/app/course/stu_scan_sign.action"
+        } else {
+          "http://iclass.buaa.edu.cn:8081/eschool/app/course/stu_scan_sign.action"
+        }
     val loginName = "Rjc1QkJDMUMxNzVENkY0NkZCNzFDMEM5RjYwNzg4RDg="
     val sessionManager =
         SessionManager(
@@ -293,23 +269,40 @@ class SigninClientTest {
                           ),
                   )
                 }
-                upstreamUrl.toString() == submitUrl -> {
+                upstreamUrl.toString() == timestampUrl ->
+                    respond(
+                        content = ByteReadChannel("""{"timestamp":"1713600000"}"""),
+                        status = HttpStatusCode.OK,
+                        headers =
+                            headersOf(
+                                HttpHeaders.ContentType,
+                                ContentType.Application.Json.toString(),
+                            ),
+                    )
+                upstreamUrl.toString() ==
+                    "$submitUrl?courseSchedId=course-1&timestamp=1713600000" -> {
                   assertEquals(HttpMethod.Post, request.method)
                   assertEquals("session-1", request.headers["sessionId"])
-                  // stu_auto_sign 不带查询串，六个字段全部在正文里。
-                  assertEquals("", upstreamUrl.encodedQuery)
-                  val form = assertIs<FormDataContent>(request.body).formData
-                  assertEquals("user-1", form["id"])
-                  assertEquals("course-1", form["courseSchedId"])
-                  assertEquals("02:00:00:00:00:00", form["routerInfo"])
-                  assertEquals("0", form["longitude"])
-                  assertEquals("0", form["latitude"])
-                  assertEquals("Android", form["machineInfo"])
-                  assertEquals(6, form.names().count())
-                  respondJson("""{"STATUS":0,"ERRMSG":"签到成功","result":{"stuSignStatus":1}}""")
+                  assertEquals("user-1", assertIs<FormDataContent>(request.body).formData["id"])
+                  respond(
+                      content =
+                          ByteReadChannel(
+                              """{"STATUS":0,"ERRMSG":"签到成功","result":{"stuSignStatus":1}}"""
+                          ),
+                      status = HttpStatusCode.OK,
+                      headers =
+                          headersOf(
+                              HttpHeaders.ContentType,
+                              ContentType.Application.Json.toString(),
+                          ),
+                  )
                 }
-                // 旧入口已停用，请求到它必须失败，避免回退到不可用协议。
-                upstreamUrl.encodedPath.endsWith("stu_scan_sign.action") ->
+                // 与真实上游一致，带有 /eschool 的 8347 请求不能返回签到成功。
+                upstreamUrl
+                    .toString()
+                    .startsWith(
+                        "https://iclass.buaa.edu.cn:8347/eschool/app/course/stu_scan_sign.action"
+                    ) ->
                     respond(
                         content = ByteReadChannel("<html><title>404 Not Found</title></html>"),
                         status = HttpStatusCode.NotFound,
@@ -338,66 +331,3 @@ class SigninClientTest {
     }
   }
 }
-
-/** 签到时 mock 的 SSO 会话管理器：只放行 iClass 引导请求。 */
-private fun buildSigninSessionManager(
-    onRequest: (io.ktor.client.request.HttpRequestData) -> Unit
-): SessionManager =
-    SessionManager(
-        sessionStore = InMemorySessionStore(),
-        cookieStorageFactory = InMemoryCookieStorageFactory(),
-        clientFactory = { _: CookiesStorage ->
-          HttpClient(MockEngine) {
-            engine {
-              addHandler { request ->
-                onRequest(request)
-                val upstreamUrl = Url(VpnCipher.fromVpnUrl(request.url.toString()))
-                if (
-                    upstreamUrl.host == "iclass.buaa.edu.cn" &&
-                        upstreamUrl.port == 8346 &&
-                        upstreamUrl.parameters["type"] == "jumpMyCenter"
-                ) {
-                  respond(
-                      content = "",
-                      status = HttpStatusCode.Found,
-                      headers =
-                          headersOf(
-                              HttpHeaders.Location,
-                              "https://iclass.buaa.edu.cn:8346/?loginName=test-login&type=jumpMyCenter#/MyCenter",
-                          ),
-                  )
-                } else {
-                  error("未预期的 SSO 请求：${request.method.value} ${request.url}")
-                }
-              }
-            }
-          }
-        },
-    )
-
-/** 签名 app 侧 mock 客户端；由用例决定各路由的响应。 */
-private fun buildSigninAppClient(
-    handler:
-        io.ktor.client.engine.mock.MockRequestHandleScope.(
-            io.ktor.client.request.HttpRequestData,
-            Url,
-        ) -> io.ktor.client.request.HttpResponseData
-): HttpClient =
-    HttpClient(MockEngine) {
-      install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-      engine {
-        addHandler { request ->
-          handler(request, Url(VpnCipher.fromVpnUrl(request.url.toString())))
-        }
-      }
-    }
-
-/** 统一的 JSON 响应，避免每个分支重复构造 header。 */
-private fun io.ktor.client.engine.mock.MockRequestHandleScope.respondJson(
-    body: String
-): io.ktor.client.request.HttpResponseData =
-    respond(
-        content = ByteReadChannel(body),
-        status = HttpStatusCode.OK,
-        headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
-    )
