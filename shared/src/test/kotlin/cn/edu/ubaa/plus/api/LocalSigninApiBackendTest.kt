@@ -261,7 +261,7 @@ class LocalSigninApiBackendTest {
                     headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         request.url.toString() ==
-            "http://iclass.buaa.edu.cn:8081/eschool/app/course/stu_scan_sign.action?courseSchedId=course-1&timestamp=1713600000" ->
+            "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action" ->
             respond(
                 content =
                     ByteReadChannel(
@@ -334,7 +334,7 @@ class LocalSigninApiBackendTest {
                     headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         request.url.toString() ==
-            "http://iclass.buaa.edu.cn:8081/eschool/app/course/stu_scan_sign.action?courseSchedId=course-1&timestamp=1713600000" ->
+            "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action" ->
             respond(
                 content =
                     ByteReadChannel(
@@ -450,7 +450,7 @@ class LocalSigninApiBackendTest {
                     headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         request.url.toString() ==
-            "http://iclass.buaa.edu.cn:8081/eschool/app/course/stu_scan_sign.action?courseSchedId=course-1&timestamp=1713600000" ->
+            "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action" ->
             respond(
                 content =
                     ByteReadChannel(
@@ -516,9 +516,7 @@ class LocalSigninApiBackendTest {
             )
         request.url
             .toString()
-            .startsWith(
-                "http://iclass.buaa.edu.cn:8081/eschool/app/course/stu_scan_sign.action"
-            ) -> {
+            .startsWith("https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action") -> {
           signinRequests++
           if (signinRequests == 1) {
             // First attempt: session expired
@@ -555,7 +553,7 @@ class LocalSigninApiBackendTest {
   }
 
   @Test
-  fun `WebVPN 签到使用 8347 app 路径且保留提交参数`() = runTest {
+  fun `WebVPN 签到包装 8181 且不再请求时间戳`() = runTest {
     ConnectionModeStore.save(ConnectionMode.WEBVPN)
     ConnectionRuntime.resolveSelectedMode()
     LocalAuthSessionStore.save(
@@ -595,15 +593,7 @@ class LocalSigninApiBackendTest {
               headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
           )
         }
-        upstreamUrl == "https://iclass.buaa.edu.cn:8347/app/common/get_timestamp.action" ->
-            respond(
-                content = ByteReadChannel("""{"timestamp":"1713600000"}"""),
-                status = HttpStatusCode.OK,
-                headers =
-                    headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
-            )
-        upstreamUrl ==
-            "https://iclass.buaa.edu.cn:8347/app/course/stu_scan_sign.action?courseSchedId=course-1&timestamp=1713600000" -> {
+        upstreamUrl == "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action" -> {
           assertEquals(HttpMethod.Post, request.method)
           assertEquals("session-1", request.headers["sessionId"])
           assertEquals("user-1", assertIs<FormDataContent>(request.body).formData["id"])
@@ -618,7 +608,7 @@ class LocalSigninApiBackendTest {
         }
         // 2026-09-14 上游探测确认：8347 的 /eschool 路径返回 HTML 404。
         upstreamUrl.startsWith(
-            "https://iclass.buaa.edu.cn:8347/eschool/app/course/stu_scan_sign.action"
+            "https://iclass.buaa.edu.cn:8347/eschool/app/course/stu_auto_sign.action"
         ) ->
             respond(
                 content = ByteReadChannel("<html><title>404 Not Found</title></html>"),
@@ -638,17 +628,16 @@ class LocalSigninApiBackendTest {
         result.getOrNull()?.success,
         "响应=${result.getOrNull()}，请求记录=$observedUpstreamUrls",
     )
+    // stu_auto_sign 不带时间戳，旧实现会先 GET get_timestamp.action。
     assertTrue(
-        observedUpstreamUrls.any {
-          it == "https://iclass.buaa.edu.cn:8347/app/common/get_timestamp.action"
-        },
-        "WebVPN 模式应通过 iclass 8347 获取时间戳",
+        observedUpstreamUrls.none { it.contains("get_timestamp") },
+        "新协议不应再请求时间戳，实际请求=$observedUpstreamUrls",
     )
     assertTrue(
         observedUpstreamUrls.any {
-          it.startsWith("https://iclass.buaa.edu.cn:8347/app/course/stu_scan_sign.action")
+          it == "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action"
         },
-        "WebVPN 模式应通过 iclass 8347 的 /app 路径提交签到",
+        "WebVPN 模式应包装 8181 的 stu_auto_sign，实际请求=$observedUpstreamUrls",
     )
   }
 
@@ -657,6 +646,7 @@ class LocalSigninApiBackendTest {
     val loginName = "Rjc1QkJDMUMxNzVENkY0NkZCNzFDMEM5RjYwNzg4RDg="
     var timestampRequests = 0
     var signUrl: String? = null
+    var signForm: io.ktor.http.Parameters? = null
     val engine = MockEngine { request ->
       when {
         request.url.host == "iclass.buaa.edu.cn" &&
@@ -691,9 +681,10 @@ class LocalSigninApiBackendTest {
               headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
           )
         }
-        request.url.port == 8081 &&
-            request.url.encodedPath == "/eschool/app/course/stu_scan_sign.action" -> {
+        request.url.port == 8181 &&
+            request.url.encodedPath == "/app/course/stu_auto_sign.action" -> {
           signUrl = request.url.toString()
+          signForm = assertIs<FormDataContent>(request.body).formData
           respond(
               content =
                   ByteReadChannel("""{"STATUS":0,"ERRMSG":"签到成功","result":{"stuSignStatus":1}}"""),
@@ -709,9 +700,19 @@ class LocalSigninApiBackendTest {
     val result = SigninApi().performSignin("course-9", "1713600999888")
 
     assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
+    // 新协议不再取时间戳，扫码带进来的 timestamp 也不再拼进 URL。
     assertEquals(0, timestampRequests)
-    assertTrue(signUrl.orEmpty().contains("courseSchedId=course-9"))
-    assertTrue(signUrl.orEmpty().contains("timestamp=1713600999888"))
+    assertTrue(signUrl.orEmpty().endsWith("/app/course/stu_auto_sign.action"))
+    assertTrue(signUrl.orEmpty().substringAfter("?", "").isEmpty(), "提交地址不应带查询串")
+    // 六个字段全部在正文里。
+    val form = signForm
+    assertTrue(form != null, "应提交 stu_auto_sign 表单")
+    assertEquals("course-9", form!!["courseSchedId"])
+    assertEquals("02:00:00:00:00:00", form["routerInfo"])
+    assertEquals("0", form["longitude"])
+    assertEquals("0", form["latitude"])
+    assertEquals("Android", form["machineInfo"])
+    assertEquals(6, form.names().count())
   }
 
   @Test

@@ -58,7 +58,7 @@ class LocalSigninOutcomeTest {
                 """{"STATUS":0,"result":{"id":"fixture-user","sessionId":"fixture-session"}}""",
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
-        request.url.encodedPath.endsWith("stu_scan_sign.action") -> {
+        request.url.encodedPath.endsWith("stu_auto_sign.action") -> {
           onSubmit()
           respond(reply, status, headersOf(HttpHeaders.ContentType, "application/json"))
         }

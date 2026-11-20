@@ -153,25 +153,22 @@ internal class LocalSigninApiBackend : SigninApiBackend {
     }
 
     return try {
-      val timestamp = scannedTimestamp?.takeIf { it.isNotBlank() } ?: fetchSigninTimestamp()
-      if (timestamp.isNullOrBlank()) {
-        return Result.success(
-            SigninActionResponse(code = 400, success = false, message = "获取服务器时间失败")
-        )
-      }
-
+      // 学校 2026-11 起停用 stu_scan_sign，改走 8181 的 stu_auto_sign：
+      // 不再需要时间戳，六个固定字段全部放正文。scannedTimestamp 保留参数以兼容扫码入口。
       val response =
           LocalUpstreamClientProvider.shared().submitForm(
-              url =
-                  localSigninCheckinUrl(
-                      directPath = "eschool/app/course/stu_scan_sign.action",
-                      webVpnPath = "app/course/stu_scan_sign.action",
-                  ),
-              formParameters = Parameters.build { append("id", signinSession.userId) },
+              url = localAutoSigninUrl(),
+              formParameters =
+                  Parameters.build {
+                    append("id", signinSession.userId)
+                    append("courseSchedId", courseId)
+                    append("routerInfo", AUTO_SIGN_ROUTER_INFO)
+                    append("longitude", AUTO_SIGN_COORDINATE)
+                    append("latitude", AUTO_SIGN_COORDINATE)
+                    append("machineInfo", AUTO_SIGN_MACHINE_INFO)
+                  },
           ) {
             header("sessionId", signinSession.sessionId)
-            parameter("courseSchedId", courseId)
-            parameter("timestamp", timestamp)
           }
       if (response.status != HttpStatusCode.OK) {
         throw ApiCallException("签到服务未返回有效回执", code = "signin_response_unknown")
@@ -188,7 +185,8 @@ internal class LocalSigninApiBackend : SigninApiBackend {
         if (allowRetry && rawMessage?.contains("登录") == true) {
           invalidateSession(authSession.studentId())
           val refreshed = runCatching { currentSession(authSession.studentId()) }.getOrNull()
-          if (refreshed != null) return performSignin(courseId, timestamp, allowRetry = false)
+          if (refreshed != null)
+              return performSignin(courseId, scannedTimestamp, allowRetry = false)
         }
       }
       Result.success(
@@ -589,6 +587,16 @@ private fun localSigninNetworkHint(): String =
     } else {
       "，请连接校园网后重试"
     }
+
+/** 直接签到提交地址：直连与 WebVPN 都走 8181 的 HTTPS 入口。 */
+private const val LOCAL_AUTO_SIGN_URL =
+    "https://iclass.buaa.edu.cn:8181/app/course/stu_auto_sign.action"
+
+private const val AUTO_SIGN_ROUTER_INFO = "02:00:00:00:00:00"
+private const val AUTO_SIGN_COORDINATE = "0"
+private const val AUTO_SIGN_MACHINE_INFO = "Android"
+
+private fun localAutoSigninUrl(): String = localUpstreamUrl(LOCAL_AUTO_SIGN_URL)
 
 private fun localSigninCheckinUrl(directPath: String, webVpnPath: String = directPath): String {
   val upstreamUrl =
