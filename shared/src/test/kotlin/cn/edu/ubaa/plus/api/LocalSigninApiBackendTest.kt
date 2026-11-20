@@ -35,6 +35,7 @@ class LocalSigninApiBackendTest {
   @BeforeTest
   fun setup() {
     runTest { localConnectionTestMutex.lock() }
+    cn.edu.ubaa.plus.testing.TestSettings.installInMemorySettings()
     ConnectionModeStore.settings = MapSettings()
     LocalAuthSessionStore.settings = MapSettings()
     LocalCookieStore.settings = MapSettings()

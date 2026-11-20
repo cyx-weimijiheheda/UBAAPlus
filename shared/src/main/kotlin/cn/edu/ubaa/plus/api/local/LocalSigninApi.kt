@@ -173,10 +173,16 @@ internal class LocalSigninApiBackend : SigninApiBackend {
             parameter("courseSchedId", courseId)
             parameter("timestamp", timestamp)
           }
+      if (response.status != HttpStatusCode.OK) {
+        throw ApiCallException("签到服务未返回有效回执", code = "signin_response_unknown")
+      }
       val payload = json.parseToJsonElement(response.bodyAsText()).jsonObject
-      val success =
-          isStatusSuccess(payload) &&
-              jsonStringValue(payload["result"]?.jsonObject, "stuSignStatus") == "1"
+      val status = jsonStringValue(payload, "STATUS")
+      val signed = jsonStringValue(payload["result"], "stuSignStatus")
+      if (status.isNullOrBlank() || (isStatusSuccess(payload) && signed.isNullOrBlank())) {
+        throw ApiCallException("签到服务未返回有效回执", code = "signin_response_unknown")
+      }
+      val success = isStatusSuccess(payload) && signed == "1"
       val rawMessage = jsonStringValue(payload, "ERRMSG")
       if (!success) {
         if (allowRetry && rawMessage?.contains("登录") == true) {
@@ -192,8 +198,11 @@ internal class LocalSigninApiBackend : SigninApiBackend {
               message = sanitizeLocalSigninMessage(success, rawMessage),
           )
       )
-    } catch (_: Exception) {
-      Result.success(SigninActionResponse(code = 400, success = false, message = "签到失败，请稍后重试"))
+    } catch (e: kotlinx.coroutines.CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      // 未知写入结果只读核对，不作为明确拒绝后重发。
+      Result.failure(ApiCallException("签到结果未确认，请核对考勤记录", code = "outcome_unknown", cause = e))
     }
   }
 
@@ -638,7 +647,7 @@ private fun inferredTermCode(): String {
 
 internal fun sanitizeLocalSigninMessage(success: Boolean, rawMessage: String?): String {
   if (success) return rawMessage?.takeIf { it.isNotBlank() } ?: "签到成功"
-  val message = rawMessage.orEmpty()
+  val message = rawMessage.orEmpty().trim()
   return when {
     "已签到" in message -> "您今天已经签到过了"
     "未开始" in message -> "当前还未到签到时间"
@@ -647,6 +656,6 @@ internal fun sanitizeLocalSigninMessage(success: Boolean, rawMessage: String?): 
     "范围" in message -> "当前不在可签到范围内"
     "用户不存在" in message -> "签到账号不存在，请联系管理员"
     "课程" in message && "不存在" in message -> "未找到对应课程，请刷新后重试"
-    else -> "签到失败，请稍后重试"
+    else -> if (message.isEmpty()) "签到失败，请稍后重试" else "签到失败：$message"
   }
 }

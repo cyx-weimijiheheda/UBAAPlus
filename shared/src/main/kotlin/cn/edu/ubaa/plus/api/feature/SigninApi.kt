@@ -72,7 +72,7 @@ class SigninApi(
               .getOrNull()
               ?.data
               ?.firstOrNull { it.courseId == courseId && it.signStatus == 1 }
-              ?.let { SigninActionResponse(0, true, "已核实签到成功") }
+              ?.let { SigninActionResponse(0, true, "已核实当前课程为已签到") }
         },
     )
   }
