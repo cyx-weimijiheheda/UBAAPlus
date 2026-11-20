@@ -12,6 +12,7 @@ internal fun bottomTabFor(screen: AppScreen): BottomNavTab? =
       AppScreen.HOME -> BottomNavTab.HOME
       AppScreen.PROFILE,
       AppScreen.SETTINGS,
+      AppScreen.NETWORK_DIAGNOSTICS,
       AppScreen.ABOUT,
       AppScreen.FEATURE_ORDER -> BottomNavTab.PROFILE
       AppScreen.REGULAR,

@@ -94,6 +94,7 @@ enum class AppScreen {
   REGULAR,
   PROFILE,
   SETTINGS,
+  NETWORK_DIAGNOSTICS,
   ABOUT,
   FEATURE_ORDER,
   SCHEDULE,
@@ -149,9 +150,6 @@ fun MainAppScreen(
     isAuthenticated: Boolean = true,
     onLoginRequired: () -> Unit = {},
     authLoading: Boolean = false,
-    authMessage: String? = null,
-    authAction: String = "重试",
-    onAuthRetry: () -> Unit = {},
 ) {
   val revision by cn.edu.ubaa.plus.api.storage.CacheMaintenance.changes.collectAsState()
   val businessStore = remember(userData.schoolid, revision) { androidx.lifecycle.ViewModelStore() }
@@ -178,9 +176,6 @@ fun MainAppScreen(
         isAuthenticated,
         onLoginRequired,
         authLoading,
-        authMessage,
-        authAction,
-        onAuthRetry,
     )
   }
 }
@@ -200,9 +195,6 @@ private fun MainAppContent(
     isAuthenticated: Boolean = true,
     onLoginRequired: () -> Unit = {},
     authLoading: Boolean = false,
-    authMessage: String? = null,
-    authAction: String = "重试",
-    onAuthRetry: () -> Unit = {},
 ) {
   val scope = rememberCoroutineScope()
   val appContext = LocalContext.current
@@ -235,20 +227,7 @@ private fun MainAppContent(
   }
   var homeSyncStarted by
       remember(userData.schoolid, isAuthenticated, cacheRevision) { mutableStateOf(false) }
-  LaunchedEffect(isAuthenticated, authMessage) {
-    homeSnackbarHostState.currentSnackbarData?.dismiss()
-    if (
-        !isAuthenticated &&
-            authMessage != null &&
-            homeSnackbarHostState.showSnackbar(
-                authMessage,
-                actionLabel = authAction,
-                duration = androidx.compose.material3.SnackbarDuration.Indefinite,
-            ) == SnackbarResult.ActionPerformed
-    ) {
-      onAuthRetry()
-    }
-  }
+
   val homeBootstrapCoordinator = remember(scope) { HomeBootstrapCoordinator(scope) }
   val homeBootstrapRunning by homeBootstrapCoordinator.isRunning.collectAsState()
   val homeNow by
@@ -766,6 +745,7 @@ private fun MainAppContent(
                     AppScreen.REGULAR,
                     AppScreen.PROFILE,
                     AppScreen.SETTINGS,
+                    AppScreen.NETWORK_DIAGNOSTICS,
                     AppScreen.ABOUT,
                     AppScreen.FEATURE_ORDER,
                     AppScreen.SCHEDULE,
@@ -1118,6 +1098,7 @@ private fun MainAppContent(
         AppScreen.REGULAR -> "功能"
         AppScreen.PROFILE -> "个人中心"
         AppScreen.SETTINGS -> "设置"
+        AppScreen.NETWORK_DIAGNOSTICS -> "网络诊断"
         AppScreen.ABOUT -> "关于"
         AppScreen.FEATURE_ORDER -> "功能排序与显示"
         AppScreen.SCHEDULE -> "课程表"

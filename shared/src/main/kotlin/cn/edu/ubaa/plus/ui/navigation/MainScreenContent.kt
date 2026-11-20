@@ -239,6 +239,11 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
             )
         AppScreen.VENUE_HOME ->
             venueViewModel?.let { VenueScreen(viewModel = it, onOpenUrl = onOpenUrl) }
+        AppScreen.NETWORK_DIAGNOSTICS ->
+            cn.edu.ubaa.plus.ui.screens.diagnostics.NetworkDiagnosticsRoute(
+                effectiveConnectionMode,
+                isAuthenticated,
+            )
         AppScreen.SETTINGS ->
             SettingsScreen(
                 currentMode = connectionMode,
@@ -251,6 +256,7 @@ internal fun MainScreenContent(state: MainScreenContentState, actions: MainScree
                   venueViewModel?.stopGrab()
                 },
                 onFeatureOrderClick = { navigateTo(AppScreen.FEATURE_ORDER) },
+                onNetworkDiagnosticsClick = { navigateTo(AppScreen.NETWORK_DIAGNOSTICS) },
             )
         AppScreen.ABOUT -> AboutScreen()
         AppScreen.SCHEDULE ->

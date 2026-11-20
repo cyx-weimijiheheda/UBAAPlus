@@ -218,6 +218,8 @@ grep -rn "cardColors(containerColor = MaterialTheme.colorScheme.surface" --inclu
 grep -rn "\.ubaaGlassSurface" -B 2 --include=*.kt shared/src/main/kotlin | grep -E "padding\(|\.size\("
 ```
 
+设置页的网络诊断使用独立页面，覆盖全部功能入口并分别显示服务响应与主要业务只读结果；未登录不查询学校业务，检测禁用离线回退。支持停止、单项重测和脱敏报告导出，不检测学校业务写入。认证恢复和诊断详情见 `docs/network-diagnostics.md`。
+
 ## 许可
 
 [MIT](LICENSE)

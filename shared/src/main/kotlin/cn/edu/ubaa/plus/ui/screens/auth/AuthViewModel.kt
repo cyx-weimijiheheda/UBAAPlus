@@ -26,6 +26,9 @@ class AuthViewModel(
     private val authService: AuthService = AuthService(),
     private val userService: UserService = UserService(),
 ) : ViewModel() {
+  private var automaticRetryJob: Job? = null
+  private var recoveryWanted = false
+  private var foreground = true
   private var initializationAttempted = false
   private var authEpoch = 0
   private var preloadJob: Job? = null
@@ -38,7 +41,9 @@ class AuthViewModel(
   private fun cancelAuthentication() {
     cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.allowOnline(false)
     cn.edu.ubaa.plus.api.recovery.SchoolReadCoordinator.invalidate()
+    recoveryWanted = false
     authEpoch++
+    automaticRetryJob?.cancel()
     listOf(preloadJob, captchaJob, loginJob, initializeJob, validationJob, userInfoJob).forEach {
       it?.cancel()
     }
@@ -78,11 +83,13 @@ class AuthViewModel(
 
   /** 更新表单中的用户名。 */
   fun updateUsername(username: String) {
+    stopAutomaticRecovery()
     _loginForm.value = _loginForm.value.copy(username = username)
   }
 
   /** 更新表单中的密码。 */
   fun updatePassword(password: String) {
+    stopAutomaticRecovery()
     _loginForm.value = _loginForm.value.copy(password = password)
   }
 
@@ -98,6 +105,7 @@ class AuthViewModel(
 
   /** 预加载登录状态。 访问服务端探测当前 SSO 是否已登录，并获取登录所需的执行标识（execution）或验证码。 */
   fun preloadLoginState() {
+    if (automaticRetryJob?.isActive == true) return
     if (preloadJob?.isActive == true) return
     if (CredentialStore.requiresManualLogin()) return
     val epoch = authEpoch
@@ -115,6 +123,7 @@ class AuthViewModel(
                       _uiState.value.copy(
                           isPreloading = false,
                           isLoggedIn = true,
+                          needsUserLogin = false,
                           userData = response.userData,
                           accessToken = response.accessToken?.takeIf { it.isNotBlank() },
                       )
@@ -127,6 +136,7 @@ class AuthViewModel(
                           captchaRequired = response.captchaRequired,
                           captchaInfo = response.captcha,
                           execution = response.execution,
+                          needsUserLogin = true,
                       )
                   _loginForm.value = _loginForm.value.copy(captcha = "")
                 }
@@ -172,7 +182,13 @@ class AuthViewModel(
 
   /** 执行登录提交。 */
   fun login(automatic: Boolean = false) {
-    if (!automatic) CredentialStore.allowLogin()
+    if (!automatic && loginJob?.isActive == true) return
+    if (automatic) {
+      startAutomaticRecovery()
+      return
+    }
+    stopAutomaticRecovery()
+    CredentialStore.allowLogin()
     val form = _loginForm.value
     val state = _uiState.value
     if (form.username.isBlank() || form.password.isBlank()) {
@@ -194,22 +210,7 @@ class AuthViewModel(
               .login(form.username, form.password, captcha, state.execution)
               .onSuccess { loginResponse ->
                 if (epoch != authEpoch) return@onSuccess
-                CachedUserStore.remember(loginResponse.user)
-                _uiState.value =
-                    _uiState.value.copy(
-                        isLoggedIn = true,
-                        isLoading = false,
-                        userData = loginResponse.user,
-                        accessToken = loginResponse.accessToken.takeIf { it.isNotBlank() },
-                        error = null,
-                        captchaRequired = false,
-                    )
-                resetUserInfoState()
-                CredentialStore.setRememberPassword(form.rememberPassword)
-                CredentialStore.setAutoLogin(form.rememberPassword)
-                if (form.rememberPassword)
-                    CredentialStore.saveCredentials(form.username, form.password)
-                if (!form.rememberPassword) _loginForm.value = LoginFormState()
+                acceptLogin(loginResponse, form)
               }
               .onFailure { exception ->
                 if (epoch != authEpoch) return@onFailure
@@ -223,6 +224,7 @@ class AuthViewModel(
                           captchaInfo = exception.captcha,
                           execution = exception.execution,
                           error = "需要补全验证码后登录",
+                          needsUserLogin = true,
                       )
                 } else {
                   val message = exception.message ?: "登录失败"
@@ -238,6 +240,131 @@ class AuthViewModel(
         }
   }
 
+  private fun acceptLogin(
+      response: cn.edu.ubaa.plus.model.dto.LoginResponse,
+      form: LoginFormState,
+  ) {
+    recoveryWanted = false
+    CachedUserStore.remember(response.user)
+    _uiState.value =
+        _uiState.value.copy(
+            isLoggedIn = true,
+            isLoading = false,
+            isRecovering = false,
+            needsUserLogin = false,
+            userData = response.user,
+            accessToken = response.accessToken.takeIf { it.isNotBlank() },
+            error = null,
+            captchaRequired = false,
+        )
+    resetUserInfoState()
+    CredentialStore.setRememberPassword(form.rememberPassword)
+    CredentialStore.setAutoLogin(form.rememberPassword)
+    if (form.rememberPassword) CredentialStore.saveCredentials(form.username, form.password)
+    else _loginForm.value = LoginFormState()
+  }
+
+  private fun stopAutomaticRecovery() {
+    val active = automaticRetryJob?.isActive == true
+    if (active) {
+      authEpoch++
+      automaticRetryJob?.cancel()
+    }
+    recoveryWanted = false
+    _uiState.value =
+        _uiState.value.copy(
+            isRecovering = false,
+            isLoading = if (active) false else _uiState.value.isLoading,
+        )
+  }
+
+  fun requestManualLogin() {
+    cancelAuthentication()
+    _uiState.value =
+        _uiState.value.copy(isLoading = false, isRecovering = false, needsUserLogin = true)
+  }
+
+  fun setForeground(active: Boolean) {
+    foreground = active
+    if (!active) {
+      val recovering = recoveryWanted || automaticRetryJob?.isActive == true
+      if (automaticRetryJob?.isActive == true) authEpoch++
+      automaticRetryJob?.cancel()
+      if (recovering) _uiState.value = _uiState.value.copy(isRecovering = false, isLoading = false)
+    } else if (recoveryWanted) startAutomaticRecovery()
+  }
+
+  private fun startAutomaticRecovery() {
+    if (!CredentialStore.canAutomaticallyAuthenticate()) {
+      recoveryWanted = false
+      _uiState.value = _uiState.value.copy(needsUserLogin = true, isRecovering = false)
+      return
+    }
+    recoveryWanted = true
+    if (!foreground || automaticRetryJob?.isActive == true) return
+    val epoch = authEpoch
+    automaticRetryJob =
+        viewModelScope.launch {
+          var attempt = 0
+          _uiState.value =
+              _uiState.value.copy(isRecovering = true, needsUserLogin = false, isLoggedIn = false)
+          while (
+              epoch == authEpoch &&
+                  foreground &&
+                  recoveryWanted &&
+                  CredentialStore.canAutomaticallyAuthenticate()
+          ) {
+            if (attempt > 0) kotlinx.coroutines.delay(automaticRetryDelay(attempt))
+            val form =
+                LoginFormState(
+                    username = CredentialStore.getUsername().orEmpty(),
+                    password = CredentialStore.getPassword().orEmpty(),
+                    rememberPassword = CredentialStore.isRememberPassword(),
+                )
+            _loginForm.value = form
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            val result =
+                try {
+                  authService.login(form.username, form.password, null, null)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                  throw e
+                } catch (e: Exception) {
+                  Result.failure(e)
+                }
+            if (epoch != authEpoch) return@launch
+            if (result.isSuccess) {
+              acceptLogin(result.getOrThrow(), form)
+              return@launch
+            }
+            val error = result.exceptionOrNull()!!
+            cn.edu.ubaa.plus.api.storage.LocalDiagnostics.record("auth", "restore", error)
+            if (error is CaptchaRequiredClientException) {
+              recoveryWanted = false
+              _uiState.value =
+                  _uiState.value.copy(
+                      isLoading = false,
+                      isRecovering = false,
+                      needsUserLogin = true,
+                      captchaRequired = true,
+                      captchaInfo = error.captcha,
+                      execution = error.execution,
+                      error = "需要补全验证码后登录",
+                  )
+              return@launch
+            }
+            _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "登录失败")
+            if (!isTransientAuthenticationFailure(error)) {
+              recoveryWanted = false
+              _uiState.value = _uiState.value.copy(isRecovering = false, needsUserLogin = true)
+              return@launch
+            }
+            attempt++
+          }
+          if (epoch == authEpoch)
+              _uiState.value = _uiState.value.copy(isLoading = false, isRecovering = false)
+        }
+  }
+
   /** 应用全局初始化入口。 用于检查本地 Token 是否有效，若失效则根据设置决定跳转登录页或尝试自动登录。 */
   fun retryAuthentication() {
     initializationAttempted = false
@@ -245,7 +372,12 @@ class AuthViewModel(
   }
 
   fun initializeApp() {
-    if (CredentialStore.requiresManualLogin() || initializationAttempted) return
+    if (
+        CredentialStore.requiresManualLogin() ||
+            initializationAttempted ||
+            automaticRetryJob?.isActive == true
+    )
+        return
     if (ConnectionRuntime.currentMode() == null) return
     if (
         initializeJob?.isActive == true ||
@@ -291,11 +423,15 @@ class AuthViewModel(
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 if (!isExpiredSession(error)) {
                   _uiState.value = _uiState.value.copy(error = error.message)
+                  startAutomaticRecovery()
                   return@onFailure
                 }
                 authService.clearStoredSession()
-                if (CredentialStore.canAutomaticallyAuthenticate()) login(automatic = true)
-                else preloadLoginState()
+                if (CredentialStore.canAutomaticallyAuthenticate()) startAutomaticRecovery()
+                else {
+                  _uiState.value = _uiState.value.copy(needsUserLogin = true)
+                  preloadLoginState()
+                }
               }
         }
   }
@@ -368,7 +504,13 @@ class AuthViewModel(
   /** 前台恢复时验证当前会话是否仍然有效。 如果会话过期或网络暂时不可用，根据错误类型决定保留还是清除会话。 */
   fun validateSession() {
     if (!_uiState.value.isLoggedIn) return
-    if (validationJob?.isActive == true) return
+    if (
+        validationJob?.isActive == true ||
+            initializeJob?.isActive == true ||
+            loginJob?.isActive == true ||
+            automaticRetryJob?.isActive == true
+    )
+        return
     val epoch = authEpoch
     validationJob =
         viewModelScope.launch {
@@ -387,15 +529,19 @@ class AuthViewModel(
                 if (epoch != authEpoch) return@onFailure
                 cn.edu.ubaa.plus.api.storage.LocalDiagnostics.record("auth", "restore", error)
                 if (!isExpiredSession(error)) {
-                  // 网络暂时不可用，保留会话状态
+                  _uiState.value = _uiState.value.copy(error = error.message)
+                  startAutomaticRecovery()
                   return@onFailure
                 }
                 // 会话确实过期了
                 authService.clearStoredSession()
                 resetUserInfoState()
                 _uiState.value = AuthUiState()
-                if (CredentialStore.canAutomaticallyAuthenticate()) login(automatic = true)
-                else preloadLoginState()
+                if (CredentialStore.canAutomaticallyAuthenticate()) startAutomaticRecovery()
+                else {
+                  _uiState.value = _uiState.value.copy(needsUserLogin = true)
+                  preloadLoginState()
+                }
               }
         }
   }
@@ -415,6 +561,8 @@ class AuthViewModel(
 /** 认证模块 UI 状态模型。 */
 data class AuthUiState(
     val isLoading: Boolean = false,
+    val isRecovering: Boolean = false,
+    val needsUserLogin: Boolean = false,
     val isPreloading: Boolean = false,
     val isRefreshingCaptcha: Boolean = false,
     val isLoggedIn: Boolean = false,
@@ -473,3 +621,26 @@ internal fun isExpiredSession(error: Throwable): Boolean =
                     "session_expired",
                     "not_logged_in",
                 ))
+
+internal fun automaticRetryDelay(attempt: Int): Long =
+    when (attempt) {
+      1 -> 2_000
+      2 -> 5_000
+      3 -> 15_000
+      4 -> 30_000
+      else -> 60_000
+    }
+
+internal fun isTransientAuthenticationFailure(error: Throwable): Boolean {
+  if (error is CaptchaRequiredClientException) return false
+  val e = error as? ApiCallException
+  if (
+      e?.code in setOf("invalid_credentials", "unsupported_portal") ||
+          error.message.orEmpty().contains("密码")
+  )
+      return false
+  return error is java.io.IOException ||
+      error is io.ktor.client.plugins.HttpRequestTimeoutException ||
+      e?.status?.value?.let { it >= 500 || it == 429 } == true ||
+      error.message.orEmpty().let { it.contains("超时") || it.contains("网络") || it.contains("暂时不可用") }
+}

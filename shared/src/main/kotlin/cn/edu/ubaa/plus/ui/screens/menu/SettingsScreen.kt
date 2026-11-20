@@ -1,7 +1,5 @@
 package cn.edu.ubaa.plus.ui.screens.menu
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,7 +32,6 @@ import cn.edu.ubaa.plus.api.ConnectionMode
 import cn.edu.ubaa.plus.api.feature.DormElectricityApi
 import cn.edu.ubaa.plus.api.storage.AppPreferencesStore
 import cn.edu.ubaa.plus.api.storage.FeatureLayout
-import cn.edu.ubaa.plus.api.storage.LocalDiagnostics
 import cn.edu.ubaa.plus.api.storage.ThemeMode
 import cn.edu.ubaa.plus.api.storage.WidgetColorMode
 import cn.edu.ubaa.plus.model.dto.DormRoomDto
@@ -66,6 +63,7 @@ fun SettingsScreen(
     availableModes: List<ConnectionMode>,
     onModeSelected: (ConnectionMode) -> Unit,
     onFeatureOrderClick: () -> Unit,
+    onNetworkDiagnosticsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     allowSchoolReads: Boolean = true,
     onLoginRequired: () -> Unit = {},
@@ -75,7 +73,6 @@ fun SettingsScreen(
   val cacheScope = androidx.compose.runtime.rememberCoroutineScope()
   var showMaterial by remember { mutableStateOf(false) }
   var showDormDefaults by remember { mutableStateOf(false) }
-  var showDiagnostics by remember { mutableStateOf(false) }
   var showClearCache by remember { mutableStateOf(false) }
   var clearingCache by remember { mutableStateOf(false) }
   var cacheBytes by remember { mutableStateOf<Long?>(null) }
@@ -133,23 +130,6 @@ fun SettingsScreen(
         },
     )
   }
-  val diagnosticContext = androidx.compose.ui.platform.LocalContext.current
-  var diagnosticCount by remember { mutableStateOf(LocalDiagnostics.issues().size) }
-  val diagnosticExport =
-      rememberLauncherForActivityResult(
-          ActivityResultContracts.CreateDocument("application/json")
-      ) { uri ->
-        if (uri != null) {
-          val result = runCatching {
-            diagnosticContext.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
-              it.write(LocalDiagnostics.export())
-            } ?: error("输出文件不可用")
-          }
-          cn.edu.ubaa.plus.ui.common.components.UbaaToast.show(
-              if (result.isSuccess) "诊断已导出" else "诊断导出失败，请重试"
-          )
-        }
-      }
   var showMysteryDisclaimer by remember { mutableStateOf(false) }
   var pendingMode by remember { mutableStateOf<ConnectionMode?>(null) }
   val preferences by AppPreferencesStore.state.collectAsState()
@@ -263,6 +243,30 @@ fun SettingsScreen(
       }
     }
     item {
+      SettingsSection(title = "连接与诊断") {
+        Text(
+            text = "当前模式：${currentMode.displayName}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        UbaaSegmentedTabs(
+            labels = availableModes.map { it.displayName },
+            selectedIndex = availableModes.indexOf(currentMode),
+            onSelected = { index ->
+              availableModes[index].takeIf { it != currentMode }?.let { pendingMode = it }
+            },
+        )
+        Text(
+            currentMode.description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        SettingsOptionRow("网络诊断", "逐项检查全部功能，查看并导出脱敏结果", onClick = onNetworkDiagnosticsClick)
+      }
+    }
+    item {
       SettingsSection(title = "功能与提醒") {
         Text("功能页布局", style = MaterialTheme.typography.bodyLarge)
         UbaaSegmentedTabs(
@@ -290,55 +294,6 @@ fun SettingsScreen(
               color = MaterialTheme.colorScheme.error,
           )
         }
-      }
-    }
-    item {
-      SettingsSection(title = "桌面小组件") {
-        Text("显示模式", style = MaterialTheme.typography.bodyLarge)
-        UbaaSegmentedTabs(
-            labels = ThemeMode.entries.map { it.displayName },
-            selectedIndex = preferences.widgetThemeMode.ordinal,
-            onSelected = { AppPreferencesStore.setWidgetAppearance(mode = ThemeMode.entries[it]) },
-        )
-        UbaaDropdownSelector(
-            selectedText = preferences.widgetColorMode.displayName,
-            options = WidgetColorMode.entries.map { it.displayName },
-            onSelected = {
-              AppPreferencesStore.setWidgetAppearance(color = WidgetColorMode.entries[it])
-            },
-            label = "配色",
-        )
-        if (preferences.widgetColorMode == WidgetColorMode.CUSTOM) {
-          UbaaTextButton(onClick = { showWidgetColorPicker = true }) { Text("设置小组件颜色") }
-        }
-        Text(
-            "今日课程小组件同时显示待办，也可单独添加待办小组件。待办来自应用同步快照；打开首页可更新。Android 12 以下壁纸配色回退到应用配色。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
-    }
-    item {
-      SettingsSection(title = "连接与数据") {
-        Text(
-            text = "当前模式：${currentMode.displayName}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        UbaaSegmentedTabs(
-            labels = availableModes.map { it.displayName },
-            selectedIndex = availableModes.indexOf(currentMode),
-            onSelected = { index ->
-              availableModes[index].takeIf { it != currentMode }?.let { pendingMode = it }
-            },
-        )
-        Text(
-            currentMode.description,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
         SettingsOptionRow(
             "寝室用电默认值",
             listOf(preferences.dormCampus, preferences.dormBuilding, preferences.dormRoom)
@@ -420,37 +375,42 @@ fun SettingsScreen(
             }
           }
         }
+      }
+    }
+    item {
+      SettingsSection(title = "桌面小组件") {
+        Text("显示模式", style = MaterialTheme.typography.bodyLarge)
+        UbaaSegmentedTabs(
+            labels = ThemeMode.entries.map { it.displayName },
+            selectedIndex = preferences.widgetThemeMode.ordinal,
+            onSelected = { AppPreferencesStore.setWidgetAppearance(mode = ThemeMode.entries[it]) },
+        )
+        UbaaDropdownSelector(
+            selectedText = preferences.widgetColorMode.displayName,
+            options = WidgetColorMode.entries.map { it.displayName },
+            onSelected = {
+              AppPreferencesStore.setWidgetAppearance(color = WidgetColorMode.entries[it])
+            },
+            label = "配色",
+        )
+        if (preferences.widgetColorMode == WidgetColorMode.CUSTOM) {
+          UbaaTextButton(onClick = { showWidgetColorPicker = true }) { Text("设置小组件颜色") }
+        }
+        Text(
+            "今日课程小组件同时显示待办，也可单独添加待办小组件。待办来自应用同步快照；打开首页可更新。Android 12 以下壁纸配色回退到应用配色。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+    }
+    item {
+      SettingsSection(title = "数据与存储") {
         SettingsOptionRow(
             "清理缓存",
             if (clearingCache) "清理中…" else "$cacheSizeLabel · 保留登录信息、设置与本地课表",
             enabled = !clearingCache,
             onClick = { showClearCache = true },
         )
-        SettingsOptionRow(
-            "问题诊断",
-            "$diagnosticCount 条脱敏记录",
-            expanded = showDiagnostics,
-            onClick = { showDiagnostics = !showDiagnostics },
-        )
-        if (showDiagnostics) {
-          Text(
-              "本机已记录 $diagnosticCount 条诊断，仅包含功能、连接方式和错误分类。",
-              style = MaterialTheme.typography.bodySmall,
-          )
-          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            UbaaTextButton(onClick = { diagnosticExport.launch("UBAAPlus-diagnostics.json") }) {
-              Text("导出脱敏诊断")
-            }
-            UbaaTextButton(
-                onClick = {
-                  LocalDiagnostics.clear()
-                  diagnosticCount = 0
-                }
-            ) {
-              Text("清除记录")
-            }
-          }
-        }
       }
     }
     item {

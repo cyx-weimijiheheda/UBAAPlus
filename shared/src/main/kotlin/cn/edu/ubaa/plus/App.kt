@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -102,8 +103,12 @@ fun App() {
     var showLogin by rememberSaveable {
       mutableStateOf(cn.edu.ubaa.plus.api.storage.CredentialStore.requiresManualLogin())
     }
-    LaunchedEffect(uiState.isLoggedIn) { if (uiState.isLoggedIn) showLogin = false }
-    BackHandler(enabled = showLogin && cachedUser != null) { showLogin = false }
+    LaunchedEffect(uiState.isLoggedIn, uiState.needsUserLogin) {
+      if (uiState.isLoggedIn) showLogin = false else if (uiState.needsUserLogin) showLogin = true
+    }
+    BackHandler(enabled = showLogin && cachedUser != null && !uiState.needsUserLogin) {
+      showLogin = false
+    }
 
     val loginForm by authViewModel.loginForm.collectAsState()
     val appScope = rememberCoroutineScope()
@@ -190,16 +195,23 @@ fun App() {
 
     // 前台恢复时验证会话有效性
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner, uiState.isLoggedIn) {
+    LaunchedEffect(lifecycleOwner) {
       var wasInBackground = false
       val observer = LifecycleEventObserver { _, event ->
         when (event) {
-          Lifecycle.Event.ON_STOP -> wasInBackground = true
+          Lifecycle.Event.ON_STOP -> {
+            wasInBackground = true
+            authViewModel.setForeground(false)
+          }
           Lifecycle.Event.ON_RESUME -> {
+            authViewModel.setForeground(true)
             if (wasInBackground) {
               wasInBackground = false
-              if (uiState.isLoggedIn) authViewModel.validateSession()
-              else if (cachedUser != null && !uiState.isLoading && !uiState.isPreloading)
+              if (authViewModel.uiState.value.isLoggedIn) authViewModel.validateSession()
+              else if (
+                  !authViewModel.uiState.value.needsUserLogin &&
+                      !authViewModel.uiState.value.isLoading
+              )
                   authViewModel.initializeApp()
               appScope.launch { checkStartupPrompts() }
             }
@@ -337,12 +349,17 @@ fun App() {
           )
       !isSplashFinished -> SplashScreen(modifier = Modifier.fillMaxSize())
       showOfflineSchedule -> OfflineScheduleScreen(onBack = { showOfflineSchedule = false })
-      (uiState.isLoggedIn && uiState.userData != null || cachedUser != null) && !showLogin -> {
+      (uiState.isLoggedIn && uiState.userData != null || cachedUser != null) &&
+          !showLogin &&
+          !uiState.needsUserLogin -> {
         val userData = uiState.userData ?: requireNotNull(cachedUser)
         key(userData.schoolid) {
           MainAppScreen(
               isAuthenticated = uiState.isLoggedIn,
-              onLoginRequired = { showLogin = true },
+              onLoginRequired = {
+                authViewModel.requestManualLogin()
+                showLogin = true
+              },
               userData = userData,
               userInfo = uiState.userInfo,
               connectionMode = selectedConnectionMode ?: ConnectionMode.DIRECT,
@@ -361,59 +378,30 @@ fun App() {
                 showLogin = true
                 authViewModel.logout(clear)
               },
-              authLoading = uiState.isLoading || uiState.isPreloading,
-              authMessage =
-                  when {
-                    uiState.isLoading || uiState.isPreloading -> null
-                    uiState.captchaRequired -> "需要补全验证码后登录"
-                    uiState.error != null -> uiState.error
-                    !uiState.isLoggedIn -> "当前显示已保存数据，登录后更新"
-                    else -> null
-                  },
-              authAction =
-                  when {
-                    uiState.captchaRequired -> "补全登录"
-                    !cn.edu.ubaa.plus.api.storage.CredentialStore.canAutomaticallyAuthenticate() ->
-                        "登录"
-                    uiState.error?.contains("密码") == true -> "重新登录"
-                    else -> "重试"
-                  },
-              onAuthRetry = {
-                if (
-                    uiState.captchaRequired ||
-                        uiState.error?.contains("密码") == true ||
-                        !cn.edu.ubaa.plus.api.storage.CredentialStore.canAutomaticallyAuthenticate()
-                )
-                    showLogin = true
-                else authViewModel.retryAuthentication()
-              },
+              authLoading = uiState.isLoading || uiState.isPreloading || uiState.isRecovering,
               modifier = Modifier.fillMaxSize(),
           )
         }
       }
-      !showLogin && cn.edu.ubaa.plus.api.storage.CredentialStore.canAutomaticallyAuthenticate() -> {
+      !showLogin &&
+          !uiState.needsUserLogin &&
+          cn.edu.ubaa.plus.api.storage.CredentialStore.canAutomaticallyAuthenticate() -> {
         androidx.compose.foundation.layout.Column(
             Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(24.dp),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         ) {
           Text("主页", style = MaterialTheme.typography.headlineMedium)
-          Text(
-              if (uiState.isLoading || uiState.isPreloading) "正在恢复登录…"
-              else uiState.error ?: "登录后加载课程与待办"
+          Text("正在自动恢复登录…", style = MaterialTheme.typography.bodyLarge)
+          androidx.compose.material3.LinearProgressIndicator(
+              modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
           )
-          if (!uiState.isLoading && !uiState.isPreloading) {
-            cn.edu.ubaa.plus.ui.common.components.UbaaButton(
-                onClick = {
-                  if (uiState.captchaRequired || uiState.error?.contains("密码") == true)
-                      showLogin = true
-                  else authViewModel.retryAuthentication()
-                }
-            ) {
-              Text(if (uiState.captchaRequired) "补全登录" else "重试")
-            }
-            cn.edu.ubaa.plus.ui.common.components.UbaaTextButton(onClick = { showLogin = true }) {
-              Text("修改登录信息")
-            }
+          cn.edu.ubaa.plus.ui.common.components.UbaaTextButton(
+              onClick = {
+                authViewModel.requestManualLogin()
+                showLogin = true
+              }
+          ) {
+            Text("修改登录信息")
           }
         }
       }

@@ -17,6 +17,11 @@ import kotlinx.datetime.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScheduleViewModelTest {
+  @BeforeTest
+  fun setup() {
+    cn.edu.ubaa.plus.testing.TestSettings.installInMemorySettings()
+  }
+
   @AfterTest
   fun cleanup() {
     Dispatchers.resetMain()

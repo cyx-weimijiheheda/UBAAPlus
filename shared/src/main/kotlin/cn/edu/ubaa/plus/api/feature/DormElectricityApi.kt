@@ -62,7 +62,13 @@ internal class LocalDormElectricityApiBackend(
   override suspend fun getRooms(): Result<List<DormRoomDto>> =
       execute("宿舍电表列表加载失败") {
         val cached = synchronized(RoomCache) { RoomCache.rooms }
-        if (cached != null) return@execute cached
+        if (
+            cached != null &&
+                kotlinx.coroutines
+                    .currentCoroutineContext()[cn.edu.ubaa.plus.api.recovery.FreshSchoolRead.Key] ==
+                    null
+        )
+            return@execute cached
         val body = getText("/PubBuaa/QueryIdData?refresh=false")
         val rooms = parseRooms(body)
         synchronized(RoomCache) { RoomCache.rooms = rooms }

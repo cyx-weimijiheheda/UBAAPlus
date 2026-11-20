@@ -100,7 +100,7 @@ class AuthRecoveryTest {
   }
 
   @Test
-  fun timeoutPreservesSessionAndCachedIdentityUntilExplicitRetry() = runTest {
+  fun timeoutImmediatelyRestoresLoginAndPreservesCachedIdentity() = runTest {
     CachedUserStore.remember(UserData("Alice", "alice"))
     val auth =
         FakeAuth(true).apply {
@@ -110,13 +110,12 @@ class AuthRecoveryTest {
     model.initializeApp()
     model.initializeApp()
     advanceUntilIdle()
-    assertEquals(0, auth.logins)
+    assertEquals(1, auth.logins)
     assertEquals(0, auth.clears)
     assertNotNull(CachedUserStore.current())
-    assertEquals("timeout", model.uiState.value.error)
-    model.retryAuthentication()
-    advanceUntilIdle()
-    assertEquals(2, auth.statuses)
+    assertTrue(model.uiState.value.isLoggedIn)
+    assertNull(model.uiState.value.error)
+    assertEquals(1, auth.statuses)
   }
 
   @Test

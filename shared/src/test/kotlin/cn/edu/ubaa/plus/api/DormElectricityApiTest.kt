@@ -94,6 +94,25 @@ class DormElectricityApiTest {
   }
 
   @Test
+  fun `诊断强制访问电表服务而普通读取保留缓存`() = runTest {
+    var calls = 0
+    val engine = MockEngine {
+      calls++
+      respond("[]", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+    }
+    val backend = LocalDormElectricityApiBackend { HttpClient(engine) }
+    backend.clearRoomCache()
+    backend.getRooms().getOrThrow()
+    backend.getRooms().getOrThrow()
+    assertEquals(1, calls)
+    kotlinx.coroutines.withContext(cn.edu.ubaa.plus.api.recovery.FreshSchoolRead) {
+      backend.getRooms().getOrThrow()
+    }
+    assertEquals(2, calls)
+    backend.clearRoomCache()
+  }
+
+  @Test
   fun `解析房间、电表、购电记录与支付地址`() = runTest {
     val rooms = api.getRooms()
     assertTrue(rooms.isSuccess, rooms.exceptionOrNull()?.message.orEmpty())
